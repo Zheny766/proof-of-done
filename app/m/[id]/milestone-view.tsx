@@ -98,7 +98,7 @@ function MoneyFlow({ m }: { m: Milestone }) {
   const stage =
     m.status === 'awaiting_funding' ? 0 : m.status === 'released' ? 3 : m.status === 'cancelled' ? -1 : m.status === 'reviewing' ? 2 : 1;
   const steps = [
-    { label: 'Client approves', sub: m.client.name },
+    { label: 'Client funds', sub: m.client.name },
     { label: 'PayPal holds funds', sub: m.payment.authorizationId ? `auth ${m.payment.authorizationId.slice(0, 14)}…` : 'authorize intent' },
     { label: 'AI verifies the work', sub: `${m.criteria.length} criteria` },
     { label: 'Freelancer paid', sub: m.payment.captureId ? `capture ${m.payment.captureId.slice(0, 14)}…` : m.freelancer.name },
@@ -111,7 +111,7 @@ function MoneyFlow({ m }: { m: Milestone }) {
         return (
           <li key={s.label} className={`rounded-lg px-3 py-2 ${done ? 'bg-emerald-50' : active ? 'bg-pp-highlight ring-1 ring-pp-blue' : stage === -1 ? 'bg-rose-50/40' : 'bg-slate-50'}`}>
             <div className={`text-xs font-bold ${done ? 'text-emerald-700' : active ? 'text-pp-blue' : 'text-pp-muted'}`}>
-              {done ? '✓' : i + 1}. {s.label}
+              {done ? '✓' : `${i + 1}.`} {s.label}
             </div>
             <div className="truncate text-[11px] text-pp-muted">{s.sub}</div>
           </li>
@@ -125,7 +125,9 @@ function MoneyFlow({ m }: { m: Milestone }) {
 
 function CriterionRow({ text, finding, pending, threshold }: { text: string; finding?: CriterionFinding; pending: boolean; threshold: number }) {
   const icon = !finding ? (pending ? '⟳' : '○') : finding.status === 'met' ? '✓' : finding.status === 'not_met' ? '✕' : '?';
-  const tone = !finding ? 'text-pp-muted' : finding.status === 'met' ? 'text-emerald-600' : finding.status === 'not_met' ? 'text-pp-danger' : 'text-amber-600';
+  // A "met" verdict below the release threshold does not count towards release, so it is amber, not green.
+  const clears = finding?.status === 'met' && finding.confidence >= threshold;
+  const tone = !finding ? 'text-pp-muted' : clears ? 'text-emerald-600' : finding.status === 'not_met' ? 'text-pp-danger' : 'text-amber-600';
   const pct = finding ? Math.round(finding.confidence * 100) : 0;
   return (
     <li className="flex gap-3 py-3">
@@ -136,10 +138,12 @@ function CriterionRow({ text, finding, pending, threshold }: { text: string; fin
           <>
             <div className="mt-1.5 flex items-center gap-2">
               <div className="relative h-1.5 w-32 rounded-full bg-slate-200">
-                <div className={`h-full rounded-full ${finding.status === 'met' && finding.confidence >= threshold ? 'bg-emerald-500' : finding.status === 'not_met' ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
+                <div className={`h-full rounded-full ${clears ? 'bg-emerald-500' : finding.status === 'not_met' ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
                 <div className="absolute -top-0.5 h-2.5 w-px bg-pp-navy" style={{ left: `${threshold * 100}%` }} title="release threshold" />
               </div>
-              <span className="text-xs tabular-nums text-pp-muted">{pct}% confident</span>
+              <span className="text-xs tabular-nums text-pp-muted">
+                {pct}% confident{finding.status === 'met' && !clears ? ` · below the ${Math.round(threshold * 100)}% threshold` : ''}
+              </span>
             </div>
             <p className="mt-1 text-xs text-pp-muted">{finding.evidence}</p>
           </>
@@ -170,8 +174,11 @@ function DecisionBanner({ decision, summary, feedback }: { decision: string; sum
 const LOG_ICON: Record<AgentLogEntry['kind'], string> = { thinking: '💭', tool: '🔧', result: '📋', decision: '⚖️', error: '⚠️', info: 'ℹ️' };
 
 function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), [entries.length]);
+  // Keep the newest entry in view by scrolling the log box itself, never the page.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (box.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [entries.length]);
   return (
     <section className={card}>
       <div className="flex items-center justify-between">
@@ -181,14 +188,13 @@ function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }
       {entries.length === 0 ? (
         <p className="mt-3 text-sm text-pp-muted">Every step the reviewer takes - what it opened, what it found, why it decided - is recorded here.</p>
       ) : (
-        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+        <div ref={box} className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
           {entries.map((e, i) => (
             <div key={i} className="flex gap-2 text-sm">
               <span className="w-5 shrink-0 text-center">{LOG_ICON[e.kind]}</span>
               <span className={e.kind === 'decision' ? 'font-semibold' : e.kind === 'error' ? 'text-pp-danger' : 'text-pp-ink'}>{e.text}</span>
             </div>
           ))}
-          <div ref={end} />
         </div>
       )}
     </section>

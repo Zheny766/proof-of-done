@@ -65,6 +65,10 @@ The interesting part of an agent that controls a payment is what it *can't* do.
 | **Safe tool surface** | `fetch_link` only opens public `http(s)` URLs (private/local addresses blocked), returns stripped text and times out after 12 s. |
 | **Idempotent money calls** | Every PayPal POST carries a `PayPal-Request-Id`, so retries can't double-capture or double-pay. |
 
+When the evidence isn't strong enough, the money stays put and the client sees exactly why:
+
+![Escalated milestone: three verdicts below the 80% threshold, the client decides](docs/screenshots/milestone-escalated.png)
+
 ## What's built with what
 
 ### PayPal (sandbox)
