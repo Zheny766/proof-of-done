@@ -1,0 +1,191 @@
+import 'server-only';
+// Flattens milestones into related tables for the AG Studio "Escrow analytics" dashboard:
+// milestones, AI reviews, per-criterion findings and timeline events.
+
+import { latestFindings } from './policy';
+import { listMilestones } from './store';
+
+export type MilestoneRow = {
+  id: string;
+  title: string;
+  category: string;
+  status: string;
+  stage: string;
+  client: string;
+  freelancer: string;
+  currency: string;
+  amount: number;
+  onHold: number;
+  released: number;
+  voided: number;
+  createdAt: string;
+  createdDate: string;
+  fundedAt: string | null;
+  releasedAt: string | null;
+  hoursToPaid: number | null;
+  criteriaCount: number;
+  criteriaMet: number;
+  submissions: number;
+  reviews: number;
+  autoReleased: boolean;
+  isReleased: number;
+  isAutoReleased: number;
+  lowestConfidence: number | null;
+  paymentMode: string;
+  isDemo: boolean;
+};
+
+export type ReviewRow = {
+  id: string;
+  milestoneId: string;
+  startedAt: string;
+  startedDate: string;
+  engine: string;
+  decision: string;
+  durationSec: number | null;
+  findings: number;
+  metCount: number;
+  notMetCount: number;
+  unclearCount: number;
+  avgConfidence: number | null;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+export type FindingRow = {
+  id: string;
+  milestoneId: string;
+  reviewId: string;
+  criterion: string;
+  status: string;
+  confidence: number;
+  aboveThreshold: boolean;
+  evidence: string;
+};
+
+export type EventRow = {
+  id: string;
+  milestoneId: string;
+  at: string;
+  date: string;
+  actor: string;
+  type: string;
+  text: string;
+};
+
+export type EscrowDashboardData = {
+  asOf: string;
+  milestones: MilestoneRow[];
+  reviews: ReviewRow[];
+  findings: FindingRow[];
+  events: EventRow[];
+};
+
+const STAGE: Record<string, string> = {
+  awaiting_funding: '1 · Awaiting funding',
+  funded: '2 · Funded (on hold)',
+  reviewing: '3 · In review',
+  changes_requested: '3 · Changes requested',
+  escalated: '3 · Escalated to client',
+  released: '4 · Paid',
+  cancelled: '0 · Cancelled',
+};
+
+const categoryOf = (description: string, title: string) => {
+  const m = description.match(/^\[Demo data\] (\w+) job/);
+  if (m) return m[1];
+  const t = title.toLowerCase();
+  if (/logo|design|deck|cover|illustrat/.test(t)) return 'Design';
+  if (/page|site|web|shopify|bug|app/.test(t)) return 'Web';
+  if (/post|blog|translat|copy|write/.test(t)) return 'Writing';
+  if (/video|edit|reel/.test(t)) return 'Video';
+  if (/script|zap|automat|sync/.test(t)) return 'Automation';
+  if (/data|csv|crm|clean/.test(t)) return 'Data';
+  return 'Other';
+};
+
+export function getEscrowDashboardData(): EscrowDashboardData {
+  const milestones = listMilestones();
+  const mRows: MilestoneRow[] = [];
+  const rRows: ReviewRow[] = [];
+  const fRows: FindingRow[] = [];
+  const eRows: EventRow[] = [];
+
+  for (const m of milestones) {
+    const amount = Number(m.amount);
+    const lastReview = m.reviews.at(-1);
+    const latest = lastReview ? latestFindings(m.criteria, lastReview.findings).filter(Boolean) : [];
+    const releasedEvent = m.timeline.find((e) => e.type === 'captured');
+    const autoReleased = m.status === 'released' && m.timeline.some((e) => e.type === 'verified');
+    const fundedAt = m.payment.authorizedAt ?? null;
+    const releasedAt = m.payment.capturedAt ?? releasedEvent?.at ?? null;
+    mRows.push({
+      id: m.id,
+      title: m.title,
+      category: categoryOf(m.description, m.title),
+      status: m.status,
+      stage: STAGE[m.status] ?? m.status,
+      client: m.client.name,
+      freelancer: m.freelancer.name,
+      currency: m.currency,
+      amount,
+      onHold: ['funded', 'reviewing', 'changes_requested', 'escalated'].includes(m.status) ? amount : 0,
+      released: m.status === 'released' ? amount : 0,
+      voided: m.status === 'cancelled' && m.payment.authorizationId ? amount : 0,
+      createdAt: m.createdAt,
+      createdDate: m.createdAt.slice(0, 10),
+      fundedAt,
+      releasedAt,
+      hoursToPaid: fundedAt && releasedAt ? Math.max(0, Math.round((+new Date(releasedAt) - +new Date(fundedAt)) / 3_600_000)) : null,
+      criteriaCount: m.criteria.length,
+      criteriaMet: latest.filter((f) => f!.status === 'met').length,
+      submissions: m.submissions.length,
+      reviews: m.reviews.length,
+      autoReleased,
+      isReleased: m.status === 'released' ? 1 : 0,
+      isAutoReleased: autoReleased ? 1 : 0,
+      lowestConfidence: latest.length ? Math.min(...latest.map((f) => f!.confidence)) : null,
+      paymentMode: m.payment.mode,
+      isDemo: m.description.startsWith('[Demo data]'),
+    });
+
+    for (const r of m.reviews) {
+      const counts = { met: 0, not_met: 0, unclear: 0 };
+      r.findings.forEach((f) => counts[f.status]++);
+      rRows.push({
+        id: r.id,
+        milestoneId: m.id,
+        startedAt: r.startedAt,
+        startedDate: r.startedAt.slice(0, 10),
+        engine: r.engine === 'claude' ? `Claude (${r.model ?? 'claude'})` : 'Simulated',
+        decision: r.decision ?? 'in progress',
+        durationSec: r.finishedAt ? Math.round((+new Date(r.finishedAt) - +new Date(r.startedAt)) / 1000) : null,
+        findings: r.findings.length,
+        metCount: counts.met,
+        notMetCount: counts.not_met,
+        unclearCount: counts.unclear,
+        avgConfidence: r.findings.length ? r.findings.reduce((s, f) => s + f.confidence, 0) / r.findings.length : null,
+        inputTokens: r.usage?.inputTokens ?? 0,
+        outputTokens: r.usage?.outputTokens ?? 0,
+      });
+      r.findings.forEach((f, i) =>
+        fRows.push({
+          id: `${r.id}-${i}`,
+          milestoneId: m.id,
+          reviewId: r.id,
+          criterion: m.criteria.find((c) => c.id === f.criterionId)?.text ?? f.criterionId,
+          status: f.status,
+          confidence: f.confidence,
+          aboveThreshold: f.status === 'met' && f.confidence >= m.releaseThreshold,
+          evidence: f.evidence,
+        }),
+      );
+    }
+
+    m.timeline.forEach((e, i) =>
+      eRows.push({ id: `${m.id}-${i}`, milestoneId: m.id, at: e.at, date: e.at.slice(0, 10), actor: e.actor, type: e.type, text: e.text }),
+    );
+  }
+
+  return { asOf: new Date().toISOString(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows };
+}
