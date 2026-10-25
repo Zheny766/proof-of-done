@@ -8,6 +8,7 @@ import type {
   AgFormat,
   AgRelationDefinition,
 } from 'ag-studio';
+import { createFormats } from 'ag-studio';
 import type { EscrowDashboardData } from '@/lib/escrow/analytics';
 
 // --- Helpers ----------------------------------------------------------------------
@@ -173,6 +174,8 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
         fragments: ['year', 'quarter', 'month', 'week', 'day', 'dayOfWeek'],
       },
     ],
+    // Money in USD: show a dollar sign and whole dollars (the default currency format has no symbol).
+    formats: createFormats({ overrides: { currencyFormat: { formatOptions: { format: '$#,##0' } } } }),
     expressions: [
       ratio('releaseRate', 'Release Rate', 'Released value / total milestone value.', 'milestones.released', 'milestones.amount'),
       ratio('autoReleaseRate', 'AI Auto-release Rate', 'Share of paid milestones where the AI released the money without the client stepping in.', 'milestones.isAutoReleased', 'milestones.isReleased'),

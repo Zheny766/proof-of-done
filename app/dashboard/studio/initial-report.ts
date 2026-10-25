@@ -57,10 +57,16 @@ const overview: AgPageState = {
     'kpi-released': kpi('Released', sum('milestones.released'), 'calendar::week'),
     'kpi-milestones': kpi('Milestones', countd('milestones.id'), 'calendar::week'),
     'kpi-hours': kpi('Hours to paid', avg('milestones.hoursToPaid')),
+    // Custom widget (./pipeline-widget.tsx): the escrow lifecycle as a pipeline.
+    pipeline: {
+      type: 'escrow-pipeline',
+      dataMapping: { stage: [{ id: 'milestones.stage' }], amount: [sum('milestones.amount')] },
+      format: title('Escrow pipeline: where every dollar is right now'),
+    } as unknown as NonNullable<AgPageState['widgets']>[string],
     'value-by-week': {
       type: 'column-chart-stacked',
       dataMapping: {
-        categoryKey: [{ id: 'calendar::week' }],
+        categoryKey: [{ id: 'milestones.createdDate::week' }],
         valueKey: [sum('milestones.amount')],
         legendKey: [{ id: 'milestones.stage' }],
       },
@@ -112,11 +118,12 @@ const overview: AgPageState = {
     'kpi-milestones': at(8, 0, 4, 7),
     'kpi-hours': at(12, 0, 4, 7),
     'created-date': at(16, 0, 8, 7),
-    'value-by-week': at(0, 7, 16, 17),
-    'auto-release': at(16, 7, 8, 17),
-    'stage-donut': at(0, 24, 10, 18),
-    'category-treemap': at(10, 24, 14, 18),
-    'milestone-grid': at(0, 42, 24, 20),
+    pipeline: at(0, 7, 24, 9),
+    'value-by-week': at(0, 16, 16, 17),
+    'auto-release': at(16, 16, 8, 17),
+    'stage-donut': at(0, 33, 10, 18),
+    'category-treemap': at(10, 33, 14, 18),
+    'milestone-grid': at(0, 51, 24, 20),
   },
 };
 

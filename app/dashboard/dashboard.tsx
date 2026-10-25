@@ -18,7 +18,7 @@ import {
   type AgStudioApi,
   type AgStudioMode,
 } from 'ag-studio';
-import { AgStudio, AgStudioProvider } from 'ag-studio-react';
+import { AgStudio, AgStudioProvider, createWidgets } from 'ag-studio-react';
 import type { EscrowDashboardData } from '@/lib/escrow/analytics';
 import { AppShell } from './components/app-shell';
 import {
@@ -48,6 +48,7 @@ import * as reportState from './report-state';
 import { buildAi } from './studio/ai';
 import { buildStudioData, hasData } from './studio/data';
 import { agStudioPayPalTheme } from './studio/theme';
+import { escrowPipelineWidget } from './studio/pipeline-widget';
 import { useReports } from './use-reports';
 
 if (process.env.NODE_ENV !== 'production') {
@@ -96,6 +97,9 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   const [initialState] = useState(() => reportState.withFiltersPanelFor('view', saved.state));
   const state = studioState ?? initialState;
   const studioData = useMemo(() => buildStudioData(data), [data]);
+  // Studio's built-in widgets plus our custom escrow pipeline widget.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- custom widget types live outside the default registry
+  const widgets = useMemo(() => createWidgets({ additionalTypes: [escrowPipelineWidget] } as any), []);
   // `ai` is read once, when Studio is created.
   const ai = useMemo(() => (aiModels?.length ? buildAi(aiModels) : undefined), [aiModels]);
 
@@ -263,6 +267,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
               theme={agStudioPayPalTheme}
               layout={{ widgetBorderEnabled: true }}
               data={studioData}
+              widgets={widgets}
               ai={ai}
               initialState={initialState}
               mode={mode}
