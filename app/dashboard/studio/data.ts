@@ -76,6 +76,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
           ['freelancer', 'Freelancer', 'textFormat'],
           ['currency', 'Currency', 'textFormat'],
           ['amount', 'Amount', 'currencyFormat'],
+          ['escrowed', 'Escrowed', 'currencyFormat'],
           ['onHold', 'On Hold', 'currencyFormat'],
           ['released', 'Released', 'currencyFormat'],
           ['voided', 'Voided', 'currencyFormat'],

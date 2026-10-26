@@ -178,14 +178,14 @@ export function MilestoneView({
 }
 
 function MoneyFlow({ m }: { m: Milestone }) {
-  const stage =
-    m.status === 'awaiting_funding' ? 0 : m.status === 'released' ? 3 : m.status === 'cancelled' ? -1 : m.status === 'reviewing' ? 2 : 1;
+  const stage = { awaiting_funding: 0, funded: 1, reviewing: 2, changes_requested: 2, escalated: 2, released: 3, cancelled: -1 }[m.status];
+  const reviewNote = { reviewing: 'checking now', changes_requested: 'changes requested', escalated: 'waiting for the client' }[m.status as string];
   // A client can approve and pay without an AI review; don't show that step as done then.
   const aiSkipped = m.status === 'released' && !m.timeline.some((e) => e.type === 'verified');
   const steps = [
     { label: 'Client funds', sub: m.client.name },
     { label: 'PayPal holds funds', sub: m.payment.authorizationId ? `auth ${m.payment.authorizationId.slice(0, 14)}…` : 'authorize intent' },
-    { label: 'AI verifies the work', sub: aiSkipped ? 'skipped: client approved' : `${m.criteria.length} criteria` },
+    { label: 'AI verifies the work', sub: aiSkipped ? 'skipped: client approved' : (reviewNote ?? `${m.criteria.length} criteria`) },
     { label: 'Freelancer paid', sub: m.payment.captureId ? `capture ${m.payment.captureId.slice(0, 14)}…` : m.freelancer.name },
   ];
   return (

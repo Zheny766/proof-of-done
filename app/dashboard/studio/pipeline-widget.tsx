@@ -19,6 +19,8 @@ function valueOf(row: Record<string, any>, field: { id: string; key?: string }, 
   return key ? row[key] : Object.values(row)[index];
 }
 
+const oneLine = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } as const;
+
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
@@ -49,7 +51,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
       const countOf = (r: Record<string, any>) => Number(r[countField.key] ?? 0);
       const parsed = rows
         .map((r) => ({ label: String(valueOf(r, stage, 0) ?? '(blank)'), value: Number(valueOf(r, amount, 1) ?? 0), count: countOf(r) }))
-        .filter((s) => s.label !== '(blank)' && s.label !== 'null')
+        .filter((s) => s.label !== '(blank)' && s.label !== 'null' && s.value > 0)
         .sort((a, b) => a.label.localeCompare(b.label));
       if (parsed.length === 0) {
         widgetApi.setDisplayState('noData');
@@ -92,10 +94,10 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
               justifyContent: 'space-between',
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
+            <div style={{ ...oneLine, fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--pp-ink)' }}>{money(s.value)}</div>
-              <div style={{ fontSize: 12, color: 'var(--pp-muted)' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--pp-ink)' }}>{money(s.value)}</div>
+              <div style={{ ...oneLine, fontSize: 11, color: 'var(--pp-muted)' }}>
                 {pct}% of escrow{showCounts && s.count ? ` · ${s.count} milestone${s.count === 1 ? '' : 's'}` : ''}
               </div>
             </div>

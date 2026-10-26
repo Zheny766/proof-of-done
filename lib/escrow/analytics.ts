@@ -15,6 +15,8 @@ export type MilestoneRow = {
   freelancer: string;
   currency: string;
   amount: number;
+  /** The amount, except for cancelled milestones: their hold was voided, so the money is back with the client. */
+  escrowed: number;
   onHold: number;
   released: number;
   voided: number;
@@ -130,6 +132,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       freelancer: m.freelancer.name,
       currency: m.currency,
       amount,
+      escrowed: m.status === 'cancelled' ? 0 : amount,
       onHold: ['funded', 'reviewing', 'changes_requested', 'escalated'].includes(m.status) ? amount : 0,
       released: m.status === 'released' ? amount : 0,
       voided: m.status === 'cancelled' && m.payment.authorizationId ? amount : 0,

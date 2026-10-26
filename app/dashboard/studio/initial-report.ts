@@ -56,14 +56,14 @@ const overview: AgPageState = {
     // Custom widget (./pipeline-widget.tsx): the escrow lifecycle as a pipeline.
     pipeline: {
       type: 'escrow-pipeline',
-      dataMapping: { stage: [{ id: 'milestones.stage' }], amount: [sum('milestones.amount')] },
+      dataMapping: { stage: [{ id: 'milestones.stage' }], amount: [sum('milestones.escrowed')] },
       format: title('Escrow pipeline: where every dollar is right now'),
     } as unknown as NonNullable<AgPageState['widgets']>[string],
     'value-by-week': {
       type: 'column-chart-stacked',
       dataMapping: {
         categoryKey: [{ id: 'milestones.createdDate::week' }],
-        valueKey: [sum('milestones.amount')],
+        valueKey: [sum('milestones.escrowed')],
         legendKey: [{ id: 'milestones.stage' }],
       },
       format: { ...title('Escrowed value by week, by stage'), style: legend },
@@ -71,23 +71,17 @@ const overview: AgPageState = {
     'auto-release': {
       type: 'radial-gauge',
       dataMapping: { value: [{ id: 'autoReleaseRate' }] },
-      format: {
-        ...title('Paid without the client stepping in'),
-        style: {
-          scaleLabel: { min: 0, max: 1 },
-          label: { typography: typography(24, 'bold') },
-          secondaryLabel: { enabled: true, text: 'AI auto-release rate', typography: typography(12) },
-        },
-      },
+      // Leave `label` unset: a partial label object replaces Studio's defaults and hides the value.
+      format: { ...title('Paid without the client stepping in'), style: { scaleLabel: { enabled: true, min: 0, max: 1 } } },
     },
     'stage-donut': {
       type: 'donut-chart',
-      dataMapping: { categoryKey: [{ id: 'milestones.stage' }], valueKey: [sum('milestones.amount')] },
+      dataMapping: { categoryKey: [{ id: 'milestones.stage' }], valueKey: [sum('milestones.escrowed')] },
       format: { ...title('Where the money is'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } } } },
     },
     'category-treemap': {
       type: 'treemap-chart',
-      dataMapping: { categoryKey: [{ id: 'milestones.category' }, { id: 'milestones.title' }], valueKey: [sum('milestones.amount')] },
+      dataMapping: { categoryKey: [{ id: 'milestones.category' }, { id: 'milestones.title' }], valueKey: [sum('milestones.escrowed')] },
       format: title('Escrowed value by type of work'),
     },
     'milestone-grid': {
