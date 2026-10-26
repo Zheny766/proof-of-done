@@ -35,15 +35,21 @@ test('a viewer sees progress, not the work or contact details', () => {
     payment: { mode: 'sandbox', payerEmail: 'buyer@example.com', captureId: 'CAP1' },
     submissions: [{ id: 's', at: '', notes: 'my work', links: ['https://x.example'], attachments: [{ id: 'a', name: 'a.png', mime: 'image/png', size: 1, file: 'ms_2/s/0_a.png' }] }],
     reviews: [{ id: 'r', submissionId: 's', startedAt: '', engine: 'claude', findings: [{ criterionId: 'c1', status: 'met', confidence: 0.9, evidence: 'saw it' }], log: [{ at: '', kind: 'tool', text: 'x' }], summary: 'ok', feedback: 'fix' }],
-    timeline: [{ at: '', actor: 'paypal', type: 'payout', text: 'Payout sent to diego@example.com (batch B1)' }],
+    timeline: [
+      { at: '', actor: 'paypal', type: 'payout', text: 'Payout sent to diego@example.com (batch B1)' },
+      { at: '', actor: 'agent', type: 'verified', text: 'AI reviewer verified every criterion: the secret menu has 6 items' },
+      { at: '', actor: 'client', type: 'approved', text: 'Maya approved the work and released the payment: thanks for the private recipe' },
+    ],
     access: newAccess(),
   } as unknown as Milestone;
   const v = viewerMilestone(full);
   const json = JSON.stringify(v);
-  for (const secret of ['Secret brief', 'maya@example.com', 'diego@example.com', 'buyer@example.com', 'my work', 'x.example', 'a.png', 'saw it', full.access!.clientKey]) {
+  for (const secret of ['secret menu', 'private recipe', 'Secret brief', 'maya@example.com', 'diego@example.com', 'buyer@example.com', 'my work', 'x.example', 'a.png', 'saw it', full.access!.clientKey]) {
     assert.ok(!json.includes(secret), secret);
   }
   assert.equal(v.timeline[0].text, 'Payout sent to [email] (batch B1)');
+  assert.equal(v.timeline[1].text, 'AI reviewer verified every criterion');
+  assert.equal(v.timeline[2].text, 'Maya approved the work and released the payment');
   assert.equal(v.reviews[0].findings[0].status, 'met', 'verdicts stay visible');
   assert.equal(viewerMilestone({ ...full, description: '[Demo data] Design job.' }).description, '[Demo data] Design job.');
 });

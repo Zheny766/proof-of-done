@@ -200,8 +200,8 @@ export function MilestoneView({
             {review?.finishedAt && <DecisionBanner m={m} />}
           </section>
 
-          <AgentLog entries={review?.log ?? []} live={m.status === 'reviewing'} />
-          <Submissions m={m} fileKey={key} />
+          <AgentLog entries={review?.log ?? []} live={m.status === 'reviewing'} hidden={role === 'viewer' && !!review} />
+          {role !== 'viewer' && <Submissions m={m} fileKey={key} />}
         </div>
       </div>
     </main>
@@ -298,7 +298,7 @@ function DecisionBanner({ m }: { m: Milestone }) {
 
 const LOG_TAG: Record<AgentLogEntry['kind'], string> = { thinking: 'note', tool: 'tool', result: 'finding', decision: 'decision', error: 'error', info: 'info' };
 
-function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }) {
+function AgentLog({ entries, live, hidden }: { entries: AgentLogEntry[]; live: boolean; hidden: boolean }) {
   // Keep the newest entry in view by scrolling the log box itself, never the page.
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -310,7 +310,9 @@ function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }
         <h2 className={h2}>AI reviewer · audit log</h2>
         {live && <span className="flex items-center gap-1.5 text-xs font-semibold text-violet-700"><span className="h-2 w-2 animate-pulse rounded-full bg-violet-600" />live</span>}
       </div>
-      {entries.length === 0 ? (
+      {hidden ? (
+        <p className="mt-3 text-sm text-pp-muted">The reviewer&apos;s log and evidence are visible to the client and the freelancer.</p>
+      ) : entries.length === 0 ? (
         <p className="mt-3 text-sm text-pp-muted">Every step the reviewer takes - what it opened, what it found, why it decided - is recorded here.</p>
       ) : (
         <div ref={box} aria-live="polite" className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
