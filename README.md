@@ -128,7 +128,7 @@ lib/escrow/payments.ts             Escrow money flow (sandbox or simulated)
 lib/escrow/reviewer.ts             Claude reviewer agent (Tool Runner) + simulated reviewer
 lib/escrow/policy.ts               The release policy - code that gates the money
 lib/escrow/access.ts               Client / freelancer links: who may do what
-lib/rate-limit.ts                  Per-IP limits on Claude-backed routes, cross-site write check
+lib/rate-limit.ts                  Per-IP + shared limits on Claude-backed routes, cross-site write check
 lib/escrow/public-url.ts           Public-only link fetching for the reviewer (SSRF guard)
 lib/escrow/evidence.ts             Untrusted submission input: tag fencing, file types, linked hosts
 lib/escrow/service.ts              State machine: create -> fund -> submit -> review -> release/void
@@ -150,7 +150,7 @@ Run end to end on October 26, 2026 with a sandbox Personal buyer:
 - **Authorization lifetime.** PayPal honors an authorization for 3 days and allows capture for 29. The app shows both dates; automatic re-authorization after the honor period is not implemented yet.
 - **AI can be wrong.** That's why release needs every criterion above a threshold the client picks, why uncertain cases escalate, and why the client can always override. Subjective criteria ("looks modern") should be avoided - the criteria drafter writes checkable ones.
 - **Payouts** must be enabled on the sandbox REST app; if a payout fails, the capture still stands and the failure is shown on the milestone. A capture that PayPal leaves pending holds the payout; without webhooks nothing retries it yet.
-- **Secret links instead of accounts.** Roles and privacy are enforced with a per-milestone key for each party, but there are no logins. The AG Studio dashboard is an operator view with no login: it shows every milestone (email addresses removed). The routes that call Claude are rate-limited per IP; writes from other sites are refused, and the app sends `frame-ancestors 'none'` and `Referrer-Policy: same-origin`.
+- **Secret links instead of accounts.** Roles and privacy are enforced with a per-milestone key for each party, but there are no logins. The AG Studio dashboard is an operator view with no login: it shows every milestone (email addresses removed). The routes that call Claude are rate-limited per IP, with a shared cap on top (X-Forwarded-For can be faked when no proxy overwrites it); writes from other sites are refused, and the app sends `frame-ancestors 'none'` and `Referrer-Policy: same-origin`.
 - This is a hackathon project, not a licensed escrow service.
 
 ## Built during the hackathon
