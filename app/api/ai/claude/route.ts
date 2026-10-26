@@ -42,6 +42,10 @@ export async function POST(request: Request) {
     return Response.json({ error: { message: 'Request body must be JSON.' } }, { status: 400 });
   }
 
+  if (!body || typeof body !== 'object' || !Array.isArray(body.input) || (body.tools !== undefined && !Array.isArray(body.tools))) {
+    return Response.json({ error: { message: 'Expected an AG Studio LLM request with an `input` array.' } }, { status: 400 });
+  }
+
   const models = aiModels();
   const model = body.model?.id && models.includes(body.model.id) ? body.model.id : models[0];
   const effort = body.model?.effort && EFFORTS.has(body.model.effort) ? body.model.effort : 'medium';
