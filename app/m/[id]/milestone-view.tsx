@@ -246,7 +246,8 @@ function CriterionRow({ text, finding, pending, threshold }: { text: string; fin
   const pct = finding ? Math.round(finding.confidence * 100) : 0;
   return (
     <li className="flex gap-3 py-3">
-      <span className={`mt-0.5 w-5 text-center text-lg font-bold leading-5 ${tone} ${pending ? 'animate-spin' : ''}`}>{icon}</span>
+      <span aria-hidden className={`mt-0.5 w-5 text-center text-lg font-bold leading-5 ${tone} ${pending ? 'animate-spin' : ''}`}>{icon}</span>
+      <span className="sr-only">{!finding ? (pending ? 'Checking:' : 'Not checked yet:') : finding.status === 'met' ? (clears ? 'Met:' : 'Met, below the threshold:') : finding.status === 'not_met' ? 'Not met:' : 'Unclear:'}</span>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{text}</div>
         {finding && (
@@ -351,6 +352,7 @@ function RoleBar({ role, keys, onSwitch, m }: { role: Role; keys: SavedKeys; onS
             <button
               key={r}
               onClick={() => onSwitch(r)}
+              aria-pressed={role === r}
               className={`rounded-full px-2.5 py-1 font-semibold ${role === r ? 'bg-pp-navy text-white' : 'text-pp-blue hover:bg-pp-highlight'}`}
             >
               {r}
@@ -445,7 +447,10 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  // Paying and voiding can't be undone, so they take a second, explicit click.
+  const [confirming, setConfirming] = useState<'approve' | 'cancel' | null>(null);
   async function act(action: 'approve' | 'request_changes' | 'cancel') {
+    setConfirming(null);
     setBusy(action);
     setError('');
     try {
@@ -466,11 +471,33 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
       <h2 className={h2}>Client · always has the final say</h2>
       {m.status === 'escalated' && <p className="mt-2 text-sm text-orange-900">The reviewer could not verify everything on its own. Check its notes and decide.</p>}
       <input aria-label="Note to the freelancer" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note to the freelancer" className="mt-3 h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <button onClick={() => act('approve')} disabled={!!busy} className="h-10 rounded-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{busy === 'approve' ? '…' : 'Approve & pay'}</button>
-        <button onClick={() => act('request_changes')} disabled={!!busy || m.status !== 'escalated'} title={m.status === 'escalated' ? undefined : 'Available once a submission has been reviewed'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Ask for changes</button>
-        <button onClick={() => act('cancel')} disabled={!!busy} className="h-10 rounded-full border border-rose-300 text-xs font-semibold text-pp-danger hover:bg-rose-50 disabled:opacity-50">{busy === 'cancel' ? '…' : 'Cancel & void'}</button>
-      </div>
+      {confirming ? (
+        <div role="alertdialog" aria-label="Confirm" className="mt-3 rounded-lg bg-pp-canvas p-3 text-sm">
+          <p>
+            {confirming === 'approve'
+              ? `Capture ${fmtMoney(m.amount, m.currency)} on PayPal and pay ${m.freelancer.name}? This can't be undone.`
+              : `Void the PayPal hold and close this milestone? ${m.freelancer.name} won't be paid, and this can't be undone.`}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => act(confirming)}
+              autoFocus
+              className={`h-9 rounded-full px-4 text-xs font-semibold text-white ${confirming === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-pp-danger hover:opacity-90'}`}
+            >
+              {confirming === 'approve' ? 'Yes, pay' : 'Yes, cancel and void'}
+            </button>
+            <button onClick={() => setConfirming(null)} className="h-9 rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue">
+              Back
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <button onClick={() => setConfirming('approve')} disabled={!!busy} className="h-10 rounded-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{busy === 'approve' ? '…' : 'Approve & pay'}</button>
+          <button onClick={() => act('request_changes')} disabled={!!busy || m.status !== 'escalated'} title={m.status === 'escalated' ? undefined : 'Available once a submission has been reviewed'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Ask for changes</button>
+          <button onClick={() => setConfirming('cancel')} disabled={!!busy} className="h-10 rounded-full border border-rose-300 text-xs font-semibold text-pp-danger hover:bg-rose-50 disabled:opacity-50">{busy === 'cancel' ? '…' : 'Cancel & void'}</button>
+        </div>
+      )}
       {error && <p className="mt-2 rounded-md bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
     </section>
   );

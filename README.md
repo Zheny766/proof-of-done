@@ -160,4 +160,4 @@ All of Proof of Done was built during the PayPal AI Hackathon submission period.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) for the code written for this project. The dashboard shell, the AG Studio PayPal theme and the PayPal OAuth/GET helper come from PayPal's [hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate), which is published without a license as a starting point for entries; those parts are not relicensed here. AG Studio is commercial software (trial without a key).

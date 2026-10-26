@@ -87,3 +87,21 @@ test('JSON mode strips code fences from the final text', () => {
   const final = toAgResponse({ id: 'm', model: 'x', stop_reason: 'end_turn', content: [{ type: 'text', text: '```json\n{"ok":true}\n```' }], usage: { input_tokens: 1, output_tokens: 1 } } as any, true);
   assert.equal((final.output[0] as any).content[0].text, '{"ok":true}');
 });
+
+test('a tool turn missing from the cache (server restarted) is sent as plain text', () => {
+  const emptyCache = { get: () => undefined };
+  const { messages } = encodeConversation(
+    [
+      { id: '1', kind: 'input', type: 'message', role: 'user', status: 'completed', content: [{ type: 'text', text: 'hi' }] },
+      { id: '2', kind: 'output', type: 'function_call', callId: 'toolu_lost', name: 'view_schema', arguments: '{"t":1}', status: 'completed' },
+      { type: 'function_call_output', callId: 'toolu_lost', output: 'schema', status: 'completed' },
+      { id: '3', kind: 'input', type: 'message', role: 'user', status: 'completed', content: [{ type: 'text', text: 'and now?' }] },
+    ] as any,
+    emptyCache,
+  );
+  const all = messages.flatMap((m) => m.content as any[]);
+  assert.ok(!all.some((b) => b.type === 'tool_use' || b.type === 'tool_result'), 'no orphaned tool blocks');
+  assert.deepEqual(messages.map((m) => m.role), ['user', 'assistant', 'user']);
+  assert.match((messages[1].content as any[])[0].text, /view_schema\(\{"t":1\}\)/);
+  assert.match((messages[2].content as any[])[0].text, /Result of view_schema: schema/);
+});

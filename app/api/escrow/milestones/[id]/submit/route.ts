@@ -20,7 +20,7 @@ export const POST = handle(async (request: Request, ctx: RouteContext<'/api/escr
   const links = String(form.get('links') ?? '')
     .split(/\s+/)
     .map((l) => l.trim())
-    .filter((l) => /^https?:\/\//i.test(l))
+    .filter((l) => /^https?:\/\//i.test(l) && l.length <= 2048)
     .slice(0, 10);
   const files: IncomingFile[] = [];
   for (const entry of form.getAll('files').slice(0, MAX_FILES)) {

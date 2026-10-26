@@ -79,10 +79,20 @@ export function encodeConversation(input: AgAiConversationItem[], cache?: RawCon
 
   // Assistant output items arrive one by one; group consecutive ones into a single assistant turn.
   let pendingAssistant: { blocks: Block[]; callIds: string[] } | null = null;
+  // Tool calls whose original content is gone (e.g. the server restarted mid-conversation). Claude
+  // rejects a tool turn without its thinking blocks, so those calls and results go in as plain text.
+  const flattened = new Map<string, string>();
   const flushAssistant = () => {
     if (!pendingAssistant) return;
-    const cached = pendingAssistant.callIds.map((id) => cache?.get(id)).find(Boolean);
-    push('assistant', cached ?? pendingAssistant.blocks);
+    const { blocks, callIds } = pendingAssistant;
+    const cached = callIds.map((id) => cache?.get(id)).find(Boolean);
+    if (cached) push('assistant', cached);
+    else if (cache && callIds.length) {
+      const calls = blocks.filter((b): b is Anthropic.Beta.BetaToolUseBlockParam => b.type === 'tool_use');
+      for (const c of calls) flattened.set(c.id, c.name);
+      const said = blocks.filter((b) => b.type === 'text');
+      push('assistant', [...said, { type: 'text', text: `(Earlier tool calls: ${calls.map((c) => `${c.name}(${JSON.stringify(c.input)})`).join(', ')})` }]);
+    } else push('assistant', blocks);
     pendingAssistant = null;
   };
 
@@ -108,7 +118,12 @@ export function encodeConversation(input: AgAiConversationItem[], cache?: RawCon
     flushAssistant();
 
     if (item.type === 'function_call_output') {
-      push('user', [{ type: 'tool_result', tool_use_id: item.callId, content: item.output || '(empty)' }]);
+      const name = flattened.get(item.callId);
+      push('user', [
+        name
+          ? { type: 'text', text: `Result of ${name}: ${item.output || '(empty)'}` }
+          : { type: 'tool_result', tool_use_id: item.callId, content: item.output || '(empty)' },
+      ]);
       continue;
     }
     if (item.kind === 'input' && item.type === 'message') {
