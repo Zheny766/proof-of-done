@@ -1,6 +1,7 @@
 import 'server-only';
 // Fake history for the dashboard. Everything is marked "[Demo data]" and uses simulated payments.
 
+import { newAccess } from './access';
 import { insertMilestone, newId } from './store';
 import type { CriterionFinding, Milestone, MilestoneStatus, ReviewDecision } from './types';
 
@@ -65,6 +66,7 @@ export function seedDemo(count = 30): number {
       submissions: [],
       reviews: [],
       timeline: [{ at: at(0), actor: 'client', type: 'created', text: `${cName} created the milestone for ${amount} USD` }],
+      access: newAccess(),
       createdAt: at(0),
       updatedAt: at(0),
     };

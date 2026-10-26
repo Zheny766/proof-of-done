@@ -44,7 +44,7 @@ export function NewMilestoneForm() {
     setError('');
     setSaving(true);
     try {
-      const { milestone } = await api<{ milestone: Milestone }>('/api/escrow/milestones', {
+      const { milestone, clientKey } = await api<{ milestone: Milestone; clientKey: string }>('/api/escrow/milestones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -53,7 +53,7 @@ export function NewMilestoneForm() {
           clientName, clientEmail, freelancerName, freelancerEmail, releaseThreshold: threshold,
         }),
       });
-      router.push(`/m/${milestone.id}`);
+      router.push(`/m/${milestone.id}?key=${clientKey}`);
     } catch (e) {
       setError((e as Error).message);
       setSaving(false);

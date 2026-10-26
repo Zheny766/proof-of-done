@@ -5,6 +5,9 @@ import { PayPalApiError } from '@/lib/paypal';
 import { isCrossSite } from '@/lib/rate-limit';
 import { EscrowError } from './service';
 
+/** The caller's milestone key (from their client or freelancer link), sent by the browser as a header. */
+export const milestoneKey = (request: Request) => request.headers.get('x-milestone-key');
+
 /** Wrap a route handler so domain, validation and PayPal errors become clean JSON responses. */
 export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response>) {
   return async (...args: A): Promise<Response> => {

@@ -1,3 +1,4 @@
+import { publicMilestone } from '@/lib/escrow/access';
 import { handle } from '@/lib/escrow/http';
 import { readMilestone } from '@/lib/escrow/service';
 
@@ -5,5 +6,5 @@ export const GET = handle(async (_req: Request, ctx: RouteContext<'/api/escrow/m
   const { id } = await ctx.params;
   const milestone = await readMilestone(id);
   if (!milestone) return Response.json({ error: 'Not found' }, { status: 404 });
-  return Response.json({ milestone });
+  return Response.json({ milestone: publicMilestone(milestone) });
 });

@@ -6,11 +6,12 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
+import { roleFor, newAccess } from './access';
 import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments';
 import { claudeErrorMessage, isClaudeConfigured } from '@/lib/ai';
 import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
 import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store';
-import type { Attachment, Milestone, Review } from './types';
+import type { Attachment, Milestone, Review, Role } from './types';
 
 export class EscrowError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -19,6 +20,12 @@ export class EscrowError extends Error {
 }
 
 const money = (n: number, ccy: string) => `${n.toFixed(2)} ${ccy}`;
+
+function requireRole(m: Milestone, key: string | null, role: Exclude<Role, 'viewer'>) {
+  if (roleFor(m, key) !== role) {
+    throw new EscrowError(role === 'client' ? 'Only the client can do this - open the client link.' : 'Only the freelancer can do this - open the freelancer link.', 403);
+  }
+}
 
 export const CreateMilestoneInput = z.object({
   title: z.string().trim().min(3).max(120),
@@ -51,6 +58,7 @@ export function createMilestone(raw: unknown): Milestone {
     submissions: [],
     reviews: [],
     timeline: [],
+    access: newAccess(),
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
@@ -58,8 +66,9 @@ export function createMilestone(raw: unknown): Milestone {
   return insertMilestone(m);
 }
 
-export async function beginFunding(id: string): Promise<{ orderId: string }> {
+export async function beginFunding(id: string, key: string | null): Promise<{ orderId: string }> {
   const m = mustGet(id);
+  requireRole(m, key, 'client');
   if (m.status !== 'awaiting_funding') throw new EscrowError('This milestone is already funded.');
   const { orderId } = await startFunding(m);
   updateMilestone(id, (x) => {
@@ -69,8 +78,9 @@ export async function beginFunding(id: string): Promise<{ orderId: string }> {
   return { orderId };
 }
 
-export async function confirmFunding(id: string, orderId: string): Promise<Milestone> {
+export async function confirmFunding(id: string, orderId: string, key: string | null): Promise<Milestone> {
   const m = mustGet(id);
+  requireRole(m, key, 'client');
   if (m.status !== 'awaiting_funding') return m;
   // Only the order we created for this milestone can fund it.
   if (!m.payment.orderId || m.payment.orderId !== orderId) throw new EscrowError('Order does not belong to this milestone.');
@@ -93,8 +103,13 @@ export interface IncomingFile {
   bytes: Buffer;
 }
 
-export function submitWork(id: string, input: { notes: string; links: string[]; files: IncomingFile[] }): { milestone: Milestone; reviewId: string } {
+export function submitWork(
+  id: string,
+  input: { notes: string; links: string[]; files: IncomingFile[] },
+  key: string | null,
+): { milestone: Milestone; reviewId: string } {
   const m = mustGet(id);
+  requireRole(m, key, 'freelancer');
   if (!['funded', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot submit work while the milestone is ${m.status}.`);
   if (!input.notes.trim() && input.links.length === 0 && input.files.length === 0) throw new EscrowError('Add notes, a link or a file.');
 
@@ -230,8 +245,9 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
   });
 }
 
-export async function clientDecision(id: string, action: 'approve' | 'request_changes' | 'cancel', note = ''): Promise<Milestone> {
+export async function clientDecision(id: string, action: 'approve' | 'request_changes' | 'cancel', note: string, key: string | null): Promise<Milestone> {
   const m = mustGet(id);
+  requireRole(m, key, 'client');
   if (action === 'approve') {
     if (!['funded', 'escalated', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot release while ${m.status}.`);
     const payment = await releaseFunds(m, note || 'Released by the client');

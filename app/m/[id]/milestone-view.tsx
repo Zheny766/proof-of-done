@@ -1,16 +1,86 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentLogEntry, CriterionFinding, Milestone } from '@/lib/escrow/types';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import type { AgentLogEntry, CriterionFinding, Milestone, Role } from '@/lib/escrow/types';
 import { latestFindings } from '@/lib/escrow/policy';
-import { api, fmtDate, fmtMoney, STATUS, StatusBadge } from '@/app/components/status';
+import { api, fmtDate, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
 import { PayPalFundButton } from '@/app/components/paypal-fund-button';
 
 const card = 'rounded-xl border border-pp-border bg-white p-5 shadow-sm';
 const h2 = 'text-xs font-semibold uppercase tracking-wider text-pp-muted';
 
-export function MilestoneView({ initial, paypalClientId }: { initial: Milestone; paypalClientId: string | null }) {
+type Party = Exclude<Role, 'viewer'>;
+type SavedKeys = { client?: string; freelancer?: string; share?: string };
+
+// Keys from links opened in this browser, so the milestone still works when reopened from the list.
+const storageKey = (id: string) => `pod:keys:${id}`;
+const KEYS_CHANGED = 'pod:keys-changed';
+
+function readStored(id: string): string | null {
+  try {
+    return localStorage.getItem(storageKey(id));
+  } catch {
+    return null; // storage blocked (private mode): the link in the address bar still works
+  }
+}
+
+function parseKeys(raw: string | null): SavedKeys {
+  try {
+    return raw ? (JSON.parse(raw) as SavedKeys) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Adds keys to what this browser already has for the milestone (never drops the other party's key). */
+function saveKeys(id: string, add: SavedKeys) {
+  try {
+    localStorage.setItem(storageKey(id), JSON.stringify({ ...parseKeys(readStored(id)), ...add }));
+    window.dispatchEvent(new Event(KEYS_CHANGED));
+  } catch {}
+}
+
+function subscribeKeys(onChange: () => void) {
+  window.addEventListener('storage', onChange);
+  window.addEventListener(KEYS_CHANGED, onChange);
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener(KEYS_CHANGED, onChange);
+  };
+}
+
+const noSubscribe = () => () => {};
+
+export function MilestoneView({
+  initial,
+  link,
+  freelancerKey,
+  paypalClientId,
+}: {
+  initial: Milestone;
+  link: { role: Party; key: string } | null;
+  freelancerKey: string | null;
+  paypalClientId: string | null;
+}) {
   const [m, setM] = useState(initial);
+  const [chosen, setChosen] = useState<Party | null>(null);
+
+  const stored = useSyncExternalStore(subscribeKeys, () => readStored(initial.id), () => null);
+  const fromLink = useMemo<SavedKeys>(
+    () => ({ ...(link && { [link.role]: link.key }), ...(freelancerKey && { share: freelancerKey }) }),
+    [link, freelancerKey],
+  );
+  const keys = useMemo<SavedKeys>(() => ({ ...parseKeys(stored), ...fromLink }), [stored, fromLink]);
+
+  useEffect(() => {
+    if (!link) return;
+    saveKeys(initial.id, fromLink);
+    // Keep the key out of the address bar (and out of screenshots and recordings).
+    window.history.replaceState(null, '', `/m/${initial.id}`);
+  }, [initial.id, link, fromLink]);
+
+  const role: Role = chosen ?? link?.role ?? (keys.client ? 'client' : keys.freelancer ? 'freelancer' : 'viewer');
+  const key = role === 'viewer' ? null : (keys[role] ?? null);
 
   const refresh = useCallback(async () => {
     const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${initial.id}`);
@@ -49,17 +119,28 @@ export function MilestoneView({ initial, paypalClientId }: { initial: Milestone;
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <div className="space-y-6">
-          {m.status === 'awaiting_funding' && (
+          <RoleBar role={role} keys={keys} onSwitch={setChosen} m={m} />
+
+          {role === 'client' && m.status === 'awaiting_funding' && (
             <section className={card}>
               <h2 className={h2}>Step 1 · Client funds the milestone</h2>
               <p className="mb-4 mt-2 text-sm">Approve {fmtMoney(m.amount, m.currency)} with PayPal. It is held, not charged, until the work is verified.</p>
-              <PayPalFundButton milestoneId={m.id} clientId={paypalClientId} onFunded={refresh} />
+              <PayPalFundButton milestoneId={m.id} milestoneKey={key} clientId={paypalClientId} onFunded={refresh} />
             </section>
           )}
 
-          {(m.status === 'funded' || m.status === 'changes_requested') && <SubmitWork m={m} onSubmitted={setM} />}
+          {role === 'freelancer' && m.status === 'awaiting_funding' && (
+            <section className={card}>
+              <h2 className={h2}>Freelancer</h2>
+              <p className="mt-2 text-sm">Waiting for {m.client.name} to put the money on hold with PayPal. You can submit the work once it is funded.</p>
+            </section>
+          )}
 
-          {['funded', 'escalated', 'changes_requested'].includes(m.status) && <ClientDecision m={m} onChange={setM} />}
+          {role === 'freelancer' && (m.status === 'funded' || m.status === 'changes_requested') && <SubmitWork m={m} milestoneKey={key} onSubmitted={setM} />}
+
+          {role === 'client' && ['funded', 'escalated', 'changes_requested'].includes(m.status) && <ClientDecision m={m} milestoneKey={key} onChange={setM} />}
+
+          {role === 'client' && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
 
           <PaymentDetails m={m} />
           <Timeline m={m} />
@@ -198,7 +279,65 @@ function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }
   );
 }
 
-function SubmitWork({ m, onSubmitted }: { m: Milestone; onSubmitted: (m: Milestone) => void }) {
+function RoleBar({ role, keys, onSwitch, m }: { role: Role; keys: SavedKeys; onSwitch: (r: Party) => void; m: Milestone }) {
+  if (role === 'viewer') {
+    if (['released', 'cancelled'].includes(m.status)) return null;
+    return (
+      <section className={`${card} text-sm text-pp-muted`}>
+        Read-only. The client and the freelancer each have their own link to act on this milestone.
+      </section>
+    );
+  }
+  const both = keys.client && keys.freelancer;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-pp-border bg-white px-4 py-2.5 text-sm">
+      <span>
+        You are the <b>{role}</b>
+        {role === 'client' ? ` (${m.client.name})` : ` (${m.freelancer.name})`}
+      </span>
+      {both && (
+        <span className="flex items-center gap-1 text-xs text-pp-muted">
+          Both links are open in this browser:
+          {(['client', 'freelancer'] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => onSwitch(r)}
+              className={`rounded-full px-2.5 py-1 font-semibold ${role === r ? 'bg-pp-navy text-white' : 'text-pp-blue hover:bg-pp-highlight'}`}
+            >
+              {r}
+            </button>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ShareLink({ id, shareKey, name }: { id: string; shareKey: string; name: string }) {
+  const [copied, setCopied] = useState(false);
+  const origin = useSyncExternalStore(noSubscribe, () => window.location.origin, () => '');
+  const url = `${origin}/m/${id}?key=${shareKey}`;
+  return (
+    <section className={card}>
+      <h2 className={h2}>Link for the freelancer</h2>
+      <p className="mt-2 text-sm">Send this to {name}. With it they can submit the work, nothing more: no releasing or cancelling.</p>
+      <div className="mt-3 flex gap-2">
+        <input readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Freelancer link" className="h-9 min-w-0 flex-1 rounded-md border border-pp-border bg-pp-canvas px-2 font-mono text-xs" />
+        <button
+          onClick={() => navigator.clipboard.writeText(url).then(() => setCopied(true))}
+          className="h-9 shrink-0 rounded-md border border-pp-border px-3 text-xs font-semibold hover:border-pp-blue"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <a href={url} target="_blank" rel="noreferrer" className="grid h-9 shrink-0 place-items-center rounded-md border border-pp-border px-3 text-xs font-semibold hover:border-pp-blue">
+          Open
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneKey: string | null; onSubmitted: (m: Milestone) => void }) {
   const [notes, setNotes] = useState('');
   const [links, setLinks] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -215,7 +354,11 @@ function SubmitWork({ m, onSubmitted }: { m: Milestone; onSubmitted: (m: Milesto
     fd.set('links', links);
     files.forEach((f) => fd.append('files', f));
     try {
-      const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/submit`, { method: 'POST', body: fd });
+      const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/submit`, {
+        method: 'POST',
+        headers: keyHeader(milestoneKey),
+        body: fd,
+      });
       onSubmitted(milestone);
     } catch (err) {
       setError((err as Error).message);
@@ -243,7 +386,7 @@ function SubmitWork({ m, onSubmitted }: { m: Milestone; onSubmitted: (m: Milesto
   );
 }
 
-function ClientDecision({ m, onChange }: { m: Milestone; onChange: (m: Milestone) => void }) {
+function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestoneKey: string | null; onChange: (m: Milestone) => void }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -253,7 +396,7 @@ function ClientDecision({ m, onChange }: { m: Milestone; onChange: (m: Milestone
     try {
       const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/decision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
         body: JSON.stringify({ action, note }),
       });
       onChange(milestone);

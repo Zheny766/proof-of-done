@@ -22,6 +22,9 @@ export const fmtMoney = (amount: string | number, currency: string) =>
 export const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+/** Header that proves which party is acting (the key from their milestone link). */
+export const keyHeader = (key: string | null): Record<string, string> => (key ? { 'x-milestone-key': key } : {});
+
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   const body = await res.json().catch(() => ({}));

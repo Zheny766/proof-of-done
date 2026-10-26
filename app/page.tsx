@@ -1,5 +1,6 @@
 import { connection } from 'next/server';
 import Link from 'next/link';
+import { publicMilestone } from '@/lib/escrow/access';
 import { listMilestones } from '@/lib/escrow/store';
 import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
@@ -60,7 +61,7 @@ export default async function Home() {
             </div>
             <DemoDataButton />
           </div>
-          <MilestonesGrid milestones={milestones} />
+          <MilestonesGrid milestones={milestones.map(publicMilestone)} />
         </section>
       </main>
     </>

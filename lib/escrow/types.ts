@@ -86,6 +86,13 @@ export interface PaymentState {
   payerEmail?: string;
 }
 
+export interface MilestoneAccess {
+  clientKey: string;
+  freelancerKey: string;
+}
+
+export type Role = 'client' | 'freelancer' | 'viewer';
+
 export interface TimelineEvent {
   at: string;
   type: string;
@@ -109,6 +116,8 @@ export interface Milestone {
   submissions: Submission[];
   reviews: Review[];
   timeline: TimelineEvent[];
+  /** Secret keys for the two parties' links. Server-side only; missing on very old records. */
+  access?: MilestoneAccess;
   createdAt: string;
   updatedAt: string;
 }

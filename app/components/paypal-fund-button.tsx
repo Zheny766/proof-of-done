@@ -4,7 +4,7 @@
 // authorize it - money is held, not charged. Without PayPal keys it fakes both steps.
 
 import { useEffect, useRef, useState } from 'react';
-import { api } from './status';
+import { api, keyHeader } from './status';
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace -- the PayPal v6 SDK ships no types; `<paypal-button>` is its web component */
 declare global {
@@ -31,20 +31,32 @@ function loadSdk(): Promise<void> {
   });
 }
 
-export function PayPalFundButton({ milestoneId, clientId, onFunded }: { milestoneId: string; clientId: string | null; onFunded: () => void }) {
+export function PayPalFundButton({
+  milestoneId,
+  milestoneKey,
+  clientId,
+  onFunded,
+}: {
+  milestoneId: string;
+  milestoneKey: string | null;
+  clientId: string | null;
+  onFunded: () => void;
+}) {
   const [state, setState] = useState<'loading' | 'ready' | 'working' | 'error'>(clientId ? 'loading' : 'ready');
   const [error, setError] = useState('');
   const sessionRef = useRef<any>(null);
 
   const createOrder = () =>
-    api<{ orderId: string }>(`/api/escrow/milestones/${milestoneId}/order`, { method: 'POST' }).then(({ orderId }) => ({ orderId }));
+    api<{ orderId: string }>(`/api/escrow/milestones/${milestoneId}/order`, { method: 'POST', headers: keyHeader(milestoneKey) }).then(({ orderId }) => ({
+      orderId,
+    }));
 
   const authorize = async (orderId: string) => {
     setState('working');
     try {
       await api(`/api/escrow/milestones/${milestoneId}/authorize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
         body: JSON.stringify({ orderId }),
       });
       onFunded();

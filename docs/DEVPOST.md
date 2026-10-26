@@ -17,6 +17,7 @@ With fixed-price freelance work someone always has to go first. Either the freel
 - A Claude Opus 5.5 reviewer agent reads the brief, opens the links, looks at the images and documents, and records a finding for each criterion: met / not met / unclear, with a confidence and the evidence.
 - Then it makes one decision: release (capture the authorization and send a PayPal Payout to the freelancer), request changes (with specific feedback, money stays on hold), or escalate to the client.
 - The client can always step in: approve, ask for changes, or cancel, which voids the authorization so nothing is charged.
+- Each side gets its own private link. The server checks it on every action: only the client can fund, approve or cancel, only the freelancer can submit.
 - An AG Studio dashboard shows where the money is, how often the AI paid out on its own, which verdicts were least confident, and how each freelancer is doing. Its assistant runs on Claude through an adapter I wrote for the AG Studio Agent Framework.
 
 ## How I built it
