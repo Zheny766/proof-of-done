@@ -33,3 +33,20 @@ test('upload types come from the bytes', () => {
   assert.equal(sniffType(text, 'text/markdown'), 'text/markdown');
   assert.equal(sniffType(text, ''), 'application/octet-stream');
 });
+
+test('html to text: scripts and styles dropped, entities decoded', async () => {
+  const { htmlToText } = await import('../lib/escrow/evidence.ts');
+  const html = '<html><head><style>p{color:red}</style><SCRIPT>alert(1)</SCRIPT></head><body><h1>Menu</h1><p>Flat&nbsp;white &amp; tea &lt;$5&gt;</p></body></html>';
+  assert.equal(htmlToText(html), 'Menu Flat white & tea <$5>');
+  assert.equal(htmlToText('before <script>never closed'), 'before');
+  assert.equal(htmlToText('plain text'), 'plain text');
+});
+
+test('html to text stays linear on hostile input', async () => {
+  const { htmlToText } = await import('../lib/escrow/evidence.ts');
+  for (const evil of ['<script>'.repeat(250_000), '<'.repeat(2_000_000), '<a '.repeat(600_000), '<style>x</style>'.repeat(120_000)]) {
+    const started = performance.now();
+    htmlToText(evil);
+    assert.ok(performance.now() - started < 1500, `${evil.slice(0, 10)}... took too long`);
+  }
+});

@@ -9,7 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodTool } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { checkReleasePolicy } from './policy.ts';
-import { cleanName, fence, normalHost, submittedHosts } from './evidence.ts';
+import { cleanName, fence, htmlToText, normalHost, submittedHosts } from './evidence.ts';
 import { fetchPublic } from './public-url.ts';
 import { UPLOAD_DIR } from './store.ts';
 import type { AgentLogEntry, CriterionFinding, Milestone, ReviewDecision, Submission } from './types.ts';
@@ -95,14 +95,6 @@ function evidenceBlocks(m: Milestone, s: Submission): Anthropic.Beta.BetaContent
   return [{ type: 'text', text: intro }, ...blocks];
 }
 
-const stripHtml = (html: string) =>
-  html
-    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ');
-
 const MAX_FETCHES = 8;
 
 async function fetchLink(link: string, allowedHosts: Set<string>): Promise<string> {
@@ -117,7 +109,7 @@ async function fetchLink(link: string, allowedHosts: Set<string>): Promise<strin
   }
   try {
     const page = await fetchPublic(url, { headers: { 'User-Agent': 'ProofOfDoneReviewer/1.0' } });
-    const text = page.contentType.includes('html') ? stripHtml(page.body) : page.body;
+    const text = page.contentType.includes('html') ? htmlToText(page.body) : page.body;
     return `HTTP ${page.status} ${page.contentType}\n${fence('page', text.slice(0, 25_000), `url="${encodeURI(page.url.href)}"`)}`;
   } catch (error) {
     return `Error fetching ${url.href}: ${(error as Error).message}`;

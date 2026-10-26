@@ -48,3 +48,42 @@ export function sniffType(bytes: Uint8Array, claimed: string): string {
   if (claimed.startsWith('image/') || claimed === 'application/pdf') return 'application/octet-stream';
   return claimed || 'application/octet-stream';
 }
+
+const ENTITIES: Record<string, string> = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+
+/**
+ * Visible text of an HTML page, in one forward pass. (A regex like /<script[\s\S]*?<\/script>/ goes
+ * quadratic on a page full of unclosed <script> tags: a hostile site could stall the server.)
+ */
+export function htmlToText(html: string): string {
+  const parts: string[] = [];
+  const closing = { script: /<\/script/gi, style: /<\/style/gi };
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf('<', i);
+    if (lt === -1) {
+      parts.push(html.slice(i));
+      break;
+    }
+    parts.push(html.slice(i, lt), ' ');
+    const head = html.slice(lt, lt + 7).toLowerCase();
+    const raw = head.startsWith('<script') ? 'script' : head.startsWith('<style') ? 'style' : null;
+    let from = lt;
+    if (raw) {
+      // Skip the element's contents; an unclosed one runs to the end of the page.
+      const re = closing[raw];
+      re.lastIndex = lt;
+      const close = re.exec(html);
+      if (!close) break;
+      from = close.index;
+    }
+    const gt = html.indexOf('>', from);
+    if (gt === -1) break;
+    i = gt + 1;
+  }
+  return parts
+    .join('')
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (e) => ENTITIES[e])
+    .replace(/\s+/g, ' ')
+    .trim();
+}
