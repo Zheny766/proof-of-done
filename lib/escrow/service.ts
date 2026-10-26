@@ -7,7 +7,7 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
-import { cancelFunding, completeFunding, paymentMode, releaseFunds, startFunding } from './payments';
+import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments';
 import { isClaudeConfigured, REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
 import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store';
 import type { Attachment, Milestone, Review } from './types';
@@ -162,8 +162,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
           x.status = 'released';
           pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
           pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
-          if (payment.payoutBatchId) pushEvent(x, 'paypal', 'payout', `Payout sent to ${x.freelancer.email} (batch ${payment.payoutBatchId})`);
-          else if (payment.payoutStatus) pushEvent(x, 'system', 'payout_failed', `Payout not sent: ${payment.payoutStatus}`);
+          pushPayoutEvent(x, payment);
         });
         return null;
       } catch (error) {
@@ -209,6 +208,20 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
   }
 }
 
+// --- Reading ---------------------------------------------------------------------------------------
+
+/** The milestone, with a pending PayPal payout's status brought up to date. */
+export async function readMilestone(id: string): Promise<Milestone | undefined> {
+  const m = getMilestone(id);
+  if (!m) return undefined;
+  const status = await refreshPayoutStatus(m);
+  if (!status) return m;
+  return updateMilestone(id, (x) => {
+    x.payment.payoutStatus = status;
+    if (status === 'SUCCESS') pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email}`);
+  });
+}
+
 // --- Client overrides ----------------------------------------------------------------------
 
 export async function clientDecision(id: string, action: 'approve' | 'request_changes' | 'cancel', note = ''): Promise<Milestone> {
@@ -221,6 +234,7 @@ export async function clientDecision(id: string, action: 'approve' | 'request_ch
       x.status = 'released';
       pushEvent(x, 'client', 'approved', `${x.client.name} approved the work and released the payment${note ? `: ${note}` : ''}`);
       pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
+      pushPayoutEvent(x, payment);
     });
   }
   if (action === 'request_changes') {
@@ -273,6 +287,11 @@ Description: ${description || '(none)'}`,
     ],
   });
   return response.parsed_output?.criteria.slice(0, 6) ?? [];
+}
+
+function pushPayoutEvent(m: Milestone, payment: Partial<Milestone['payment']>) {
+  if (payment.payoutBatchId) pushEvent(m, 'paypal', 'payout', `Payout sent to ${m.freelancer.email} (batch ${payment.payoutBatchId})`);
+  else if (payment.payoutStatus) pushEvent(m, 'system', 'payout_failed', `Payout not sent: ${payment.payoutStatus}`);
 }
 
 function mustGet(id: string): Milestone {

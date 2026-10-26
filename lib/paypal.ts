@@ -216,3 +216,8 @@ export function createPayout(input: {
     `payout-${input.milestoneId}`,
   );
 }
+
+/** Current status of a payout batch (PENDING -> SUCCESS once the money reaches the receiver). */
+export function getPayoutBatch(batchId: string): Promise<PayoutBatch> {
+  return get<PayoutBatch>(`/v1/payments/payouts/${encodeURIComponent(batchId)}`);
+}

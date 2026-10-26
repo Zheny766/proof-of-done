@@ -3,6 +3,7 @@ import { connection } from 'next/server';
 import type { Metadata } from 'next';
 import { getMilestone } from '@/lib/escrow/store';
 import { paymentMode } from '@/lib/escrow/payments';
+import { readMilestone } from '@/lib/escrow/service';
 import { SiteHeader } from '@/app/components/site-header';
 import { MilestoneView } from './milestone-view';
 
@@ -14,7 +15,7 @@ export async function generateMetadata(props: PageProps<'/m/[id]'>): Promise<Met
 export default async function MilestonePage(props: PageProps<'/m/[id]'>) {
   await connection();
   const { id } = await props.params;
-  const milestone = getMilestone(id);
+  const milestone = await readMilestone(id);
   if (!milestone) notFound();
   return (
     <>

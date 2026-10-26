@@ -9,6 +9,7 @@ import {
   captureAuthorization,
   createAuthorizeOrder,
   createPayout,
+  getPayoutBatch,
   isPayPalConfigured,
   voidAuthorization,
 } from '@/lib/paypal';
@@ -102,4 +103,16 @@ export async function cancelFunding(m: Milestone): Promise<Partial<PaymentState>
   const authId = m.payment.authorizationId;
   if (authId && m.payment.mode === 'sandbox') await voidAuthorization(authId);
   return { voidedAt: new Date().toISOString(), authorizationStatus: authId ? 'VOIDED' : undefined };
+}
+
+/** A payout batch starts as PENDING; ask PayPal for its current status. Null when there is nothing to refresh. */
+export async function refreshPayoutStatus(m: Milestone): Promise<string | null> {
+  const { mode, payoutBatchId, payoutStatus } = m.payment;
+  if (mode !== 'sandbox' || !payoutBatchId || !['PENDING', 'PROCESSING'].includes(payoutStatus ?? '')) return null;
+  try {
+    const batch = await getPayoutBatch(payoutBatchId);
+    return batch.batch_header.batch_status !== payoutStatus ? batch.batch_header.batch_status : null;
+  } catch {
+    return null;
+  }
 }
