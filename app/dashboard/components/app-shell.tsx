@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { Logo } from '@/app/components/logo';
 import { AgStudioLogo } from './ui/logo';
 
 // The app frame, laid out like the PayPal Developer Dashboard: a white top bar, a left sidebar
@@ -19,12 +20,7 @@ function PayPalWordmark({ className = '' }: { className?: string }) {
 function BrandLockup() {
   return (
     <div className="flex items-center gap-3">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-pp-navy text-sm font-black text-white">✓</span>
-        <span className="text-lg font-bold tracking-tight text-pp-navy">
-          Proof <span className="text-pp-blue">of Done</span>
-        </span>
-      </Link>
+      <Logo />
       <span className="h-6 w-px bg-pp-border" aria-hidden />
       <span className="flex items-center gap-1 text-xs text-pp-muted">
         escrow analytics in <AgStudioLogo className="-ml-1 h-9 w-auto" /> on <PayPalWordmark className="text-base" />

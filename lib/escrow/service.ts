@@ -21,6 +21,30 @@ export class EscrowError extends Error {
 
 const money = (n: number, ccy: string) => `${n.toFixed(2)} ${ccy}`;
 
+// Money operations on one milestone run one at a time (two tabs, a double click, a poll racing a
+// click), so every status check sees the result of the previous operation.
+const queues = new Map<string, Promise<unknown>>();
+function exclusive<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const run = (queues.get(id) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => {});
+  queues.set(id, tail);
+  void tail.then(() => queues.get(id) === tail && queues.delete(id));
+  return run;
+}
+
+// Decide the type from the bytes, not from what the browser said: a text file renamed to .png
+// would otherwise be sent to Claude as an image and fail the whole review.
+function sniffType(bytes: Buffer, claimed: string): string {
+  const head = bytes.subarray(0, 12);
+  if (head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'image/jpeg';
+  if (head.subarray(0, 4).toString('latin1') === 'GIF8') return 'image/gif';
+  if (head.subarray(0, 4).toString('latin1') === 'RIFF' && head.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  if (head.subarray(0, 5).toString('latin1') === '%PDF-') return 'application/pdf';
+  if (claimed.startsWith('image/') || claimed === 'application/pdf') return 'application/octet-stream';
+  return claimed || 'application/octet-stream';
+}
+
 function requireRole(m: Milestone, key: string | null, role: Exclude<Role, 'viewer'>) {
   if (roleFor(m, key) !== role) {
     throw new EscrowError(role === 'client' ? 'Only the client can do this - open the client link.' : 'Only the freelancer can do this - open the freelancer link.', 403);
@@ -66,7 +90,8 @@ export function createMilestone(raw: unknown): Milestone {
   return insertMilestone(m);
 }
 
-export async function beginFunding(id: string, key: string | null): Promise<{ orderId: string }> {
+export const beginFunding = (id: string, key: string | null) => exclusive(id, () => beginFundingNow(id, key));
+async function beginFundingNow(id: string, key: string | null): Promise<{ orderId: string }> {
   const m = mustGet(id);
   requireRole(m, key, 'client');
   if (m.status !== 'awaiting_funding') throw new EscrowError('This milestone is already funded.');
@@ -78,7 +103,8 @@ export async function beginFunding(id: string, key: string | null): Promise<{ or
   return { orderId };
 }
 
-export async function confirmFunding(id: string, orderId: string, key: string | null): Promise<Milestone> {
+export const confirmFunding = (id: string, orderId: string, key: string | null) => exclusive(id, () => confirmFundingNow(id, orderId, key));
+async function confirmFundingNow(id: string, orderId: string, key: string | null): Promise<Milestone> {
   const m = mustGet(id);
   requireRole(m, key, 'client');
   if (m.status !== 'awaiting_funding') return m;
@@ -120,7 +146,7 @@ export function submitWork(
     const safe = f.name.replace(/[^\w.\-]+/g, '_').slice(-80) || `file${i}`;
     const rel = path.join(id, submissionId, `${i}_${safe}`);
     fs.writeFileSync(path.join(UPLOAD_DIR, rel), f.bytes);
-    return { id: newId('att'), name: f.name, mime: f.type || 'application/octet-stream', size: f.bytes.length, file: rel };
+    return { id: newId('att'), name: f.name, mime: sniffType(f.bytes, f.type), size: f.bytes.length, file: rel };
   });
 
   const reviewId = newId('rev');
@@ -162,22 +188,24 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
         r.findings = r.findings.filter((x) => x.criterionId !== f.criterionId);
         r.findings.push(f);
       }),
-    release: async (summary) => {
-      try {
-        const latest = mustGet(id);
-        const payment = await releaseFunds(latest, `Work accepted: ${summary}`);
-        updateMilestone(id, (x) => {
-          x.payment = { ...x.payment, ...payment };
-          x.status = 'released';
-          pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
-          pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
-          pushPayoutEvent(x, payment);
-        });
-        return null;
-      } catch (error) {
-        return (error as Error).message.slice(0, 300);
-      }
-    },
+    release: (summary) =>
+      exclusive(id, async () => {
+        try {
+          const latest = mustGet(id);
+          if (latest.status !== 'reviewing') return `the milestone is ${latest.status} now`;
+          const payment = await releaseFunds(latest, `Work accepted: ${summary}`);
+          updateMilestone(id, (x) => {
+            x.payment = { ...x.payment, ...payment };
+            x.status = 'released';
+            pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
+            pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
+            pushPayoutEvent(x, payment);
+          });
+          return null;
+        } catch (error) {
+          return (error as Error).message.slice(0, 300);
+        }
+      }),
     requestChanges: async (feedback, summary) => {
       patchReview((r, x) => {
         r.feedback = feedback;
@@ -237,15 +265,21 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
       pushEvent(x, 'system', 'review_failed', 'The automated review did not finish, so the client decides. The money stays on hold.');
     });
   }
-  const status = await refreshPayoutStatus(m);
-  if (!status) return m;
-  return updateMilestone(id, (x) => {
-    x.payment.payoutStatus = status;
-    if (status === 'SUCCESS') pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email}`);
+  if (!['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? '')) return m;
+  return exclusive(id, async () => {
+    const latest = mustGet(id);
+    const status = await refreshPayoutStatus(latest);
+    if (!status) return latest;
+    return updateMilestone(id, (x) => {
+      x.payment.payoutStatus = status;
+      if (status === 'SUCCESS') pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email}`);
+    });
   });
 }
 
-export async function clientDecision(id: string, action: 'approve' | 'request_changes' | 'cancel', note: string, key: string | null): Promise<Milestone> {
+export const clientDecision = (id: string, action: 'approve' | 'request_changes' | 'cancel', note: string, key: string | null) =>
+  exclusive(id, () => clientDecisionNow(id, action, note, key));
+async function clientDecisionNow(id: string, action: 'approve' | 'request_changes' | 'cancel', note: string, key: string | null): Promise<Milestone> {
   const m = mustGet(id);
   requireRole(m, key, 'client');
   if (action === 'approve') {
@@ -274,7 +308,14 @@ export async function clientDecision(id: string, action: 'approve' | 'request_ch
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
     x.status = 'cancelled';
-    pushEvent(x, 'client', 'cancelled', `${x.client.name} cancelled the milestone; the PayPal hold was voided, nothing was charged`);
+    pushEvent(
+      x,
+      'client',
+      'cancelled',
+      m.payment.authorizationId
+        ? `${x.client.name} cancelled the milestone; the PayPal hold was voided, nothing was charged`
+        : `${x.client.name} cancelled the milestone before funding it`,
+    );
   });
 }
 

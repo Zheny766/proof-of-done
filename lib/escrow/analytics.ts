@@ -1,6 +1,7 @@
 import 'server-only';
 // Milestones flattened into four tables (milestones, reviews, findings, events) for AG Studio.
 
+import { paymentMode } from './payments';
 import { latestFindings } from './policy';
 import { listMilestones } from './store';
 
@@ -74,6 +75,7 @@ export type EventRow = {
 
 export type EscrowDashboardData = {
   asOf: string;
+  paymentMode: 'sandbox' | 'simulated';
   milestones: MilestoneRow[];
   reviews: ReviewRow[];
   findings: FindingRow[];
@@ -186,5 +188,5 @@ export function getEscrowDashboardData(): EscrowDashboardData {
     );
   }
 
-  return { asOf: new Date().toISOString(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows };
+  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows };
 }

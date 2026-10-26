@@ -1,6 +1,6 @@
 import { AppShell } from './app-shell';
 
-// Placeholder for the dashboard while PayPal data loads (./loading.tsx) and while saved
+// Placeholder for the dashboard while the escrow data loads (./loading.tsx) and while saved
 // reports are read from this browser.
 
 function Skeleton({ className = '' }: { className?: string }) {
@@ -46,7 +46,7 @@ export function ContentSkeleton() {
         </div>
       </div>
       <p className="sr-only" role="status">
-        Loading PayPal data…
+        Loading escrow data…
       </p>
     </>
   );

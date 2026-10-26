@@ -242,6 +242,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
         reportName={saved.name}
         pageTitle={pages.find((p) => p.id === state.selectedPageId)?.title}
         asOf={data.asOf}
+        paymentMode={data.paymentMode}
         editing={editing}
         pageIsEmpty={studioState !== null && !reportState.pageHasWidgets(state)}
         canUndo={history.canUndo}

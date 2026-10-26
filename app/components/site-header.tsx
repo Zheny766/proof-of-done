@@ -2,17 +2,7 @@ import Link from 'next/link';
 import { paymentMode } from '@/lib/escrow/payments';
 import { isClaudeConfigured } from '@/lib/ai';
 import { REVIEW_MODEL } from '@/lib/escrow/reviewer';
-
-export function Logo() {
-  return (
-    <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-pp-navy text-sm font-black text-white">✓</span>
-      <span className="text-lg font-bold tracking-tight text-pp-navy">
-        Proof <span className="text-pp-blue">of Done</span>
-      </span>
-    </Link>
-  );
-}
+import { Logo } from './logo';
 
 export function SiteHeader() {
   const mode = paymentMode();
