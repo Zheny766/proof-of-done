@@ -109,7 +109,7 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # release policy, link guard, Claude <-> AG Studio bridge (Node test runner)
+npm test        # release policy, role keys, link guard, Claude <-> AG Studio bridge (Node test runner)
 npm run lint
 npm run build
 ```
@@ -127,6 +127,7 @@ lib/escrow/payments.ts             Escrow money flow (sandbox or simulated)
 lib/escrow/reviewer.ts             Claude reviewer agent (Tool Runner) + simulated reviewer
 lib/escrow/policy.ts               The release policy - code that gates the money
 lib/escrow/access.ts               Client / freelancer links: who may do what
+lib/rate-limit.ts                  Per-IP limits on Claude-backed routes, cross-site write check
 lib/escrow/public-url.ts           Public-only link fetching for the reviewer (SSRF guard)
 lib/escrow/service.ts              State machine: create -> fund -> submit -> review -> release/void
 lib/claude-bridge.ts               AG Studio <-> Claude Messages API translation

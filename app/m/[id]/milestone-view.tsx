@@ -87,12 +87,16 @@ export function MilestoneView({
     setM(milestone);
   }, [initial.id]);
 
-  // Poll while the AI reviewer is working so findings and log lines appear live.
+  // Fast while the reviewer works (findings appear live), slower otherwise so the other party's
+  // actions show up without a reload. Stops once nothing can change any more.
+  const settled = m.status === 'cancelled' || (m.status === 'released' && !['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? ''));
   useEffect(() => {
-    if (m.status !== 'reviewing') return;
-    const t = setInterval(() => refresh().catch(() => {}), 1200);
+    if (settled) return;
+    const t = setInterval(() => {
+      if (!document.hidden) refresh().catch(() => {});
+    }, m.status === 'reviewing' ? 1200 : 5000);
     return () => clearInterval(t);
-  }, [m.status, refresh]);
+  }, [m.status, settled, refresh]);
 
   const review = m.reviews.at(-1);
   const findings = review ? latestFindings(m.criteria, review.findings) : m.criteria.map(() => undefined);
@@ -162,7 +166,7 @@ export function MilestoneView({
                 <CriterionRow key={c.id} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} />
               ))}
             </ul>
-            {review?.decision && <DecisionBanner decision={review.decision} summary={review.summary} feedback={review.feedback} />}
+            {review?.finishedAt && <DecisionBanner m={m} />}
           </section>
 
           <AgentLog entries={review?.log ?? []} live={m.status === 'reviewing'} />
@@ -233,13 +237,25 @@ function CriterionRow({ text, finding, pending, threshold }: { text: string; fin
   );
 }
 
-function DecisionBanner({ decision, summary, feedback }: { decision: string; summary?: string; feedback?: string }) {
-  const map: Record<string, [string, string]> = {
-    release: ['Verified · payment released', 'bg-emerald-50 text-emerald-900 ring-emerald-200'],
-    request_changes: ['Changes requested · money stays on hold', 'bg-amber-50 text-amber-900 ring-amber-200'],
-    escalate: ['Escalated · the client decides', 'bg-orange-50 text-orange-900 ring-orange-200'],
+// Follows the milestone's status, not just the reviewer's decision: after an escalation the
+// client may have paid, asked for changes or cancelled.
+function DecisionBanner({ m }: { m: Milestone }) {
+  const review = m.reviews.at(-1);
+  const byAgent = review?.decision;
+  const aiReleased = m.timeline.some((e) => e.type === 'verified');
+  const banners: Partial<Record<Milestone['status'], [string, string]>> = {
+    released: [aiReleased ? 'Verified · payment released' : 'Approved by the client · payment released', 'bg-emerald-50 text-emerald-900 ring-emerald-200'],
+    changes_requested: ['Changes requested · money stays on hold', 'bg-amber-50 text-amber-900 ring-amber-200'],
+    escalated: ['Escalated · the client decides', 'bg-orange-50 text-orange-900 ring-orange-200'],
+    cancelled: ['Cancelled · nothing was charged', 'bg-rose-50 text-rose-900 ring-rose-200'],
   };
-  const [title, tone] = map[decision] ?? ['Decision', 'bg-slate-50'];
+  const banner = banners[m.status];
+  if (!banner) return null;
+  const [title, tone] = banner;
+  // The reviewer's own words only fit if the outcome is still its decision.
+  const agentOutcome = { release: 'released', request_changes: 'changes_requested', escalate: 'escalated' } as const;
+  const summary = byAgent && agentOutcome[byAgent] === m.status ? review?.summary : undefined;
+  const feedback = m.status === 'changes_requested' || m.status === 'escalated' ? review?.feedback : undefined;
   return (
     <div className={`mt-4 rounded-lg p-4 ring-1 ring-inset ${tone}`}>
       <div className="text-sm font-bold">{title}</div>
