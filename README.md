@@ -138,6 +138,14 @@ lib/claude-bridge.ts               AG Studio <-> Claude Messages API translation
 test/                              Unit tests
 ```
 
+## Tested against the PayPal sandbox
+
+Run end to end on October 26, 2026 with a sandbox Personal buyer:
+
+- **Authorize:** $450.00 held through the JS SDK v6 popup. The milestone shows the authorization and its honor and expiry dates.
+- **Capture and payout:** the full $450.00 was captured, then a payout batch went from `PENDING` to `SUCCESS` for the freelancer. The app refreshes a pending payout's status from PayPal.
+- **Void:** a $220.00 hold was cancelled by the client. PayPal reports the authorization as `VOIDED`, and nothing was charged.
+
 ## Known limitations (honest list)
 
 - **Storage** is a JSON file (`data/`) to keep the demo dependency-free; production needs a database and auth for the client and freelancer roles (today one page shows both views for demo purposes).
