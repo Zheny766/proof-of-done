@@ -404,8 +404,8 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
     <section className={card}>
       <h2 className={h2}>{resubmit ? 'Freelancer · resubmit the work' : 'Step 2 · Freelancer submits the work'}</h2>
       <form onSubmit={submit} className="mt-3 space-y-3">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What you delivered and how it meets each criterion…" className="h-28 w-full rounded-md border border-pp-border px-3 py-2 text-sm outline-none focus:border-pp-blue" />
-        <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="Links (live site, repo, files) - space separated" className="h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
+        <textarea aria-label="What you delivered" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What you delivered and how it meets each criterion…" className="h-28 w-full rounded-md border border-pp-border px-3 py-2 text-sm outline-none focus:border-pp-blue" />
+        <input aria-label="Links" value={links} onChange={(e) => setLinks(e.target.value)} placeholder="Links (live site, repo, files) - space separated" className="h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
         <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-pp-border bg-pp-canvas px-3 py-4 text-sm text-pp-muted hover:border-pp-blue">
           <input type="file" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} accept="image/*,.pdf,.txt,.md,.csv,.json,.html,.js,.ts,.py" />
           {files.length ? files.map((f) => f.name).join(', ') : 'Attach screenshots, PDFs or files (optional)'}
@@ -447,7 +447,7 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
     <section className={`${card} ${m.status === 'escalated' ? 'ring-2 ring-orange-300' : ''}`}>
       <h2 className={h2}>Client · always has the final say</h2>
       {m.status === 'escalated' && <p className="mt-2 text-sm text-orange-900">The reviewer could not verify everything on its own. Check its notes and decide.</p>}
-      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note to the freelancer" className="mt-3 h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
+      <input aria-label="Note to the freelancer" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note to the freelancer" className="mt-3 h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
       <div className="mt-3 grid grid-cols-3 gap-2">
         <button onClick={() => act('approve')} disabled={!!busy} className="h-10 rounded-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{busy === 'approve' ? '…' : 'Approve & pay'}</button>
         <button onClick={() => act('request_changes')} disabled={!!busy || m.status !== 'escalated'} title={m.status === 'escalated' ? undefined : 'Available once a submission has been reviewed'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Ask for changes</button>

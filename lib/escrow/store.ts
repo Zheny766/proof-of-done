@@ -5,7 +5,7 @@ import 'server-only';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { Milestone, TimelineEvent } from './types';
+import type { Milestone, TimelineEvent } from './types.ts';
 
 const DATA_DIR = process.env.POD_DATA_DIR || path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'milestones.json');

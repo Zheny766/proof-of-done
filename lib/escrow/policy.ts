@@ -1,7 +1,7 @@
 // Release rule, enforced in code: money is captured only if every criterion has a "met" finding at
 // or above the milestone's threshold. Whatever the model says, it can't get around this.
 
-import type { Criterion, CriterionFinding } from './types';
+import type { Criterion, CriterionFinding } from './types.ts';
 
 export interface PolicyResult {
   ok: boolean;

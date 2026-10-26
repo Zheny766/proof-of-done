@@ -1,9 +1,9 @@
 import 'server-only';
 import { ZodError } from 'zod';
-import { claudeErrorMessage } from '@/lib/ai';
-import { PayPalApiError } from '@/lib/paypal';
-import { isCrossSite } from '@/lib/rate-limit';
-import { EscrowError } from './service';
+import { claudeErrorMessage } from '../ai.ts';
+import { PayPalApiError } from '../paypal.ts';
+import { isCrossSite } from '../rate-limit.ts';
+import { EscrowError } from './service.ts';
 
 /** The caller's milestone key (from their client or freelancer link), sent by the browser as a header. */
 export const milestoneKey = (request: Request) => request.headers.get('x-milestone-key');

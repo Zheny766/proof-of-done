@@ -3,7 +3,7 @@
 // milestone data.
 
 import crypto from 'node:crypto';
-import type { Milestone, MilestoneAccess, Role } from './types';
+import type { Milestone, MilestoneAccess, Role } from './types.ts';
 
 export const newAccess = (): MilestoneAccess => ({
   clientKey: crypto.randomBytes(18).toString('base64url'),

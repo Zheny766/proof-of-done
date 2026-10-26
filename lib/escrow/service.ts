@@ -6,17 +6,19 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
-import { roleFor, newAccess } from './access';
-import { sniffType } from './evidence';
-import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments';
-import { claudeErrorMessage, isClaudeConfigured } from '@/lib/ai';
-import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
-import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store';
-import type { Attachment, Milestone, Review, Role } from './types';
+import { roleFor, newAccess } from './access.ts';
+import { sniffType } from './evidence.ts';
+import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments.ts';
+import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
+import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
+import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
+import type { Attachment, Milestone, Review, Role } from './types.ts';
 
 export class EscrowError extends Error {
-  constructor(message: string, readonly status = 400) {
+  readonly status: number;
+  constructor(message: string, status = 400) {
     super(message);
+    this.status = status;
   }
 }
 

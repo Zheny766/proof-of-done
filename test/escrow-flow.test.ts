@@ -1,0 +1,181 @@
+// The escrow state machine end to end, in simulated mode (no PayPal or Anthropic keys), against a
+// throwaway data directory. Run with --conditions=react-server so `server-only` resolves.
+
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pod-test-'));
+process.env.POD_DATA_DIR = dataDir;
+process.env.POD_SIM_STEP_MS = '0';
+for (const key of ['PAYPAL_CLIENT_ID', 'PAYPAL_SECRET', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN']) delete process.env[key];
+
+const service = await import('../lib/escrow/service.ts');
+const store = await import('../lib/escrow/store.ts');
+const payments = await import('../lib/escrow/payments.ts');
+
+before(() => store.deleteAll());
+after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+
+const input = (over: Record<string, unknown> = {}) => ({
+  title: 'Landing page for a bakery',
+  criteria: ['The page is live at a public URL', 'A menu lists at least 6 items with prices'],
+  amount: 120,
+  clientName: 'Maya',
+  clientEmail: 'maya@example.com',
+  freelancerName: 'Diego',
+  freelancerEmail: 'diego@example.com',
+  releaseThreshold: 0.7,
+  ...over,
+});
+
+async function funded(over: Record<string, unknown> = {}) {
+  const m = service.createMilestone(input(over));
+  const { clientKey, freelancerKey } = m.access!;
+  const { orderId } = await service.beginFunding(m.id, clientKey);
+  await service.confirmFunding(m.id, orderId, clientKey);
+  return { id: m.id, clientKey, freelancerKey };
+}
+
+async function submitAndReview(id: string, freelancerKey: string, notes: string) {
+  const { reviewId } = service.submitWork(id, { notes, links: [], files: [] }, freelancerKey);
+  await service.runReview(id, reviewId);
+  return store.getMilestone(id)!;
+}
+
+const count = (id: string, type: string) => store.getMilestone(id)!.timeline.filter((e) => e.type === type).length;
+
+test('happy path: fund, submit, AI verifies, PayPal captures and pays out', async () => {
+  const { id, freelancerKey } = await funded();
+  assert.equal(store.getMilestone(id)!.status, 'funded');
+  const m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  assert.equal(m.status, 'released');
+  assert.match(m.payment.captureId ?? '', /^CAPTURE-SIM-/);
+  assert.equal(m.payment.payoutStatus, 'SUCCESS');
+  for (const type of ['authorized', 'submitted', 'verified', 'captured', 'payout']) assert.equal(count(id, type), 1, type);
+});
+
+test('each party can only do its own part', async () => {
+  const m = service.createMilestone(input());
+  const { clientKey, freelancerKey } = m.access!;
+  await assert.rejects(service.beginFunding(m.id, freelancerKey), /Only the client/);
+  await assert.rejects(service.beginFunding(m.id, null), /Only the client/);
+  const { orderId } = await service.beginFunding(m.id, clientKey);
+  await assert.rejects(service.confirmFunding(m.id, orderId, freelancerKey), /Only the client/);
+  await assert.rejects(service.confirmFunding(m.id, 'ORDER-SIM-SOMEONE-ELSES', clientKey), /does not belong/);
+  await service.confirmFunding(m.id, orderId, clientKey);
+  assert.throws(() => service.submitWork(m.id, { notes: 'x', links: [], files: [] }, clientKey), /Only the freelancer/);
+  await assert.rejects(service.clientDecision(m.id, 'approve', '', freelancerKey), /Only the client/);
+  await assert.rejects(service.clientDecision(m.id, 'cancel', '', 'wrong-key'), /Only the client/);
+});
+
+test('weak evidence escalates; the client can ask for changes, the freelancer resubmits', async () => {
+  const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
+  await assert.rejects(service.clientDecision(id, 'request_changes', 'more', clientKey), /Cannot request changes while funded/);
+  let m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  assert.equal(m.status, 'escalated', 'confidence never reaches 99%');
+  m = await service.clientDecision(id, 'request_changes', 'Add the prices', clientKey);
+  assert.equal(m.status, 'changes_requested');
+  assert.equal(m.reviews.at(-1)!.feedback, 'Add the prices');
+  service.submitWork(id, { notes: 'Prices added', links: [], files: [] }, freelancerKey);
+  assert.equal(store.getMilestone(id)!.status, 'reviewing');
+});
+
+test('missing work gets "changes requested" and the money stays on hold', async () => {
+  const { id, freelancerKey } = await funded();
+  const m = await submitAndReview(id, freelancerKey, 'Hello');
+  assert.equal(m.status, 'changes_requested');
+  assert.equal(m.payment.captureId, undefined);
+});
+
+test('the client can approve after an escalation, and the banner data says so', async () => {
+  const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
+  await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  const m = await service.clientDecision(id, 'approve', 'Looks good', clientKey);
+  assert.equal(m.status, 'released');
+  assert.equal(count(id, 'approved'), 1);
+  assert.equal(count(id, 'verified'), 0, 'not marked as verified by the AI');
+});
+
+test('cancel: before funding nothing to void, after funding the hold is voided', async () => {
+  const unfunded = service.createMilestone(input());
+  let m = await service.clientDecision(unfunded.id, 'cancel', '', unfunded.access!.clientKey);
+  assert.equal(m.status, 'cancelled');
+  assert.match(m.timeline.at(-1)!.text, /before funding/);
+
+  const { id, clientKey } = await funded();
+  m = await service.clientDecision(id, 'cancel', '', clientKey);
+  assert.equal(m.status, 'cancelled');
+  assert.equal(m.payment.authorizationStatus, 'VOIDED');
+  await assert.rejects(service.clientDecision(id, 'approve', '', clientKey), /Cannot release while cancelled/);
+});
+
+test('five approvals at once: one capture, four refusals', async () => {
+  const { id, clientKey } = await funded();
+  const results = await Promise.allSettled(Array.from({ length: 5 }, () => service.clientDecision(id, 'approve', '', clientKey)));
+  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
+  assert.equal(count(id, 'captured'), 1);
+  assert.equal(count(id, 'approved'), 1);
+});
+
+test('a review that never finished is handed to the client', async () => {
+  const { id, freelancerKey } = await funded();
+  const { reviewId } = service.submitWork(id, { notes: 'x', links: [], files: [] }, freelancerKey);
+  store.updateMilestone(id, (x) => {
+    x.reviews.find((r) => r.id === reviewId)!.startedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+  });
+  const m = await service.readMilestone(id);
+  assert.equal(m!.status, 'escalated');
+  assert.equal(count(id, 'review_failed'), 1);
+});
+
+test('the freelancer sets where the payout goes; bad addresses are refused', async () => {
+  const { id, freelancerKey } = await funded();
+  assert.throws(() => service.submitWork(id, { notes: 'x', links: [], files: [], payoutEmail: 'nope' }, freelancerKey), /valid PayPal email/);
+  const { milestone } = service.submitWork(id, { notes: 'x', links: [], files: [], payoutEmail: 'diego.pay@example.com' }, freelancerKey);
+  assert.equal(milestone.freelancer.email, 'diego.pay@example.com');
+  assert.equal(count(id, 'payout_email'), 1);
+});
+
+test('uploads are stored with the type from their bytes', async () => {
+  const { id, freelancerKey } = await funded();
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const { milestone } = service.submitWork(
+    id,
+    { notes: 'x', links: [], files: [{ name: 'shot.txt', type: 'text/plain', bytes: png }, { name: 'fake.png', type: 'image/png', bytes: Buffer.from('text') }] },
+    freelancerKey,
+  );
+  assert.deepEqual(milestone.submissions.at(-1)!.attachments.map((a) => a.mime), ['image/png', 'application/octet-stream']);
+});
+
+test('only USD, positive amounts, at least one criterion', () => {
+  assert.throws(() => service.createMilestone(input({ currency: 'EUR' })));
+  assert.throws(() => service.createMilestone(input({ amount: -5 })));
+  assert.throws(() => service.createMilestone(input({ criteria: [] })));
+});
+
+test('a simulated order is refused once real PayPal keys are configured', async () => {
+  process.env.PAYPAL_CLIENT_ID = 'x';
+  process.env.PAYPAL_SECRET = 'y';
+  try {
+    await assert.rejects(payments.completeFunding('ORDER-SIM-ABC'), /Simulated orders are not accepted/);
+  } finally {
+    delete process.env.PAYPAL_CLIENT_ID;
+    delete process.env.PAYPAL_SECRET;
+  }
+});
+
+test('a corrupt data file is an error, never an empty store', () => {
+  const file = path.join(dataDir, 'milestones.json');
+  const good = fs.readFileSync(file, 'utf8');
+  fs.writeFileSync(file, '{ not json');
+  try {
+    assert.throws(() => store.listMilestones(), /not valid JSON/);
+    assert.throws(() => service.createMilestone(input()), /not valid JSON/);
+    assert.equal(fs.readFileSync(file, 'utf8'), '{ not json', 'nothing was overwritten');
+  } finally {
+    fs.writeFileSync(file, good);
+  }
+});

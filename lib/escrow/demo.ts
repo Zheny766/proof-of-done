@@ -1,9 +1,9 @@
 import 'server-only';
 // Fake history for the dashboard. Everything is marked "[Demo data]" and uses simulated payments.
 
-import { newAccess } from './access';
-import { insertMilestone, newId } from './store';
-import type { CriterionFinding, Milestone, MilestoneStatus, ReviewDecision } from './types';
+import { newAccess } from './access.ts';
+import { insertMilestone, newId } from './store.ts';
+import type { CriterionFinding, Milestone, MilestoneStatus, ReviewDecision } from './types.ts';
 
 const JOBS: { title: string; criteria: string[]; amount: number; category: string }[] = [
   { title: 'Logo for a coffee roastery', category: 'Design', amount: 180, criteria: ['Three logo concepts delivered as PNG', 'Final logo provided in SVG', 'Works in one-color version'] },

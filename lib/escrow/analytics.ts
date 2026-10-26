@@ -1,10 +1,10 @@
 import 'server-only';
 // Milestones flattened into four tables (milestones, reviews, findings, events) for AG Studio.
 
-import { redactEmails } from './access';
-import { paymentMode } from './payments';
-import { latestFindings } from './policy';
-import { listMilestones } from './store';
+import { redactEmails } from './access.ts';
+import { paymentMode } from './payments.ts';
+import { latestFindings } from './policy.ts';
+import { listMilestones } from './store.ts';
 
 export type MilestoneRow = {
   id: string;

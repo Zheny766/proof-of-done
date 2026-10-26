@@ -8,11 +8,11 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodTool } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
-import { checkReleasePolicy } from './policy';
-import { cleanName, fence, normalHost, submittedHosts } from './evidence';
-import { fetchPublic } from './public-url';
-import { UPLOAD_DIR } from './store';
-import type { AgentLogEntry, CriterionFinding, Milestone, ReviewDecision, Submission } from './types';
+import { checkReleasePolicy } from './policy.ts';
+import { cleanName, fence, normalHost, submittedHosts } from './evidence.ts';
+import { fetchPublic } from './public-url.ts';
+import { UPLOAD_DIR } from './store.ts';
+import type { AgentLogEntry, CriterionFinding, Milestone, ReviewDecision, Submission } from './types.ts';
 
 export const REVIEW_MODEL = process.env.POD_REVIEW_MODEL || 'claude-opus-5-5';
 
@@ -277,7 +277,8 @@ const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'for', 'w
 const words = (t: string) => t.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length > 2 && !STOP.has(w)) ?? [];
 
 export async function runSimulatedReview(m: Milestone, s: Submission, hooks: ReviewHooks): Promise<ReviewOutcome> {
-  const pause = () => new Promise((r) => setTimeout(r, 450));
+  // The pauses only make the live log readable in a demo; tests set POD_SIM_STEP_MS=0.
+  const pause = () => new Promise((r) => setTimeout(r, Number(process.env.POD_SIM_STEP_MS ?? 450)));
   hooks.log({ kind: 'info', text: 'Simulated reviewer (set ANTHROPIC_API_KEY to use Claude)' });
   await pause();
   hooks.log({ kind: 'tool', text: 'Reading the brief and acceptance criteria' });

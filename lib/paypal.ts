@@ -5,13 +5,13 @@ const BASE_URL = 'https://api-m.sandbox.paypal.com';
 const MAX_ATTEMPTS = 4;
 
 export class PayPalApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly path: string,
-    body: string,
-  ) {
+  readonly status: number;
+  readonly path: string;
+  constructor(status: number, path: string, body: string) {
     super(`PayPal ${status} on ${path}: ${body.slice(0, 300)}`);
     this.name = 'PayPalApiError';
+    this.status = status;
+    this.path = path;
   }
 }
 

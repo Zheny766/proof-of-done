@@ -24,6 +24,7 @@ With fixed-price freelance work someone always has to go first. Either the freel
 - Next.js 16, React 19, TypeScript, starting from PayPal's PayPal x AG Grid hackathon boilerplate.
 - PayPal: Orders v2 with AUTHORIZE, `/authorize`, Payments v2 capture and void, Payouts, OAuth client credentials, a `PayPal-Request-Id` on every money call so retries can't charge twice, and the JS SDK v6 (`createPayPalOneTimePaymentSession` + `<paypal-button>`).
 - Claude: the Anthropic TypeScript SDK tool runner with Zod-typed tools (`read_brief`, `fetch_link`, `record_finding`, `release_payment`, `request_changes`, `escalate_to_client`), adaptive thinking at high effort, image and PDF input, structured outputs for drafting criteria.
+- Tests cover the escrow state machine end to end in simulated mode (who may do what in which state, parallel approvals, stuck reviews, a corrupt data file), plus the release policy, role keys and redaction, the link guard and the Claude bridge.
 - The agent can't pay on its own word. `release_payment` goes through a policy check in code: every criterion has to be `met` at or above the confidence threshold the client picked. Submission content is treated as evidence, not instructions. No decision means no payout. Every step is logged.
 - AG Grid for the milestone table, AG Studio for a three-page escrow report over four related tables, plus a custom Studio widget (the escrow pipeline) and the Claude adapter, which translates AG-UI requests, tool calls and streaming events to the Messages API.
 

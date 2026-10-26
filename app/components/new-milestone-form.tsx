@@ -88,7 +88,7 @@ export function NewMilestoneForm() {
           {criteria.map((c, i) => (
             <li key={i} className="flex items-center gap-2">
               <span className="w-5 text-right text-xs text-pp-muted">{i + 1}.</span>
-              <input className={field} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Page is live at a public URL" />
+              <input className={field} aria-label={`Acceptance criterion ${i + 1}`} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Page is live at a public URL" />
               <button type="button" aria-label="Remove criterion" onClick={() => setCriteria(criteria.length > 1 ? criteria.filter((_, j) => j !== i) : [''])} className="px-2 text-pp-muted hover:text-pp-danger">×</button>
             </li>
           ))}

@@ -11,8 +11,8 @@ import {
   getPayoutBatch,
   isPayPalConfigured,
   voidAuthorization,
-} from '@/lib/paypal';
-import type { Milestone, PaymentState } from './types';
+} from '../paypal.ts';
+import type { Milestone, PaymentState } from './types.ts';
 
 export const paymentMode = (): PaymentState['mode'] => (isPayPalConfigured() ? 'sandbox' : 'simulated');
 
