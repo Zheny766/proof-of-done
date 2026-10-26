@@ -124,10 +124,18 @@ async function fetchLink(link: string, allowedHosts: Set<string>): Promise<strin
   }
 }
 
-export async function runClaudeReview(m: Milestone, s: Submission, hooks: ReviewHooks): Promise<ReviewOutcome> {
-  const client = new Anthropic();
+/** The reviewer's tools, bound to one submission. Separate from the API loop so they can be tested. */
+export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks) {
   const findings: CriterionFinding[] = [];
   let outcome: ReviewOutcome | null = null;
+  // Tools from one model turn run concurrently. Claim the decision before the first await, so two
+  // decision tools in the same turn can't both go ahead.
+  let deciding = false;
+  const claimDecision = () => {
+    if (outcome || deciding) return false;
+    deciding = true;
+    return true;
+  };
 
   const readBrief = betaZodTool({
     name: 'read_brief',
@@ -171,7 +179,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
       evidence: z.string().describe('The concrete evidence for this status, in one or two sentences'),
     }),
     run: async ({ criterion_id, status, confidence, evidence }) => {
-      if (outcome) return 'A decision has already been made; findings can no longer change.';
+      if (outcome || deciding) return 'A decision has already been made; findings can no longer change.';
       const criterion = m.criteria.find((c) => c.id === criterion_id);
       if (!criterion) return `Error: unknown criterion_id "${criterion_id}". Valid ids: ${m.criteria.map((c) => c.id).join(', ')}`;
       const f: CriterionFinding = { criterionId: criterion_id, status, confidence, evidence };
@@ -187,14 +195,18 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
     description: 'Capture the PayPal authorization and pay the freelancer. Only allowed when every criterion is met at or above the release threshold.',
     inputSchema: z.object({ summary: z.string().describe('One or two sentences for both parties explaining why the work is accepted') }),
     run: async ({ summary }) => {
-      if (outcome) return 'A decision has already been made.';
+      if (!claimDecision()) return 'A decision has already been made.';
       const policy = checkReleasePolicy(m.criteria, findings, m.releaseThreshold);
       if (!policy.ok) {
+        deciding = false;
         hooks.log({ kind: 'info', text: `Release blocked by policy: ${policy.reasons.join('; ')}` });
         return `Refused by the release policy: ${policy.reasons.join('; ')}. Choose request_changes or escalate_to_client, or correct a finding only if it was genuinely wrong.`;
       }
       const err = await hooks.release(summary);
-      if (err) return `Release failed: ${err}. Escalate to the client.`;
+      if (err) {
+        deciding = false;
+        return `Release failed: ${err}. Escalate to the client.`;
+      }
       outcome = { decision: 'release', summary };
       hooks.log({ kind: 'decision', text: `Released payment: ${summary}` });
       return 'Payment captured on PayPal and paid out to the freelancer. You are done.';
@@ -209,7 +221,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
       summary: z.string().describe('One sentence summary of the decision'),
     }),
     run: async ({ feedback, summary }) => {
-      if (outcome) return 'A decision has already been made.';
+      if (!claimDecision()) return 'A decision has already been made.';
       await hooks.requestChanges(feedback, summary);
       outcome = { decision: 'request_changes', summary };
       hooks.log({ kind: 'decision', text: `Requested changes: ${summary}` });
@@ -225,7 +237,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
       summary: z.string().describe('One sentence summary'),
     }),
     run: async ({ reason, summary }) => {
-      if (outcome) return 'A decision has already been made.';
+      if (!claimDecision()) return 'A decision has already been made.';
       await hooks.escalate(reason, summary);
       outcome = { decision: 'escalate', summary };
       hooks.log({ kind: 'decision', text: `Escalated to client: ${reason}` });
@@ -233,6 +245,15 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
     },
   });
 
+  return {
+    tools: [readBrief, fetchLinkTool, recordFinding, releasePayment, requestChanges, escalate],
+    outcome: () => outcome,
+  };
+}
+
+export async function runClaudeReview(m: Milestone, s: Submission, hooks: ReviewHooks): Promise<ReviewOutcome> {
+  const client = new Anthropic();
+  const { tools, outcome: decided } = reviewTools(m, s, hooks);
   const runner = client.beta.messages.toolRunner({
     model: REVIEW_MODEL,
     max_tokens: 16000,
@@ -243,7 +264,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
     system: SYSTEM_PROMPT,
-    tools: [readBrief, fetchLinkTool, recordFinding, releasePayment, requestChanges, escalate],
+    tools,
     messages: [{ role: 'user', content: evidenceBlocks(m, s) }],
   });
 
@@ -259,16 +280,15 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
       hooks.log({ kind: 'error', text: 'The model declined to continue this review.' });
       break;
     }
-    if (outcome) break;
+    if (decided()) break;
   }
 
-  if (!outcome) {
-    // No decision means no payout.
-    const reason = 'The reviewer finished without a clear decision, so the client should take a look.';
-    await hooks.escalate(reason, 'No decision from the reviewer');
-    outcome = { decision: 'escalate', summary: reason };
-  }
-  return { ...(outcome as ReviewOutcome), usage: { inputTokens, outputTokens } };
+  const outcome = decided();
+  if (outcome) return { ...outcome, usage: { inputTokens, outputTokens } };
+  // No decision means no payout.
+  const reason = 'The reviewer finished without a clear decision, so the client should take a look.';
+  await hooks.escalate(reason, 'No decision from the reviewer');
+  return { decision: 'escalate', summary: reason, usage: { inputTokens, outputTokens } };
 }
 
 // Used when there is no API key, so the app still runs end to end. Keyword matching only - the UI

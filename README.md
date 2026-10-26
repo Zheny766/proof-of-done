@@ -109,8 +109,9 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # escrow state machine (simulated, throwaway data dir), release policy, roles and
-                # redaction, link guard, evidence handling, Claude <-> AG Studio bridge
+npm test        # escrow state machine (simulated, throwaway data dir), the reviewer's tools without
+                # the API (policy gate, one decision per review, link allowlist), roles and redaction,
+                # link guard, evidence handling, rate limits, Claude <-> AG Studio bridge
 npm run lint
 npm run build
 ```
