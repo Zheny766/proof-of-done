@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
           // Milestone links carry a key until the page drops it; never send it to other sites.
           { key: 'Referrer-Policy', value: 'same-origin' },
           // No framing: nobody can overlay "Approve & pay" inside their own page.
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },

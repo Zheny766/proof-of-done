@@ -171,6 +171,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
       evidence: z.string().describe('The concrete evidence for this status, in one or two sentences'),
     }),
     run: async ({ criterion_id, status, confidence, evidence }) => {
+      if (outcome) return 'A decision has already been made; findings can no longer change.';
       const criterion = m.criteria.find((c) => c.id === criterion_id);
       if (!criterion) return `Error: unknown criterion_id "${criterion_id}". Valid ids: ${m.criteria.map((c) => c.id).join(', ')}`;
       const f: CriterionFinding = { criterionId: criterion_id, status, confidence, evidence };

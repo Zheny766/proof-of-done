@@ -32,6 +32,16 @@ function parseKeys(raw: string | null): SavedKeys {
   }
 }
 
+function forgetKey(id: string, role: Party) {
+  try {
+    const saved = parseKeys(readStored(id));
+    delete saved[role];
+    if (role === 'client') delete saved.share;
+    localStorage.setItem(storageKey(id), JSON.stringify(saved));
+    window.dispatchEvent(new Event(KEYS_CHANGED));
+  } catch {}
+}
+
 /** Adds keys to what this browser already has for the milestone (never drops the other party's key). */
 function saveKeys(id: string, add: SavedKeys) {
   try {
@@ -85,22 +95,28 @@ export function MilestoneView({
   const key = role === 'viewer' ? null : (keys[role] ?? null);
 
   const refresh = useCallback(async () => {
-    const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) });
-    setM(milestone);
-  }, [initial.id, key]);
+    const res = await api<{ milestone: Milestone; role: Role }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) });
+    // A saved key the server no longer accepts (e.g. the data was reset): drop it.
+    if (key && res.role === 'viewer' && role !== 'viewer') forgetKey(initial.id, role);
+    setM(res.milestone);
+  }, [initial.id, key, role]);
 
   // Opened without a key in the link (e.g. from the list) but this browser has one: the server
   // rendered the redacted view, so fetch the full one.
   useEffect(() => {
     if (link || !key) return;
     let alive = true;
-    api<{ milestone: Milestone }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) })
-      .then(({ milestone }) => alive && setM(milestone))
+    api<{ milestone: Milestone; role: Role }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) })
+      .then((res) => {
+        if (!alive) return;
+        if (res.role === 'viewer' && role !== 'viewer') forgetKey(initial.id, role);
+        else setM(res.milestone);
+      })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [initial.id, link, key]);
+  }, [initial.id, link, key, role]);
 
   // Fast while the reviewer works (findings appear live), slower otherwise so the other party's
   // actions show up without a reload. Stops once nothing can change any more.
