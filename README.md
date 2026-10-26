@@ -10,7 +10,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) with
 
 ## Who it's for
 
-Small fixed-price jobs, roughly $50-$2,000: a logo, a landing page, a bug fix, cleaning up a spreadsheet. That kind of work mostly runs on trust. The freelancer worries about not getting paid, the client about paying for something that never shows up. Escrow solves the money part, but someone still has to sit down, look at the work and click "approve" - and that's where it stalls.
+Small fixed-price jobs, roughly $50-$2,000: a logo, a landing page, a bug fix, cleaning up a spreadsheet. That kind of work mostly runs on trust, and trust fails often: 71% of US freelancers have struggled to get paid at least once ([Freelancers Union](https://blog.freelancersunion.org/2015/12/10/costs-nonpayment/)), and 54% of UK freelancers have had a client pay late ([IPSE](https://www.ipse.co.uk/policy/research/financial-wellbeing/late-payment-within-the-self-employed-sector.html)). The freelancer worries about not getting paid, the client about paying for something that never shows up. Escrow solves the money part, but someone still has to sit down, look at the work and click "approve" - and that's where it stalls.
 
 Here the hold stays with PayPal and the approval step becomes a check against the criteria, with the evidence written down for both sides.
 

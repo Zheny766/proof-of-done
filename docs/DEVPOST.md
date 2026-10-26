@@ -6,12 +6,19 @@
 Proof of Done
 
 ## Elevator pitch (tagline, 200 chars)
-Escrow for freelance jobs: the client's money is held on PayPal, and a Claude agent releases it once it has checked the delivered work against every acceptance criterion.
+An AI agent that pays for finished work: the client's money waits on PayPal, a Claude agent checks the delivery against every criterion, then captures the payment and pays the freelancer itself.
 
 ## Inspiration
-With fixed-price freelance work someone always has to go first. Either the freelancer delivers and then chases the payment, or the client pays up front and hopes the work shows up. Escrow fixes who holds the money, but releasing it still waits on someone opening the delivery, checking it and clicking approve - which can take days, or end in a dispute. I wanted to see if that check could be done by an AI agent with PayPal holding the money, without handing the agent a blank cheque.
+With fixed-price freelance work someone always has to go first. Either the freelancer delivers and then chases the payment, or the client pays up front and hopes the work shows up. The numbers are not small:
+
+- 71% of US freelancers have struggled to get paid at least once, and an unpaid freelancer loses almost $6,000 a year, about 13% of their income ([Freelancers Union, *The Costs of Nonpayment*, 5,000+ freelancers](https://blog.freelancersunion.org/2015/12/10/costs-nonpayment/)).
+- In the UK, 54% of freelancers have had a client pay late, 31% did work they were never paid for, and they are owed £5,230 on average ([IPSE](https://www.ipse.co.uk/policy/research/financial-wellbeing/late-payment-within-the-self-employed-sector.html)).
+
+Escrow fixes who holds the money, but releasing it still waits on someone opening the delivery, checking it and clicking approve - which can take days, or end in a dispute. I wanted to see if that check, and the payment after it, could be handed to an AI agent with PayPal holding the money - without giving the agent a blank cheque.
 
 ## What it does
+This is agentic commerce in the literal sense: an AI agent that decides whether to pay and then moves the money through PayPal, inside rules written in code, with a human able to step in at every point.
+
 - The client creates a milestone with acceptance criteria. Claude can draft them from a plain description, phrased so they can actually be checked from a submission. The client funds it with PayPal: an Orders v2 order with intent AUTHORIZE, approved through the JS SDK v6 button. The money is held, not charged.
 - The freelancer submits the work: notes, links, screenshots, PDFs, files.
 - A Claude Opus 5.5 reviewer agent reads the brief, opens the links, looks at the images and documents, and records a finding for each criterion: met / not met / unclear, with a confidence and the evidence.
@@ -55,7 +62,8 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 `paypal` `paypal-orders-api` `paypal-payouts` `paypal-js-sdk-v6` `claude` `anthropic` `ag-grid` `ag-studio` `next.js` `react` `typescript` `tailwindcss` `zod`
 
 ## Tools used (AI / sponsor tools field)
-- Claude Opus 5.5 (Anthropic API): the reviewer agent, criteria drafting, and the AG Studio assistant through the Claude adapter.
+- Claude Opus 5.5 (Anthropic API): the reviewer agent that decides whether to pay and calls PayPal through its tools, criteria drafting, and the AG Studio assistant through the Claude adapter.
+- Claude Code (AI coding assistant) helped write and review the code; I chose the idea, made the product and design calls, and tested every money path against the PayPal sandbox.
 - AG Grid (milestone table) and AG Studio (escrow dashboard, Agent Framework running on Claude).
 - PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void, Payouts, JS SDK v6.
 
