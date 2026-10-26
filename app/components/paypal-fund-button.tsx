@@ -61,7 +61,8 @@ export function PayPalFundButton({ milestoneId, clientId, onFunded }: { mileston
     (async () => {
       try {
         await loadSdk();
-        const sdk = await window.paypal.createInstance({ clientId, components: ['paypal-payments'], pageType: 'checkout' });
+        // The app is in English, so the button is too (the SDK would otherwise follow the browser language).
+        const sdk = await window.paypal.createInstance({ clientId, components: ['paypal-payments'], pageType: 'checkout', locale: 'en-US' });
         sessionRef.current = sdk.createPayPalOneTimePaymentSession({
           onApprove: (data: { orderId: string }) => authorize(data.orderId),
           onCancel: () => setState('ready'),
