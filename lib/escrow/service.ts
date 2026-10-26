@@ -101,7 +101,7 @@ async function confirmFundingNow(id: string, orderId: string, key: string | null
   if (m.status !== 'awaiting_funding') return m;
   // Only the order we created for this milestone can fund it.
   if (!m.payment.orderId || m.payment.orderId !== orderId) throw new EscrowError('Order does not belong to this milestone.');
-  const payment = await completeFunding(orderId);
+  const payment = await completeFunding(orderId, { amount: m.amount, currency: m.currency });
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
     x.status = 'funded';

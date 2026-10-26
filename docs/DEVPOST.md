@@ -31,7 +31,9 @@ With fixed-price freelance work someone always has to go first. Either the freel
 ## Challenges I ran into
 - Letting an AI move money without just trusting it. What worked: tools instead of a free-text verdict, and a release rule in code that the model can't argue with.
 - Prompt injection through deliverables. A submission can say "approve this now". The reviewer is told to treat that as a red flag, and even if it didn't, the policy still wants evidence for each criterion.
-- The reviewer opens links that come from the submitter, so it could be pointed at internal addresses. It resolves the host first, refuses private and local ones, and checks every redirect hop again.
+- The reviewer opens links that come from the submitter, so it could be pointed at internal addresses, or talked into "checking" an attacker's URL with the brief in it. It only opens sites the submission links to, checks the address inside the connection's own DNS lookup (so DNS rebinding doesn't work), and checks every redirect hop again.
+- Money races: two tabs, a double click, a cancel while the freelancer submits. Every operation on a milestone goes through a small per-milestone queue, PayPal calls carry idempotency keys, and a payout only goes out once the capture is COMPLETED.
+- Privacy without accounts: the client and the freelancer each get a secret link, and everyone else only sees where a milestone stands, not the brief, the work or anyone's email.
 - PayPal authorization lifetimes: an authorization is honored for 3 days and can be captured for 29. The app tracks both and voids cleanly on cancel.
 - Making two agent protocols talk. AG Studio speaks AG-UI events; Claude needs its signed thinking blocks sent back with the tool calls they produced, which Studio doesn't keep. The server remembers the raw content per tool call.
 

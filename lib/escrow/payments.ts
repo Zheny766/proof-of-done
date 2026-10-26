@@ -32,7 +32,7 @@ export async function startFunding(m: Milestone): Promise<{ orderId: string }> {
   return { orderId: order.id };
 }
 
-export async function completeFunding(orderId: string): Promise<Partial<PaymentState>> {
+export async function completeFunding(orderId: string, expected?: { amount: string; currency: string }): Promise<Partial<PaymentState>> {
   // A simulated order id is only acceptable when the whole app runs without PayPal credentials.
   if (orderId.includes('-SIM-') && paymentMode() === 'sandbox') throw new Error('Simulated orders are not accepted in sandbox mode.');
   if (paymentMode() === 'simulated') {
@@ -50,6 +50,11 @@ export async function completeFunding(orderId: string): Promise<Partial<PaymentS
   const order = await authorizeOrder(orderId);
   const auth = order.purchase_units?.[0]?.payments?.authorizations?.[0];
   if (!auth) throw new Error('PayPal did not return an authorization for this order');
+  // No hold, no funding: a denied authorization must not mark the milestone as funded.
+  if (auth.status === 'DENIED' || auth.status === 'VOIDED') throw new Error(`PayPal ${auth.status.toLowerCase()} the authorization. Nothing is on hold.`);
+  if (expected && (auth.amount.value !== expected.amount || auth.amount.currency_code !== expected.currency)) {
+    throw new Error(`PayPal authorized ${auth.amount.value} ${auth.amount.currency_code}, expected ${expected.amount} ${expected.currency}.`);
+  }
   return {
     mode: 'sandbox',
     orderId,
