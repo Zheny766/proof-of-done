@@ -20,7 +20,10 @@ const fakeId = (prefix: string) => `${prefix}-SIM-${crypto.randomBytes(5).toStri
 const days = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
 
 /** Platform fee kept when paying the freelancer out (0 = everything goes to the freelancer). */
-export const PLATFORM_FEE_PCT = Number(process.env.POD_PLATFORM_FEE_PCT ?? '0');
+export const PLATFORM_FEE_PCT = (() => {
+  const pct = Number(process.env.POD_PLATFORM_FEE_PCT || 0);
+  return Number.isFinite(pct) && pct >= 0 && pct < 100 ? pct : 0;
+})();
 
 export async function startFunding(m: Milestone): Promise<{ orderId: string }> {
   if (paymentMode() === 'simulated') return { orderId: fakeId('ORDER') };
@@ -73,11 +76,22 @@ export async function releaseFunds(m: Milestone, note: string): Promise<Partial<
   }
 
   const capture = await captureAuthorization(authId, note);
+  // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
+  if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
+    throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);
+  }
   const result: Partial<PaymentState> = {
     captureId: capture.id,
     capturedAt: capture.create_time ?? new Date().toISOString(),
     authorizationStatus: 'CAPTURED',
   };
+
+  // Pay out only money that has actually arrived. A pending capture (e.g. an eCheck) would mean
+  // paying the freelancer from the platform's own balance.
+  if (capture.status !== 'COMPLETED') {
+    result.payoutStatus = `HELD: capture is ${capture.status.toLowerCase()}, payout waits for it`;
+    return result;
+  }
 
   // A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it.
   try {

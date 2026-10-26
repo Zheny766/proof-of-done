@@ -50,6 +50,8 @@ function subscribeKeys(onChange: () => void) {
 }
 
 const noSubscribe = () => () => {};
+// Minute resolution keeps the snapshot stable between renders.
+const currentMinute = () => Math.floor(Date.now() / 60_000);
 
 export function MilestoneView({
   initial,
@@ -83,9 +85,22 @@ export function MilestoneView({
   const key = role === 'viewer' ? null : (keys[role] ?? null);
 
   const refresh = useCallback(async () => {
-    const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${initial.id}`);
+    const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) });
     setM(milestone);
-  }, [initial.id]);
+  }, [initial.id, key]);
+
+  // Opened without a key in the link (e.g. from the list) but this browser has one: the server
+  // rendered the redacted view, so fetch the full one.
+  useEffect(() => {
+    if (link || !key) return;
+    let alive = true;
+    api<{ milestone: Milestone }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) })
+      .then(({ milestone }) => alive && setM(milestone))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [initial.id, link, key]);
 
   // Fast while the reviewer works (findings appear live), slower otherwise so the other party's
   // actions show up without a reload. Stops once nothing can change any more.
@@ -170,7 +185,7 @@ export function MilestoneView({
           </section>
 
           <AgentLog entries={review?.log ?? []} live={m.status === 'reviewing'} />
-          <Submissions m={m} />
+          <Submissions m={m} fileKey={key} />
         </div>
       </div>
     </main>
@@ -282,7 +297,7 @@ function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }
       {entries.length === 0 ? (
         <p className="mt-3 text-sm text-pp-muted">Every step the reviewer takes - what it opened, what it found, why it decided - is recorded here.</p>
       ) : (
-        <div ref={box} className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+        <div ref={box} aria-live="polite" className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
           {entries.map((e, i) => (
             <div key={i} className="flex gap-2 text-sm">
               <span className="w-14 shrink-0 pt-0.5 font-mono text-[10px] uppercase text-pp-muted">{LOG_TAG[e.kind]}</span>
@@ -357,6 +372,7 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
   const [notes, setNotes] = useState('');
   const [links, setLinks] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [payoutEmail, setPayoutEmail] = useState(m.freelancer.email);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const resubmit = m.status === 'changes_requested';
@@ -368,6 +384,7 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
     const fd = new FormData();
     fd.set('notes', notes);
     fd.set('links', links);
+    fd.set('payoutEmail', payoutEmail);
     files.forEach((f) => fd.append('files', f));
     try {
       const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/submit`, {
@@ -392,6 +409,10 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
         <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-pp-border bg-pp-canvas px-3 py-4 text-sm text-pp-muted hover:border-pp-blue">
           <input type="file" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} accept="image/*,.pdf,.txt,.md,.csv,.json,.html,.js,.ts,.py" />
           {files.length ? files.map((f) => f.name).join(', ') : 'Attach screenshots, PDFs or files (optional)'}
+        </label>
+        <label className="block text-xs font-medium text-pp-muted">
+          Your PayPal email for the payout
+          <input type="email" required value={payoutEmail} onChange={(e) => setPayoutEmail(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-pp-border px-3 text-sm text-pp-ink outline-none focus:border-pp-blue" />
         </label>
         {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-pp-danger">{error}</p>}
         <button disabled={busy} className="h-11 w-full rounded-full bg-pp-navy text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-60">
@@ -449,9 +470,17 @@ function PaymentDetails({ m }: { m: Milestone }) {
     ['Payout', p.payoutBatchId ? `${p.payoutBatchId} · ${p.payoutStatus}` : p.payoutStatus],
     ['Voided', p.voidedAt && fmtDate(p.voidedAt)],
   ];
+  // PayPal only guarantees the funds for 3 days; capturing later can fail.
+  const minute = useSyncExternalStore(noSubscribe, currentMinute, () => 0);
+  const honorPassed = minute > 0 && p.honorExpiresAt && !p.captureId && !p.voidedAt && new Date(p.honorExpiresAt).getTime() < minute * 60_000;
   return (
     <section className={card}>
       <h2 className={h2}>PayPal</h2>
+      {honorPassed && (
+        <p suppressHydrationWarning className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          The 3-day honor period ended on {fmtDate(p.honorExpiresAt!)}. PayPal may decline the capture; if it does, the hold stays and the client can fund again.
+        </p>
+      )}
       <dl className="mt-3 space-y-1.5 text-sm">
         {rows.filter(([, v]) => v).map(([k, v]) => (
           <div key={k} className="flex justify-between gap-3">
@@ -493,7 +522,8 @@ function Timeline({ m }: { m: Milestone }) {
   );
 }
 
-function Submissions({ m }: { m: Milestone }) {
+function Submissions({ m, fileKey }: { m: Milestone; fileKey: string | null }) {
+  const fileUrl = (file: string) => `/api/escrow/files/${file}?key=${encodeURIComponent(fileKey ?? '')}`;
   if (!m.submissions.length) return null;
   return (
     <section className={card}>
@@ -508,11 +538,11 @@ function Submissions({ m }: { m: Milestone }) {
             ))}
             <div className="mt-2 flex flex-wrap gap-2">
               {s.attachments.map((a) =>
-                a.mime.startsWith('image/') ? (
+                ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(a.mime) ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={a.id} src={`/api/escrow/files/${a.file}`} alt={a.name} className="h-20 rounded border border-pp-border object-cover" />
+                  <img key={a.id} src={fileUrl(a.file)} alt={a.name} className="h-20 rounded border border-pp-border object-cover" />
                 ) : (
-                  <a key={a.id} href={`/api/escrow/files/${a.file}`} className="rounded border border-pp-border px-2 py-1 text-xs hover:border-pp-blue">{a.name}</a>
+                  <a key={a.id} href={fileUrl(a.file)} className="rounded border border-pp-border px-2 py-1 text-xs hover:border-pp-blue">{a.name}</a>
                 ),
               )}
             </div>

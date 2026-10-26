@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import type { Metadata } from 'next';
-import { publicMilestone, roleFor } from '@/lib/escrow/access';
+import { publicMilestone, roleFor, viewerMilestone } from '@/lib/escrow/access';
 import { getMilestone } from '@/lib/escrow/store';
 import { paymentMode } from '@/lib/escrow/payments';
 import { readMilestone } from '@/lib/escrow/service';
@@ -25,7 +25,8 @@ export default async function MilestonePage(props: PageProps<'/m/[id]'>) {
     <>
       <SiteHeader />
       <MilestoneView
-        initial={publicMilestone(milestone)}
+        // Without a key in the link the page starts redacted; a key saved in the browser upgrades it.
+        initial={role === 'viewer' ? viewerMilestone(milestone) : publicMilestone(milestone)}
         link={role === 'viewer' ? null : { role, key: linkKey! }}
         // The client gets the freelancer's link to pass on.
         freelancerKey={role === 'client' ? milestone.access!.freelancerKey : null}

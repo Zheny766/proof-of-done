@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access';
+import { sniffType } from './evidence';
 import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments';
 import { claudeErrorMessage, isClaudeConfigured } from '@/lib/ai';
 import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
@@ -30,19 +31,6 @@ function exclusive<T>(id: string, fn: () => Promise<T>): Promise<T> {
   queues.set(id, tail);
   void tail.then(() => queues.get(id) === tail && queues.delete(id));
   return run;
-}
-
-// Decide the type from the bytes, not from what the browser said: a text file renamed to .png
-// would otherwise be sent to Claude as an image and fail the whole review.
-function sniffType(bytes: Buffer, claimed: string): string {
-  const head = bytes.subarray(0, 12);
-  if (head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
-  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'image/jpeg';
-  if (head.subarray(0, 4).toString('latin1') === 'GIF8') return 'image/gif';
-  if (head.subarray(0, 4).toString('latin1') === 'RIFF' && head.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
-  if (head.subarray(0, 5).toString('latin1') === '%PDF-') return 'application/pdf';
-  if (claimed.startsWith('image/') || claimed === 'application/pdf') return 'application/octet-stream';
-  return claimed || 'application/octet-stream';
 }
 
 function requireRole(m: Milestone, key: string | null, role: Exclude<Role, 'viewer'>) {
@@ -131,11 +119,16 @@ export interface IncomingFile {
 
 export function submitWork(
   id: string,
-  input: { notes: string; links: string[]; files: IncomingFile[] },
+  input: { notes: string; links: string[]; files: IncomingFile[]; payoutEmail?: string },
   key: string | null,
 ): { milestone: Milestone; reviewId: string } {
   const m = mustGet(id);
   requireRole(m, key, 'freelancer');
+  // The person getting paid decides where the money goes; the client only suggested an address.
+  if (input.payoutEmail !== undefined && !z.email().safeParse(input.payoutEmail).success) {
+    throw new EscrowError('Enter a valid PayPal email for the payout.');
+  }
+  const payoutEmail = input.payoutEmail;
   if (!['funded', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot submit work while the milestone is ${m.status}.`);
   if (!input.notes.trim() && input.links.length === 0 && input.files.length === 0) throw new EscrowError('Add notes, a link or a file.');
 
@@ -151,6 +144,10 @@ export function submitWork(
 
   const reviewId = newId('rev');
   const milestone = updateMilestone(id, (x) => {
+    if (payoutEmail && payoutEmail !== x.freelancer.email) {
+      x.freelancer.email = payoutEmail;
+      pushEvent(x, 'freelancer', 'payout_email', `${x.freelancer.name} set the PayPal email for the payout`);
+    }
     x.submissions.push({ id: submissionId, at: nowIso(), notes: input.notes.trim(), links: input.links, attachments });
     x.reviews.push({
       id: reviewId,
@@ -206,9 +203,11 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
           return (error as Error).message.slice(0, 300);
         }
       }),
+    // A review that outlived the stuck-review timeout must not overwrite what happened since.
     requestChanges: async (feedback, summary) => {
       patchReview((r, x) => {
         r.feedback = feedback;
+        if (x.status !== 'reviewing') return;
         x.status = 'changes_requested';
         pushEvent(x, 'agent', 'changes_requested', `AI reviewer asked for changes: ${summary}`);
       });
@@ -216,6 +215,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
     escalate: async (reason, summary) => {
       patchReview((r, x) => {
         r.feedback = reason;
+        if (x.status !== 'reviewing') return;
         x.status = 'escalated';
         pushEvent(x, 'agent', 'escalated', `AI reviewer escalated to the client: ${summary}`);
       });
@@ -353,6 +353,7 @@ Description: ${description || '(none)'}`,
 
 function pushPayoutEvent(m: Milestone, payment: Partial<Milestone['payment']>) {
   if (payment.payoutBatchId) pushEvent(m, 'paypal', 'payout', `Payout sent to ${m.freelancer.email} (batch ${payment.payoutBatchId})`);
+  else if (payment.payoutStatus?.startsWith('HELD')) pushEvent(m, 'paypal', 'payout_held', `Payout waits until PayPal completes the capture`);
   else if (payment.payoutStatus) pushEvent(m, 'system', 'payout_failed', `Payout not sent: ${payment.payoutStatus}`);
 }
 

@@ -18,6 +18,7 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
     try {
       return await fn(...args);
     } catch (error) {
+      if (error instanceof SyntaxError) return Response.json({ error: 'The request body must be valid JSON.' }, { status: 400 });
       if (error instanceof ZodError) {
         const msg = error.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ');
         return Response.json({ error: msg }, { status: 400 });
@@ -32,8 +33,9 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
         console.error('[claude]', claude);
         return Response.json({ error: `Claude is unavailable right now: ${claude.slice(0, 200)}` }, { status: 502 });
       }
+      // The details (stack, file paths) go to the server log, not to the browser.
       console.error('[escrow]', error);
-      return Response.json({ error: (error as Error).message ?? 'Unexpected error' }, { status: 500 });
+      return Response.json({ error: 'Something went wrong on the server. Please try again.' }, { status: 500 });
     }
   };
 }

@@ -16,10 +16,19 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 type DbShape = { milestones: Milestone[] };
 
 function load(): DbShape {
+  let raw: string;
   try {
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) as DbShape;
+    raw = fs.readFileSync(DB_FILE, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { milestones: [] };
+    throw error;
+  }
+  // A file we can't parse is an error, not an empty store: treating it as empty would let the next
+  // write replace every milestone with just one.
+  try {
+    return JSON.parse(raw) as DbShape;
   } catch {
-    return { milestones: [] };
+    throw new Error(`${DB_FILE} is not valid JSON; fix or move it before continuing (nothing was overwritten).`);
   }
 }
 

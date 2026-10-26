@@ -7,7 +7,8 @@ import { ClaudeToAgTranslator, encodeConversation, encodeTools, steeringInstruct
 // One assistant turn for AG Studio: AgLlmRequest in, Claude streamed back as AG-UI events over SSE.
 // Browser side is app/dashboard/studio/claude-adapter.ts.
 
-const MAX_TOKENS = 32_000;
+// Enough for a widget or a page; caps what one request to this unauthenticated route can cost.
+const MAX_TOKENS = 16_000;
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
 // Claude needs its thinking blocks sent back unchanged along with the tool calls they led to, but

@@ -23,9 +23,31 @@ export function roleFor(m: Milestone, key: string | null | undefined): Role {
   return 'viewer';
 }
 
-/** The milestone as it may be sent to a browser: without the keys. */
+/** The milestone as it may be sent to one of the two parties: everything except the keys. */
 export function publicMilestone(m: Milestone): Milestone {
   const copy = { ...m };
   delete copy.access;
   return copy;
+}
+
+const EMAIL = /[^\s@()]+@[^\s@()]+\.[^\s@()]+/g;
+export const redactEmails = (text: string) => text.replace(EMAIL, '[email]');
+
+/**
+ * What someone without either link sees: where the milestone stands, but not the brief, the
+ * delivered work, the reviewer's evidence or anyone's email address.
+ */
+export function viewerMilestone(m: Milestone): Milestone {
+  const p = publicMilestone(m);
+  return {
+    ...p,
+    // Kept only for labelled demo data, so the list can still mark it as such.
+    description: p.description.startsWith('[Demo data]') ? p.description : '',
+    client: { name: p.client.name, email: '' },
+    freelancer: { name: p.freelancer.name, email: '' },
+    payment: { ...p.payment, payerEmail: undefined },
+    submissions: p.submissions.map((s) => ({ ...s, notes: '', links: [], attachments: [] })),
+    reviews: p.reviews.map((r) => ({ ...r, summary: undefined, feedback: undefined, log: [], findings: r.findings.map((f) => ({ ...f, evidence: '' })) })),
+    timeline: p.timeline.map((e) => ({ ...e, text: redactEmails(e.text) })),
+  };
 }

@@ -28,7 +28,8 @@ export const POST = handle(async (request: Request, ctx: RouteContext<'/api/escr
     if (entry.size > MAX_FILE) return Response.json({ error: `${entry.name} is larger than 15 MB` }, { status: 400 });
     files.push({ name: entry.name, type: entry.type, bytes: Buffer.from(await entry.arrayBuffer()) });
   }
-  const { milestone, reviewId } = submitWork(id, { notes, links, files }, milestoneKey(request));
+  const payoutEmail = String(form.get('payoutEmail') ?? '').trim() || undefined;
+  const { milestone, reviewId } = submitWork(id, { notes, links, files, payoutEmail }, milestoneKey(request));
   after(() => runReview(id, reviewId));
   return Response.json({ milestone: publicMilestone(milestone), reviewId }, { status: 202 });
 });

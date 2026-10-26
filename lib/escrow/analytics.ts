@@ -1,6 +1,7 @@
 import 'server-only';
 // Milestones flattened into four tables (milestones, reviews, findings, events) for AG Studio.
 
+import { redactEmails } from './access';
 import { paymentMode } from './payments';
 import { latestFindings } from './policy';
 import { listMilestones } from './store';
@@ -187,7 +188,8 @@ export function getEscrowDashboardData(): EscrowDashboardData {
     }
 
     m.timeline.forEach((e, i) =>
-      eRows.push({ id: `${m.id}-${i}`, milestoneId: m.id, at: e.at, date: e.at.slice(0, 10), actor: e.actor, type: e.type, text: e.text }),
+      // The dashboard has no login, so no addresses in it.
+      eRows.push({ id: `${m.id}-${i}`, milestoneId: m.id, at: e.at, date: e.at.slice(0, 10), actor: e.actor, type: e.type, text: redactEmails(e.text) }),
     );
   }
 
