@@ -40,7 +40,7 @@ async function funded(over: Record<string, unknown> = {}) {
 }
 
 async function submitAndReview(id: string, freelancerKey: string, notes: string) {
-  const { reviewId } = service.submitWork(id, { notes, links: [], files: [] }, freelancerKey);
+  const { reviewId } = await service.submitWork(id, { notes, links: [], files: [] }, freelancerKey);
   await service.runReview(id, reviewId);
   return store.getMilestone(id)!;
 }
@@ -66,7 +66,7 @@ test('each party can only do its own part', async () => {
   await assert.rejects(service.confirmFunding(m.id, orderId, freelancerKey), /Only the client/);
   await assert.rejects(service.confirmFunding(m.id, 'ORDER-SIM-SOMEONE-ELSES', clientKey), /does not belong/);
   await service.confirmFunding(m.id, orderId, clientKey);
-  assert.throws(() => service.submitWork(m.id, { notes: 'x', links: [], files: [] }, clientKey), /Only the freelancer/);
+  await assert.rejects(service.submitWork(m.id, { notes: 'x', links: [], files: [] }, clientKey), /Only the freelancer/);
   await assert.rejects(service.clientDecision(m.id, 'approve', '', freelancerKey), /Only the client/);
   await assert.rejects(service.clientDecision(m.id, 'cancel', '', 'wrong-key'), /Only the client/);
 });
@@ -79,7 +79,7 @@ test('weak evidence escalates; the client can ask for changes, the freelancer re
   m = await service.clientDecision(id, 'request_changes', 'Add the prices', clientKey);
   assert.equal(m.status, 'changes_requested');
   assert.equal(m.reviews.at(-1)!.feedback, 'Add the prices');
-  service.submitWork(id, { notes: 'Prices added', links: [], files: [] }, freelancerKey);
+  await service.submitWork(id, { notes: 'Prices added', links: [], files: [] }, freelancerKey);
   assert.equal(store.getMilestone(id)!.status, 'reviewing');
 });
 
@@ -112,6 +112,18 @@ test('cancel: before funding nothing to void, after funding the hold is voided',
   await assert.rejects(service.clientDecision(id, 'approve', '', clientKey), /Cannot release while cancelled/);
 });
 
+test('a submission waits for a cancel in flight instead of racing it', async () => {
+  const { id, clientKey, freelancerKey } = await funded();
+  const [cancel, submit] = await Promise.allSettled([
+    service.clientDecision(id, 'cancel', '', clientKey),
+    service.submitWork(id, { notes: 'x', links: [], files: [] }, freelancerKey),
+  ]);
+  assert.equal(cancel.status, 'fulfilled');
+  assert.equal(submit.status, 'rejected');
+  assert.equal(store.getMilestone(id)!.status, 'cancelled');
+  assert.equal(store.getMilestone(id)!.submissions.length, 0);
+});
+
 test('five approvals at once: one capture, four refusals', async () => {
   const { id, clientKey } = await funded();
   const results = await Promise.allSettled(Array.from({ length: 5 }, () => service.clientDecision(id, 'approve', '', clientKey)));
@@ -122,7 +134,7 @@ test('five approvals at once: one capture, four refusals', async () => {
 
 test('a review that never finished is handed to the client', async () => {
   const { id, freelancerKey } = await funded();
-  const { reviewId } = service.submitWork(id, { notes: 'x', links: [], files: [] }, freelancerKey);
+  const { reviewId } = await service.submitWork(id, { notes: 'x', links: [], files: [] }, freelancerKey);
   store.updateMilestone(id, (x) => {
     x.reviews.find((r) => r.id === reviewId)!.startedAt = new Date(Date.now() - 60 * 60_000).toISOString();
   });
@@ -133,8 +145,8 @@ test('a review that never finished is handed to the client', async () => {
 
 test('the freelancer sets where the payout goes; bad addresses are refused', async () => {
   const { id, freelancerKey } = await funded();
-  assert.throws(() => service.submitWork(id, { notes: 'x', links: [], files: [], payoutEmail: 'nope' }, freelancerKey), /valid PayPal email/);
-  const { milestone } = service.submitWork(id, { notes: 'x', links: [], files: [], payoutEmail: 'diego.pay@example.com' }, freelancerKey);
+  await assert.rejects(service.submitWork(id, { notes: 'x', links: [], files: [], payoutEmail: 'nope' }, freelancerKey), /valid PayPal email/);
+  const { milestone } = await service.submitWork(id, { notes: 'x', links: [], files: [], payoutEmail: 'diego.pay@example.com' }, freelancerKey);
   assert.equal(milestone.freelancer.email, 'diego.pay@example.com');
   assert.equal(count(id, 'payout_email'), 1);
 });
@@ -142,7 +154,7 @@ test('the freelancer sets where the payout goes; bad addresses are refused', asy
 test('uploads are stored with the type from their bytes', async () => {
   const { id, freelancerKey } = await funded();
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
-  const { milestone } = service.submitWork(
+  const { milestone } = await service.submitWork(
     id,
     { notes: 'x', links: [], files: [{ name: 'shot.txt', type: 'text/plain', bytes: png }, { name: 'fake.png', type: 'image/png', bytes: Buffer.from('text') }] },
     freelancerKey,
@@ -153,6 +165,7 @@ test('uploads are stored with the type from their bytes', async () => {
 test('only USD, positive amounts, at least one criterion', () => {
   assert.throws(() => service.createMilestone(input({ currency: 'EUR' })));
   assert.throws(() => service.createMilestone(input({ amount: -5 })));
+  assert.throws(() => service.createMilestone(input({ amount: 0.001 })), 'would round to 0.00');
   assert.throws(() => service.createMilestone(input({ criteria: [] })));
 });
 

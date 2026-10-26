@@ -10,6 +10,7 @@ import {
   createPayout,
   getPayoutBatch,
   isPayPalConfigured,
+  PayPalApiError,
   voidAuthorization,
 } from '../paypal.ts';
 import type { Milestone, PaymentState } from './types.ts';
@@ -113,7 +114,15 @@ export async function releaseFunds(m: Milestone, note: string): Promise<Partial<
 
 export async function cancelFunding(m: Milestone): Promise<Partial<PaymentState>> {
   const authId = m.payment.authorizationId;
-  if (authId && m.payment.mode === 'sandbox') await voidAuthorization(authId);
+  if (authId && m.payment.mode === 'sandbox') {
+    try {
+      await voidAuthorization(authId);
+    } catch (error) {
+      // Already expired or voided: there is no hold left to release, so cancelling can go ahead.
+      const gone = error instanceof PayPalApiError && error.status === 422 && /EXPIRED|VOIDED/.test(error.message);
+      if (!gone) throw error;
+    }
+  }
   return { voidedAt: new Date().toISOString(), authorizationStatus: authId ? 'VOIDED' : undefined };
 }
 

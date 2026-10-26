@@ -29,7 +29,7 @@ export const POST = handle(async (request: Request, ctx: RouteContext<'/api/escr
     files.push({ name: entry.name, type: entry.type, bytes: Buffer.from(await entry.arrayBuffer()) });
   }
   const payoutEmail = String(form.get('payoutEmail') ?? '').trim() || undefined;
-  const { milestone, reviewId } = submitWork(id, { notes, links, files, payoutEmail }, milestoneKey(request));
+  const { milestone, reviewId } = await submitWork(id, { notes, links, files, payoutEmail }, milestoneKey(request));
   after(() => runReview(id, reviewId));
   return Response.json({ milestone: publicMilestone(milestone), reviewId }, { status: 202 });
 });

@@ -45,7 +45,8 @@ export const CreateMilestoneInput = z.object({
   title: z.string().trim().min(3).max(120),
   description: z.string().trim().max(4000).default(''),
   criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
-  amount: z.coerce.number().positive().max(10_000),
+  // At least $1: anything smaller rounds to 0.00, which PayPal refuses.
+  amount: z.coerce.number().min(1).max(10_000),
   // USD only for now: the dashboard and the home page totals add amounts up as dollars.
   currency: z.literal('USD').default('USD'),
   clientName: z.string().trim().min(1).max(80),
@@ -119,11 +120,11 @@ export interface IncomingFile {
   bytes: Buffer;
 }
 
-export function submitWork(
-  id: string,
-  input: { notes: string; links: string[]; files: IncomingFile[]; payoutEmail?: string },
-  key: string | null,
-): { milestone: Milestone; reviewId: string } {
+type SubmitInput = { notes: string; links: string[]; files: IncomingFile[]; payoutEmail?: string };
+
+// Queued with the money operations, so a submission can't slip in while a cancel is waiting on PayPal.
+export const submitWork = (id: string, input: SubmitInput, key: string | null) => exclusive(id, async () => submitWorkNow(id, input, key));
+function submitWorkNow(id: string, input: SubmitInput, key: string | null): { milestone: Milestone; reviewId: string } {
   const m = mustGet(id);
   requireRole(m, key, 'freelancer');
   // The person getting paid decides where the money goes; the client only suggested an address.
