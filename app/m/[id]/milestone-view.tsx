@@ -123,10 +123,16 @@ export function MilestoneView({
   const settled = m.status === 'cancelled' || (m.status === 'released' && !['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? ''));
   useEffect(() => {
     if (settled) return;
-    const t = setInterval(() => {
+    const tick = () => {
       if (!document.hidden) refresh().catch(() => {});
-    }, m.status === 'reviewing' ? 1200 : 5000);
-    return () => clearInterval(t);
+    };
+    const t = setInterval(tick, m.status === 'reviewing' ? 1200 : 5000);
+    // Coming back to the tab: catch up right away instead of on the next tick.
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [m.status, settled, refresh]);
 
   const review = m.reviews.at(-1);

@@ -144,6 +144,7 @@ Run end to end on October 26, 2026 with a sandbox Personal buyer:
 - **Authorize:** $450.00 held through the JS SDK v6 popup. The milestone shows the authorization and its honor and expiry dates.
 - **Capture and payout:** the full $450.00 was captured, then a payout batch went from `PENDING` to `SUCCESS` for the freelancer. The app refreshes a pending payout's status from PayPal.
 - **Void:** a $220.00 hold was cancelled by the client. PayPal reports the authorization as `VOIDED`, and nothing was charged.
+- **Again after the hardening passes:** an $85.00 hold through the popup (amount checked against the milestone), captured, payout `SUCCESS`. A second void of an already voided authorization returns `422 PREVIOUSLY_VOIDED`, which the cancel flow now accepts.
 
 ## Known limitations
 
