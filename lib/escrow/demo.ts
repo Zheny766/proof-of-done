@@ -1,6 +1,5 @@
 import 'server-only';
-// Seeds realistic, clearly-labelled demo milestones so the dashboard has history to analyse.
-// All of them use simulated payments; nothing here touches PayPal.
+// Fake history for the dashboard. Everything is marked "[Demo data]" and uses simulated payments.
 
 import { insertMilestone, newId } from './store';
 import type { CriterionFinding, Milestone, MilestoneStatus, ReviewDecision } from './types';

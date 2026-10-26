@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { aiEnabled, aiModels } from "@/lib/ai";
+import { aiModels, isClaudeConfigured } from "@/lib/ai";
 import { getEscrowDashboardData } from "@/lib/escrow/analytics";
 import { Dashboard } from "./dashboard";
 
@@ -18,7 +18,7 @@ export default async function DashboardPage() {
     <Dashboard
       data={data}
       licenseKey={process.env.AG_STUDIO}
-      aiModels={aiEnabled() ? aiModels() : undefined}
+      aiModels={isClaudeConfigured() ? aiModels() : undefined}
     />
   );
 }

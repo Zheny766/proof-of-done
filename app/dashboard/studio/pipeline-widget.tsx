@@ -1,10 +1,7 @@
 'use client';
 
-// A custom AG Studio widget: the escrow pipeline. It shows how much money sits at each stage of the
-// escrow lifecycle (awaiting funding -> on hold -> in review -> paid) as connected PayPal-blue
-// chevrons, with the amount, the share of the total and the number of milestones at each stage.
-// Bind any category (stage) and any measure (amount); data comes through Studio's widget API, so
-// filters and cross-filtering apply like on built-in widgets.
+// Custom Studio widget: how much money sits at each escrow stage, left to right. Data comes through
+// widgetApi.getData, so dashboard filters apply to it like to the built-in widgets.
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- AG Studio's widget registry types are generic over a custom registry */
 import { useEffect, useState } from 'react';

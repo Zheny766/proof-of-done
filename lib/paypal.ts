@@ -1,6 +1,5 @@
-// PayPal REST client: every call Proof of Done makes to PayPal goes through here - OAuth, Orders v2
-// (intent AUTHORIZE), authorization capture/void and Payouts - with plain fetch and no SDK.
-// Server-side only: it reads the client secret from the environment.
+// PayPal REST calls (sandbox): OAuth, Orders v2 with intent AUTHORIZE, capture/void, Payouts.
+// Plain fetch, no SDK. Server-side only - it reads the client secret.
 
 const BASE_URL = 'https://api-m.sandbox.paypal.com';
 const MAX_ATTEMPTS = 4;
@@ -36,49 +35,19 @@ async function accessToken(): Promise<string> {
   if (!res.ok) throw new PayPalApiError(res.status, '/v1/oauth2/token', await res.text());
 
   const { access_token, expires_in } = (await res.json()) as { access_token: string; expires_in: number };
-  // Refresh a minute early so an in-flight request never carries an expired token.
+  // Refresh a minute early so a request in flight never carries an expired token.
   cachedToken = { value: access_token, expiresAt: Date.now() + (expires_in - 60) * 1000 };
   return access_token;
 }
 
-async function get<T>(path: string): Promise<T> {
+async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${await accessToken()}` },
-      cache: 'no-store',
-    });
-    if (res.ok) return (await res.json()) as T;
-
-    // A revoked or expired token: drop it and mint a new one once.
-    if (res.status === 401 && attempt === 1) {
-      cachedToken = undefined;
-      continue;
-    }
-    if ((res.status === 429 || res.status >= 500) && attempt < MAX_ATTEMPTS) {
-      await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 250));
-      continue;
-    }
-    throw new PayPalApiError(res.status, path, await res.text());
-  }
-}
-
-export type Money = { value: string; currency_code: string };
-
-// --- Escrow: authorize now, capture when the work is verified ---------------------
-// Proof of Done uses the Orders v2 AUTHORIZE intent: the buyer approves the full amount up front,
-// PayPal places a hold, and the money only moves when the AI reviewer (or the client) releases it.
-
-export const isPayPalConfigured = () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_SECRET);
-
-async function post<T>(path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
-  for (let attempt = 1; ; attempt++) {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: 'POST',
+      method,
       headers: {
         Authorization: `Bearer ${await accessToken()}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=representation',
-        // Retries of the same logical request must not double-charge.
+        ...(method === 'POST' && { 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+        // Same key on a retry -> PayPal replays the first result instead of charging twice.
         ...(idempotencyKey && { 'PayPal-Request-Id': idempotencyKey }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -88,6 +57,7 @@ async function post<T>(path: string, body?: unknown, idempotencyKey?: string): P
       const text = await res.text();
       return (text ? JSON.parse(text) : {}) as T;
     }
+    // Expired or revoked token: get a new one and try once more.
     if (res.status === 401 && attempt === 1) {
       cachedToken = undefined;
       continue;
@@ -99,6 +69,13 @@ async function post<T>(path: string, body?: unknown, idempotencyKey?: string): P
     throw new PayPalApiError(res.status, path, await res.text());
   }
 }
+
+const get = <T>(path: string) => request<T>('GET', path);
+const post = <T>(path: string, body?: unknown, idempotencyKey?: string) => request<T>('POST', path, body, idempotencyKey);
+
+export const isPayPalConfigured = () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_SECRET);
+
+export type Money = { value: string; currency_code: string };
 
 export type Authorization = {
   id: string;
@@ -165,10 +142,6 @@ export function createAuthorizeOrder(input: {
 /** After the buyer approves, place the hold. Returns the order with its authorization. */
 export function authorizeOrder(orderId: string): Promise<Order> {
   return post<Order>(`/v2/checkout/orders/${encodeURIComponent(orderId)}/authorize`, {}, `auth-${orderId}`);
-}
-
-export function getAuthorization(authorizationId: string): Promise<Authorization> {
-  return get<Authorization>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}`);
 }
 
 /** Move the held money. `final_capture` closes the authorization. */

@@ -1,9 +1,6 @@
-// Translation layer between AG Studio's provider-neutral LLM protocol (AgLlmRequest / AG-UI events /
-// AgLlmResponse) and the Claude Messages API. Pure functions, no I/O, so they can be unit-tested.
-//
-// AG Studio ships an OpenAI adapter only; this is the missing Claude one. The browser adapter
-// (app/dashboard/studio/claude-adapter.ts) posts AG requests to app/api/ai/claude/route.ts, which uses
-// these helpers with the Anthropic SDK and streams AG events back.
+// AG Studio's LLM protocol (AgLlmRequest in, AG-UI events + AgLlmResponse out) <-> Claude Messages API.
+// AG Studio only ships an OpenAI adapter. No I/O in here so it's easy to test; the route in
+// app/api/ai/claude does the actual API call.
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type {
@@ -18,8 +15,6 @@ import type {
 type Msg = Anthropic.Beta.BetaMessageParam;
 type Block = Anthropic.Beta.BetaContentBlockParam;
 type JsonSchema = Record<string, unknown>;
-
-// --- Request encoding: AG -> Claude --------------------------------------------------
 
 /**
  * AG Studio's Shape library marks optional union members with the sentinel `{ not: {} }`.
@@ -36,8 +31,8 @@ export function sanitizeSchema(schema: unknown): unknown {
       !!b && typeof b === 'object' && Object.keys(b).length === 1 && 'not' in (b as JsonSchema) && Object.keys((b as JsonSchema).not as JsonSchema).length === 0;
     const kept = (out.anyOf as unknown[]).filter((b) => !isSentinel(b));
     if (kept.length === 1 && typeof kept[0] === 'object') {
-      const { anyOf: _drop, ...rest } = out;
-      void _drop;
+      const rest = { ...out };
+      delete rest.anyOf;
       return { ...(kept[0] as JsonSchema), ...rest };
     }
     out.anyOf = kept;
@@ -155,8 +150,6 @@ export function steeringInstructions(request: Pick<AgLlmRequest, 'toolChoice' | 
   }
   return out;
 }
-
-// --- Response decoding: Claude stream -> AG events + final response ------------------------
 
 type StreamEvent = Anthropic.Beta.BetaRawMessageStreamEvent;
 

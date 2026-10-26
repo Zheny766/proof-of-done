@@ -1,6 +1,5 @@
-// The release policy is code, not prompt: the agent can ask to release money, but the capture only
-// happens if every acceptance criterion has a "met" finding at or above the milestone's confidence
-// threshold. This keeps a confused or manipulated model from paying out on its own say-so.
+// Release rule, enforced in code: money is captured only if every criterion has a "met" finding at
+// or above the milestone's threshold. Whatever the model says, it can't get around this.
 
 import type { Criterion, CriterionFinding } from './types';
 
@@ -9,24 +8,20 @@ export interface PolicyResult {
   reasons: string[];
 }
 
-export function checkReleasePolicy(
-  criteria: Criterion[],
-  findings: CriterionFinding[],
-  threshold: number,
-): PolicyResult {
+/** Latest finding per criterion, in criteria order (the reviewer may revise a finding). */
+export function latestFindings(criteria: Criterion[], findings: CriterionFinding[]): (CriterionFinding | undefined)[] {
+  return criteria.map((c) => findings.findLast((f) => f.criterionId === c.id));
+}
+
+export function checkReleasePolicy(criteria: Criterion[], findings: CriterionFinding[], threshold: number): PolicyResult {
+  const latest = latestFindings(criteria, findings);
   const reasons: string[] = [];
-  for (const c of criteria) {
-    // The latest finding for a criterion wins (the agent may revise itself).
-    const f = [...findings].reverse().find((x) => x.criterionId === c.id);
+  criteria.forEach((c, i) => {
+    const f = latest[i];
     if (!f) reasons.push(`No finding recorded for "${c.text}"`);
     else if (f.status !== 'met') reasons.push(`"${c.text}" is ${f.status.replace('_', ' ')}`);
     else if (f.confidence < threshold)
       reasons.push(`"${c.text}" confidence ${Math.round(f.confidence * 100)}% is below the ${Math.round(threshold * 100)}% threshold`);
-  }
+  });
   return { ok: reasons.length === 0, reasons };
-}
-
-/** Latest finding per criterion, in criteria order. */
-export function latestFindings(criteria: Criterion[], findings: CriterionFinding[]): (CriterionFinding | undefined)[] {
-  return criteria.map((c) => [...findings].reverse().find((f) => f.criterionId === c.id));
 }

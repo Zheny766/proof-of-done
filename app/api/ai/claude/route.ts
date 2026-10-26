@@ -1,17 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AgLlmRequest } from 'ag-studio';
-import { aiModels, claudeKeyConfigured } from '@/lib/ai';
+import { aiModels, isClaudeConfigured } from '@/lib/ai';
 import { ClaudeToAgTranslator, encodeConversation, encodeTools, steeringInstructions, toAgResponse } from '@/lib/claude-bridge';
 
-// Server half of the Claude adapter for AG Studio (see app/dashboard/studio/claude-adapter.ts).
-// Receives an AgLlmRequest, runs one Claude turn with streaming, and streams AG-UI events back as
-// SSE, ending with the final AgLlmResponse. The API key never leaves the server.
+// One assistant turn for AG Studio: AgLlmRequest in, Claude streamed back as AG-UI events over SSE.
+// Browser side is app/dashboard/studio/claude-adapter.ts.
 
 const MAX_TOKENS = 32_000;
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
-// Thinking blocks must be replayed unchanged with the tool calls they produced. AG Studio keeps
-// only summaries, so the original assistant content is remembered here per tool-call id.
+// Claude needs its thinking blocks sent back unchanged along with the tool calls they led to, but
+// AG Studio only keeps summaries. So we keep the raw content here, keyed by tool call id.
 const rawContent = new Map<string, Anthropic.Beta.BetaContentBlockParam[]>();
 function remember(message: Anthropic.Beta.BetaMessage) {
   const toolIds = message.content.filter((b) => b.type === 'tool_use').map((b) => (b as Anthropic.Beta.BetaToolUseBlock).id);
@@ -24,7 +23,7 @@ function remember(message: Anthropic.Beta.BetaMessage) {
 const sse = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
 
 export async function POST(request: Request) {
-  if (!claudeKeyConfigured()) {
+  if (!isClaudeConfigured()) {
     return Response.json({ error: { message: 'The AI assistant is not configured: set ANTHROPIC_API_KEY in .env.local.' } }, { status: 503 });
   }
   let body: AgLlmRequest;
@@ -58,7 +57,7 @@ export async function POST(request: Request) {
             ...(tools.length && { tools, tool_choice: { type: 'auto' as const } }),
             thinking: { type: 'adaptive', display: 'summarized' },
             output_config: { effort: effort as 'medium' },
-            // If a safety classifier declines, the API retries on a fallback model instead of stopping.
+            // On a refusal the API retries the turn on a fallback model instead of just stopping.
             betas: ['server-side-fallback-2026-07-01'],
             fallbacks: 'default',
           },

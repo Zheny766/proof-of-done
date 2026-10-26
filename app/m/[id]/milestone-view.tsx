@@ -92,26 +92,27 @@ export function MilestoneView({ initial, paypalClientId }: { initial: Milestone;
   );
 }
 
-// --- Money flow strip ------------------------------------------------------------------
-
 function MoneyFlow({ m }: { m: Milestone }) {
   const stage =
     m.status === 'awaiting_funding' ? 0 : m.status === 'released' ? 3 : m.status === 'cancelled' ? -1 : m.status === 'reviewing' ? 2 : 1;
+  // A client can approve and pay without an AI review; don't show that step as done then.
+  const aiSkipped = m.status === 'released' && !m.timeline.some((e) => e.type === 'verified');
   const steps = [
     { label: 'Client funds', sub: m.client.name },
     { label: 'PayPal holds funds', sub: m.payment.authorizationId ? `auth ${m.payment.authorizationId.slice(0, 14)}…` : 'authorize intent' },
-    { label: 'AI verifies the work', sub: `${m.criteria.length} criteria` },
+    { label: 'AI verifies the work', sub: aiSkipped ? 'skipped: client approved' : `${m.criteria.length} criteria` },
     { label: 'Freelancer paid', sub: m.payment.captureId ? `capture ${m.payment.captureId.slice(0, 14)}…` : m.freelancer.name },
   ];
   return (
     <ol className="mt-6 grid grid-cols-4 gap-2 rounded-xl border border-pp-border bg-white p-3">
       {steps.map((s, i) => {
-        const done = stage > i || stage === 3;
+        const skipped = aiSkipped && i === 2;
+        const done = (stage > i || stage === 3) && !skipped;
         const active = stage === i;
         return (
           <li key={s.label} className={`rounded-lg px-3 py-2 ${done ? 'bg-emerald-50' : active ? 'bg-pp-highlight ring-1 ring-pp-blue' : stage === -1 ? 'bg-rose-50/40' : 'bg-slate-50'}`}>
             <div className={`text-xs font-bold ${done ? 'text-emerald-700' : active ? 'text-pp-blue' : 'text-pp-muted'}`}>
-              {done ? '✓' : `${i + 1}.`} {s.label}
+              {done ? '✓' : skipped ? '–' : `${i + 1}.`} {s.label}
             </div>
             <div className="truncate text-[11px] text-pp-muted">{s.sub}</div>
           </li>
@@ -121,11 +122,9 @@ function MoneyFlow({ m }: { m: Milestone }) {
   );
 }
 
-// --- Criteria & decision ------------------------------------------------------------------
-
 function CriterionRow({ text, finding, pending, threshold }: { text: string; finding?: CriterionFinding; pending: boolean; threshold: number }) {
   const icon = !finding ? (pending ? '⟳' : '○') : finding.status === 'met' ? '✓' : finding.status === 'not_met' ? '✕' : '?';
-  // A "met" verdict below the release threshold does not count towards release, so it is amber, not green.
+  // "met" but under the threshold doesn't count for release, so don't paint it green.
   const clears = finding?.status === 'met' && finding.confidence >= threshold;
   const tone = !finding ? 'text-pp-muted' : clears ? 'text-emerald-600' : finding.status === 'not_met' ? 'text-pp-danger' : 'text-amber-600';
   const pct = finding ? Math.round(finding.confidence * 100) : 0;
@@ -169,9 +168,7 @@ function DecisionBanner({ decision, summary, feedback }: { decision: string; sum
   );
 }
 
-// --- Agent log ------------------------------------------------------------------------------
-
-const LOG_ICON: Record<AgentLogEntry['kind'], string> = { thinking: '💭', tool: '🔧', result: '📋', decision: '⚖️', error: '⚠️', info: 'ℹ️' };
+const LOG_TAG: Record<AgentLogEntry['kind'], string> = { thinking: 'note', tool: 'tool', result: 'finding', decision: 'decision', error: 'error', info: 'info' };
 
 function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }) {
   // Keep the newest entry in view by scrolling the log box itself, never the page.
@@ -191,7 +188,7 @@ function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }
         <div ref={box} className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
           {entries.map((e, i) => (
             <div key={i} className="flex gap-2 text-sm">
-              <span className="w-5 shrink-0 text-center">{LOG_ICON[e.kind]}</span>
+              <span className="w-14 shrink-0 pt-0.5 font-mono text-[10px] uppercase text-pp-muted">{LOG_TAG[e.kind]}</span>
               <span className={e.kind === 'decision' ? 'font-semibold' : e.kind === 'error' ? 'text-pp-danger' : 'text-pp-ink'}>{e.text}</span>
             </div>
           ))}
@@ -200,8 +197,6 @@ function AgentLog({ entries, live }: { entries: AgentLogEntry[]; live: boolean }
     </section>
   );
 }
-
-// --- Submit work (freelancer) -------------------------------------------------------------------
 
 function SubmitWork({ m, onSubmitted }: { m: Milestone; onSubmitted: (m: Milestone) => void }) {
   const [notes, setNotes] = useState('');
@@ -248,8 +243,6 @@ function SubmitWork({ m, onSubmitted }: { m: Milestone; onSubmitted: (m: Milesto
   );
 }
 
-// --- Client decision ------------------------------------------------------------------------------
-
 function ClientDecision({ m, onChange }: { m: Milestone; onChange: (m: Milestone) => void }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState('');
@@ -277,15 +270,13 @@ function ClientDecision({ m, onChange }: { m: Milestone; onChange: (m: Milestone
       <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note to the freelancer" className="mt-3 h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
       <div className="mt-3 grid grid-cols-3 gap-2">
         <button onClick={() => act('approve')} disabled={!!busy} className="h-10 rounded-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{busy === 'approve' ? '…' : 'Approve & pay'}</button>
-        <button onClick={() => act('request_changes')} disabled={!!busy || m.status === 'changes_requested'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Ask for changes</button>
+        <button onClick={() => act('request_changes')} disabled={!!busy || m.status !== 'escalated'} title={m.status === 'escalated' ? undefined : 'Available once a submission has been reviewed'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Ask for changes</button>
         <button onClick={() => act('cancel')} disabled={!!busy} className="h-10 rounded-full border border-rose-300 text-xs font-semibold text-pp-danger hover:bg-rose-50 disabled:opacity-50">{busy === 'cancel' ? '…' : 'Cancel & void'}</button>
       </div>
       {error && <p className="mt-2 rounded-md bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
     </section>
   );
 }
-
-// --- Payment details & timeline ----------------------------------------------------------------------
 
 function PaymentDetails({ m }: { m: Milestone }) {
   const p = m.payment;
@@ -314,7 +305,13 @@ function PaymentDetails({ m }: { m: Milestone }) {
   );
 }
 
-const ACTOR: Record<string, string> = { client: '🧑‍💼', freelancer: '🧑‍🎨', agent: '🤖', paypal: '💳', system: '⚙️' };
+const ACTOR: Record<string, { label: string; dot: string }> = {
+  client: { label: 'Client', dot: 'bg-slate-500' },
+  freelancer: { label: 'Freelancer', dot: 'bg-amber-500' },
+  agent: { label: 'AI reviewer', dot: 'bg-violet-500' },
+  paypal: { label: 'PayPal', dot: 'bg-pp-blue' },
+  system: { label: 'System', dot: 'bg-slate-300' },
+};
 
 function Timeline({ m }: { m: Milestone }) {
   return (
@@ -323,10 +320,12 @@ function Timeline({ m }: { m: Milestone }) {
       <ol className="mt-3 space-y-3">
         {[...m.timeline].reverse().map((e, i) => (
           <li key={i} className="flex gap-3 text-sm">
-            <span>{ACTOR[e.actor] ?? '•'}</span>
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ACTOR[e.actor]?.dot ?? 'bg-slate-300'}`} />
             <div>
               <div>{e.text}</div>
-              <div suppressHydrationWarning className="text-xs text-pp-muted">{fmtDate(e.at)}</div>
+              <div suppressHydrationWarning className="text-xs text-pp-muted">
+                {ACTOR[e.actor]?.label ?? e.actor} · {fmtDate(e.at)}
+              </div>
             </div>
           </li>
         ))}
@@ -354,7 +353,7 @@ function Submissions({ m }: { m: Milestone }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img key={a.id} src={`/api/escrow/files/${a.file}`} alt={a.name} className="h-20 rounded border border-pp-border object-cover" />
                 ) : (
-                  <a key={a.id} href={`/api/escrow/files/${a.file}`} className="rounded border border-pp-border px-2 py-1 text-xs hover:border-pp-blue">📎 {a.name}</a>
+                  <a key={a.id} href={`/api/escrow/files/${a.file}`} className="rounded border border-pp-border px-2 py-1 text-xs hover:border-pp-blue">{a.name}</a>
                 ),
               )}
             </div>

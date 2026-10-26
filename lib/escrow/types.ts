@@ -1,5 +1,5 @@
-// Domain model for Proof of Done: a milestone is a piece of work whose payment is authorized up
-// front on PayPal and captured only after an AI reviewer has verified the acceptance criteria.
+// A milestone = one piece of work. Its payment is authorized on PayPal up front and captured once
+// the work is verified.
 
 export type MilestoneStatus =
   | 'awaiting_funding' // created, client has not authorized payment yet

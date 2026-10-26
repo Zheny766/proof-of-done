@@ -62,7 +62,6 @@ export const copyOf = (source: SavedReport): SavedReport => ({
 
 export const findReport = (reports: SavedReport[], id: string) => reports.find((r) => r.id === id);
 
-// --- Updates ----------------------------------------------------------------------
 // Pure: each returns the next StoredReports, for the caller to save.
 
 export function upsert(current: StoredReports, report: SavedReport): StoredReports {
@@ -80,8 +79,6 @@ export function remove(current: StoredReports, id: string): StoredReports {
 
 // Back to a fresh demo: only the built-in report, as defined in initial-report.ts.
 export const initialReports = (): StoredReports => ({ reports: [defaultReport()], activeId: BUILT_IN_ID });
-
-// --- Storage ----------------------------------------------------------------------
 
 export function loadReports(): StoredReports {
   try {

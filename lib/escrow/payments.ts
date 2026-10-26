@@ -1,7 +1,6 @@
 import 'server-only';
-// The escrow money flow, on top of lib/paypal.ts. With PayPal sandbox credentials configured every
-// step is a real sandbox API call; without them the same flow is simulated so the app still runs
-// end to end (the UI labels simulated payments clearly).
+// Money moves for a milestone. Real sandbox calls when PayPal keys are set, otherwise simulated
+// (and labelled as such in the UI) so the app runs without any keys.
 
 import crypto from 'node:crypto';
 import {
@@ -80,8 +79,7 @@ export async function releaseFunds(m: Milestone, note: string): Promise<Partial<
     authorizationStatus: 'CAPTURED',
   };
 
-  // Pay the freelancer out of the captured funds. A payout failure (e.g. Payouts not enabled on
-  // the sandbox app) must not undo the capture, so it is recorded rather than thrown.
+  // A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it.
   try {
     const payoutAmount = (Number(m.amount) * (1 - PLATFORM_FEE_PCT / 100)).toFixed(2);
     const batch = await createPayout({

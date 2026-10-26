@@ -1,6 +1,5 @@
 import 'server-only';
-// Flattens milestones into related tables for the AG Studio "Escrow analytics" dashboard:
-// milestones, AI reviews, per-criterion findings and timeline events.
+// Milestones flattened into four tables (milestones, reviews, findings, events) for AG Studio.
 
 import { latestFindings } from './policy';
 import { listMilestones } from './store';

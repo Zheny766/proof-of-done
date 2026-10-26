@@ -81,7 +81,7 @@ export function NewMilestoneForm() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Acceptance criteria <span className="font-normal text-pp-muted">· the AI releases the money only when all are verified</span></span>
           <button type="button" onClick={draft} disabled={drafting || title.trim().length < 3} className="rounded-md border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">
-            {drafting ? 'Claude is drafting…' : '✦ Draft with AI'}
+            {drafting ? 'Drafting…' : 'Draft with AI'}
           </button>
         </div>
         <ol className="mt-2 space-y-2">

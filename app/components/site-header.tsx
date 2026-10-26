@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { paymentMode } from '@/lib/escrow/payments';
-import { isClaudeConfigured, REVIEW_MODEL } from '@/lib/escrow/reviewer';
+import { isClaudeConfigured } from '@/lib/ai';
+import { REVIEW_MODEL } from '@/lib/escrow/reviewer';
 
 export function Logo() {
   return (

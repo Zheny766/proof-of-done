@@ -1,6 +1,6 @@
 import 'server-only';
-// A small JSON-file store. It keeps the demo dependency-free and easy for judges to run; a real
-// deployment would put this behind Postgres. Writes are atomic (temp file + rename).
+// JSON file instead of a database so the project runs with zero setup. Writes go to a temp file
+// and get renamed, so a crash can't leave half a file.
 
 import fs from 'node:fs';
 import path from 'node:path';

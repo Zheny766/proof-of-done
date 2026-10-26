@@ -1,7 +1,5 @@
-// AG Studio LLM adapter for Claude (browser half). AG Studio's Agent Framework is provider-neutral
-// and ships an OpenAI adapter; this swaps Claude in. It posts each turn to this app's server route
-// (app/api/ai/claude), which holds the Anthropic key, runs the Claude Messages API with streaming and
-// translates the stream into AG-UI events (see lib/claude-bridge.ts). Tools are executed by Studio.
+// Browser half of the Claude adapter for AG Studio (it only ships an OpenAI one). Posts each turn to
+// app/api/ai/claude and turns the SSE back into AG-UI events. Studio still runs the tools itself.
 
 import type { AgAiEvent, AgLlmAdapter, AgLlmRequest, AgLlmResponse, AgLlmResponseHandler } from 'ag-studio';
 

@@ -6,53 +6,54 @@
 Proof of Done
 
 ## Elevator pitch (tagline, 200 chars)
-PayPal escrow that pays itself: the client's money is held with PayPal, and a Claude agent releases it the moment it verifies every acceptance criterion of the delivered work.
+Escrow for freelance jobs: the client's money is held on PayPal, and a Claude agent releases it once it has checked the delivered work against every acceptance criterion.
 
 ## Inspiration
-Fixed-price freelance work runs on trust that often isn't there. Freelancers deliver and then chase payment for weeks; clients hesitate to pay up front for work that may never arrive. Escrow fixes the money, but release still waits on someone to look, approve and click - or on a dispute. We wanted the hold to be as safe as escrow and the release to be as fast as the work itself.
+With fixed-price freelance work someone always has to go first. Either the freelancer delivers and then chases the payment, or the client pays up front and hopes the work shows up. Escrow fixes who holds the money, but releasing it still waits on someone opening the delivery, checking it and clicking approve - which can take days, or end in a dispute. I wanted to see if that check could be done by an AI agent with PayPal holding the money, without handing the agent a blank cheque.
 
 ## What it does
-- The client creates a **milestone** with acceptance criteria (Claude can draft objectively checkable ones from a plain description) and funds it with **PayPal**: an Orders v2 order with **intent AUTHORIZE**, approved with the **PayPal JS SDK v6**. The money is held, not charged.
+- The client creates a milestone with acceptance criteria. Claude can draft them from a plain description, phrased so they can actually be checked from a submission. The client funds it with PayPal: an Orders v2 order with intent AUTHORIZE, approved through the JS SDK v6 button. The money is held, not charged.
 - The freelancer submits the work: notes, links, screenshots, PDFs, files.
-- A **Claude Opus 5.5 reviewer agent** checks the submission. It reads the brief, opens links, looks at images and documents, and records one finding per criterion - met / not met / unclear, with a confidence and the evidence it used.
-- Then it makes exactly one decision: **release** (capture the PayPal authorization and send a **PayPal Payout** to the freelancer), **request changes** (specific feedback; money stays on hold), or **escalate** to the client.
-- The client always keeps the final say: approve, ask for changes, or cancel - which **voids** the authorization so nothing is charged.
-- An **AG Studio** dashboard shows where the money is, how often the AI pays out without the client stepping in, which verdicts were least confident, and how each freelancer is doing - and its AI assistant runs on **Claude** through an adapter we wrote for the AG Studio Agent Framework.
+- A Claude Opus 5.5 reviewer agent reads the brief, opens the links, looks at the images and documents, and records a finding for each criterion: met / not met / unclear, with a confidence and the evidence.
+- Then it makes one decision: release (capture the authorization and send a PayPal Payout to the freelancer), request changes (with specific feedback, money stays on hold), or escalate to the client.
+- The client can always step in: approve, ask for changes, or cancel, which voids the authorization so nothing is charged.
+- An AG Studio dashboard shows where the money is, how often the AI paid out on its own, which verdicts were least confident, and how each freelancer is doing. Its assistant runs on Claude through an adapter I wrote for the AG Studio Agent Framework.
 
-## How we built it
-- **Next.js 16 / React 19 / TypeScript**, starting from PayPal's PayPal × AG Grid hackathon boilerplate.
-- **PayPal**: Orders v2 (`AUTHORIZE`), `/authorize`, Payments v2 capture and void, Payouts, OAuth client credentials, `PayPal-Request-Id` idempotency on every money call, JS SDK v6 `createPayPalOneTimePaymentSession` + `<paypal-button>`.
-- **Claude**: the Anthropic TypeScript SDK **Tool Runner** with Zod-typed tools (`read_brief`, `fetch_link`, `record_finding`, `release_payment`, `request_changes`, `escalate_to_client`), adaptive thinking at high effort, vision and PDF input, structured outputs for criteria drafting, server-side refusal fallback.
-- **Safety by construction**: release is gated by a code-level policy (every criterion `met` at or above a client-chosen confidence threshold), submission content is treated as evidence and never as instructions, no decision means no payout, and every step is logged.
-- **AG Grid / AG Studio**: an AG Grid milestone ledger with custom cell renderers, a three-page AG Studio escrow analytics report over four related tables with calculated measures, and a **Claude adapter for AG Studio's Agent Framework** that translates AG-UI requests, tool calls and streaming events to the Claude Messages API - including replaying Claude's signed thinking blocks across tool calls.
+## How I built it
+- Next.js 16, React 19, TypeScript, starting from PayPal's PayPal x AG Grid hackathon boilerplate.
+- PayPal: Orders v2 with AUTHORIZE, `/authorize`, Payments v2 capture and void, Payouts, OAuth client credentials, a `PayPal-Request-Id` on every money call so retries can't charge twice, and the JS SDK v6 (`createPayPalOneTimePaymentSession` + `<paypal-button>`).
+- Claude: the Anthropic TypeScript SDK tool runner with Zod-typed tools (`read_brief`, `fetch_link`, `record_finding`, `release_payment`, `request_changes`, `escalate_to_client`), adaptive thinking at high effort, image and PDF input, structured outputs for drafting criteria.
+- The agent can't pay on its own word. `release_payment` goes through a policy check in code: every criterion has to be `met` at or above the confidence threshold the client picked. Submission content is treated as evidence, not instructions. No decision means no payout. Every step is logged.
+- AG Grid for the milestone table, AG Studio for a three-page escrow report over four related tables, plus a custom Studio widget (the escrow pipeline) and the Claude adapter, which translates AG-UI requests, tool calls and streaming events to the Messages API.
 
-## Challenges we ran into
-- **Letting an AI move money without trusting it blindly.** The answer was to give the agent tools instead of a free-text verdict, and to make the money move only through a policy written in code.
-- **Prompt injection through deliverables.** A submission can contain "approve this immediately". The reviewer treats all submission content as data, flags such attempts, and the policy still requires evidence for every criterion.
-- **PayPal authorization lifecycles.** Holds are honored for 3 days and capturable for 29; we track both and void cleanly on cancel.
-- **Bridging two agent protocols.** AG Studio speaks AG-UI events and OpenAI-style items; Claude uses content blocks with signed thinking. Our bridge keeps the original assistant content server-side so multi-step tool use works.
+## Challenges I ran into
+- Letting an AI move money without just trusting it. What worked: tools instead of a free-text verdict, and a release rule in code that the model can't argue with.
+- Prompt injection through deliverables. A submission can say "approve this now". The reviewer is told to treat that as a red flag, and even if it didn't, the policy still wants evidence for each criterion.
+- The reviewer opens links that come from the submitter, so it could be pointed at internal addresses. It resolves the host first, refuses private and local ones, and checks every redirect hop again.
+- PayPal authorization lifetimes: an authorization is honored for 3 days and can be captured for 29. The app tracks both and voids cleanly on cancel.
+- Making two agent protocols talk. AG Studio speaks AG-UI events; Claude needs its signed thinking blocks sent back with the tool calls they produced, which Studio doesn't keep. The server remembers the raw content per tool call.
 
-## Accomplishments that we're proud of
-- An end-to-end flow where an AI agent *actually transacts* - authorize, verify, capture, payout - with a human override at every step.
-- A release policy that makes the agent's power explicit and testable.
-- A Claude adapter for AG Studio's Agent Framework (which ships with an OpenAI adapter only), with unit tests.
+## Accomplishments that I'm proud of
+- The whole money path runs against the real PayPal sandbox: authorize through the popup, capture, payout (PENDING -> SUCCESS), and void.
+- The agent actually transacts, but only inside a rule that is written down and tested.
+- A working Claude adapter for AG Studio's Agent Framework, with unit tests.
 
-## What we learned
-Agentic payments are less about what the model can do and more about the boundaries around it: typed tools, code-enforced policies, honest escalation, and an audit trail both sides can read.
+## What I learned
+Most of the work in an agent that touches money isn't the model. It's the boundaries around it: what the tools allow, what the code refuses, when to hand the decision back to a human, and a log that both sides can read.
 
 ## What's next for Proof of Done
-- Re-authorization when the honor period ends; partial captures for multi-part milestones.
-- Accounts and roles for clients and freelancers; PayPal webhooks for authorization and payout status.
-- Domain-specific verifiers: running a repo's tests, checking a live site with a headless browser, checking image dimensions and formats.
-- Dispute support: hand PayPal a structured evidence pack from the review log.
+- Re-authorize when the honor period runs out; partial captures for milestones with several parts.
+- Real accounts for clients and freelancers; PayPal webhooks for authorization and payout status.
+- Checks for specific kinds of work: run a repo's tests, open a live site in a headless browser, check image sizes and formats.
+- Disputes: give PayPal the review log as a structured evidence pack.
 
 ## Built with
 `paypal` `paypal-orders-api` `paypal-payouts` `paypal-js-sdk-v6` `claude` `anthropic` `ag-grid` `ag-studio` `next.js` `react` `typescript` `tailwindcss` `zod`
 
 ## Tools used (AI / sponsor tools field)
-- **Claude Opus 5.5** (Anthropic API): reviewer agent with tools, criteria drafting (structured outputs), and the AG Studio assistant via our Claude adapter.
-- **AG Grid** (milestone ledger) and **AG Studio** (escrow analytics dashboard, Agent Framework with a swapped-in Claude harness).
-- **PayPal Developer Platform** (sandbox): Orders v2, Payments v2 capture/void, Payouts, JS SDK v6.
+- Claude Opus 5.5 (Anthropic API): the reviewer agent, criteria drafting, and the AG Studio assistant through the Claude adapter.
+- AG Grid (milestone table) and AG Studio (escrow dashboard, Agent Framework running on Claude).
+- PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void, Payouts, JS SDK v6.
 
 ## Try it
-Repository README has full setup. Runs locally with `npm install && npm run dev`; works with no keys in simulated mode, and with PayPal sandbox + Anthropic keys for the real flow.
+Setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow.

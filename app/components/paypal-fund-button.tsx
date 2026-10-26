@@ -1,8 +1,7 @@
 'use client';
 
-// Funding a milestone with PayPal JS SDK v6. The server creates an order with intent AUTHORIZE;
-// when the buyer approves in the PayPal window we place the hold (no money moves yet). Without
-// sandbox credentials the same two server steps run in simulated mode.
+// PayPal JS SDK v6 button. Server creates an AUTHORIZE order, buyer approves in the popup, then we
+// authorize it - money is held, not charged. Without PayPal keys it fakes both steps.
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from './status';
@@ -61,7 +60,7 @@ export function PayPalFundButton({ milestoneId, clientId, onFunded }: { mileston
     (async () => {
       try {
         await loadSdk();
-        // The app is in English, so the button is too (the SDK would otherwise follow the browser language).
+        // Otherwise the SDK follows the browser language and the button ends up in Russian on my machine.
         const sdk = await window.paypal.createInstance({ clientId, components: ['paypal-payments'], pageType: 'checkout', locale: 'en-US' });
         sessionRef.current = sdk.createPayPalOneTimePaymentSession({
           onApprove: (data: { orderId: string }) => authorize(data.orderId),

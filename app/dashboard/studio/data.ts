@@ -11,8 +11,6 @@ import type {
 import { createFormats } from 'ag-studio';
 import type { EscrowDashboardData } from '@/lib/escrow/analytics';
 
-// --- Helpers ----------------------------------------------------------------------
-
 const CALENDAR_ID = 'calendar';
 
 // [id, name, format, hide?]
@@ -50,8 +48,6 @@ const ratio = (id: string, name: string, description: string, numerator: string,
   isMeasure: true,
   expression: { operator: 'divide', inputs: [sumOf(numerator), sumOf(denominator)] },
 });
-
-// --- Data sources -----------------------------------------------------------------
 
 /** Whether there is anything to report on. Without it, Studio would only show empty widgets. */
 export const hasData = (data: EscrowDashboardData) => data.milestones.length > 0;

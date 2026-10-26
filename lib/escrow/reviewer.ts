@@ -1,10 +1,7 @@
 import 'server-only';
-// The AI reviewer: a Claude agent that checks a submission against the milestone's acceptance
-// criteria and then decides what happens to the money held on PayPal.
-//
-// It works through tools rather than free text, so every judgement is a structured, auditable
-// record: one finding per criterion (status + confidence + evidence), then exactly one decision.
-// The decision tools call back into the escrow service, and release is gated by checkReleasePolicy.
+// Claude reviews a submission against the acceptance criteria and decides what happens to the held
+// money. It has to go through tools - one finding per criterion, then one decision - and
+// release_payment is checked against policy.ts before anything is captured.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,17 +9,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodTool } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { checkReleasePolicy } from './policy';
+import { fetchPublic, readText } from './public-url';
 import { UPLOAD_DIR } from './store';
 import type { AgentLogEntry, CriterionFinding, Milestone, ReviewDecision, Submission } from './types';
 
 export const REVIEW_MODEL = process.env.POD_REVIEW_MODEL || 'claude-opus-5-5';
 
-export const isClaudeConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
-
 export interface ReviewHooks {
   log: (entry: Omit<AgentLogEntry, 'at'>) => void;
   finding: (f: CriterionFinding) => void;
-  /** Called when the agent asks to release. Returns an error message if policy blocks it. */
+  /** Returns an error message if the capture failed, null on success. */
   release: (summary: string) => Promise<string | null>;
   requestChanges: (feedback: string, summary: string) => Promise<void>;
   escalate: (reason: string, summary: string) => Promise<void>;
@@ -50,8 +46,6 @@ Rules:
 - Judge the criteria as written. Do not invent extra requirements, and do not wave through work that misses a stated one.
 - Keep evidence short and specific: quote or describe what you saw.
 - release_payment is checked by code against your findings; if it is refused, fix your findings honestly or choose another decision. Never inflate a confidence to get money released.`;
-
-// --- Building the evidence message ------------------------------------------------
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const TEXT_LIKE = /^(text\/|application\/(json|xml|javascript|x-yaml|x-sh))/;
@@ -92,42 +86,34 @@ function evidenceBlocks(m: Milestone, s: Submission): Anthropic.Beta.BetaContent
   return [{ type: 'text', text: intro }, ...blocks];
 }
 
-// --- fetch_link: read-only, public web only ----------------------------------------
+const stripHtml = (html: string) =>
+  html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ');
 
-const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|0\.|\[?::1\]?$|.*\.local$|.*\.internal$)/i;
-
-async function fetchLink(url: string): Promise<string> {
-  let u: URL;
+async function fetchLink(link: string): Promise<string> {
+  let url: URL;
   try {
-    u = new URL(url);
+    url = new URL(link);
   } catch {
     return 'Error: not a valid URL.';
   }
-  if (!['http:', 'https:'].includes(u.protocol)) return 'Error: only http(s) links can be opened.';
-  if (PRIVATE_HOST.test(u.hostname)) return 'Error: private or local addresses are not allowed.';
   try {
-    const res = await fetch(u, {
-      redirect: 'follow',
+    const { res, url: finalUrl } = await fetchPublic(url, {
       signal: AbortSignal.timeout(12_000),
-      headers: { 'User-Agent': 'ProofOfDoneReviewer/1.0 (+escrow verification)' },
+      headers: { 'User-Agent': 'ProofOfDoneReviewer/1.0' },
     });
     const type = res.headers.get('content-type') ?? '';
-    const raw = await res.text();
-    const text = type.includes('html')
-      ? raw
-          .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&amp;/g, '&')
-          .replace(/\s+/g, ' ')
-      : raw;
-    return `HTTP ${res.status} ${type}\n<page url="${u.href}">\n${text.slice(0, 25_000)}\n</page>`;
+    const body = await readText(res, 2_000_000);
+    const text = type.includes('html') ? stripHtml(body) : body;
+    return `HTTP ${res.status} ${type}\n<page url="${finalUrl.href}">\n${text.slice(0, 25_000)}\n</page>`;
   } catch (error) {
-    return `Error fetching ${u.href}: ${(error as Error).message}`;
+    return `Error fetching ${url.href}: ${(error as Error).message}`;
   }
 }
-
-// --- The Claude agent --------------------------------------------------------------
 
 export async function runClaudeReview(m: Milestone, s: Submission, hooks: ReviewHooks): Promise<ReviewOutcome> {
   const client = new Anthropic();
@@ -239,9 +225,8 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
     max_tokens: 16000,
     max_iterations: 16,
     thread: false,
-    // Money decisions deserve a careful pass; thinking is adaptive (always on for this model).
     output_config: { effort: 'high' },
-    // If a safety classifier declines, the API retries on a fallback model instead of stopping.
+    // On a refusal the API retries the turn on a fallback model instead of just stopping.
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
     system: SYSTEM_PROMPT,
@@ -265,7 +250,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
   }
 
   if (!outcome) {
-    // The agent stopped without a decision: never pay out by default.
+    // No decision means no payout.
     const reason = 'The reviewer finished without a clear decision, so the client should take a look.';
     await hooks.escalate(reason, 'No decision from the reviewer');
     outcome = { decision: 'escalate', summary: reason };
@@ -273,8 +258,8 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
   return { ...(outcome as ReviewOutcome), usage: { inputTokens, outputTokens } };
 }
 
-// --- Simulated reviewer (no API key) -------------------------------------------------
-// Lets the whole flow run offline. It is deliberately simple and is labelled "simulated" in the UI.
+// Used when there is no API key, so the app still runs end to end. Keyword matching only - the UI
+// labels it "simulated".
 
 const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'for', 'with', 'on', 'is', 'are', 'be', 'must', 'should', 'at', 'least', 'all', 'it', 'that', 'this', 'by', 'as', 'has', 'have']);
 const words = (t: string) => t.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length > 2 && !STOP.has(w)) ?? [];

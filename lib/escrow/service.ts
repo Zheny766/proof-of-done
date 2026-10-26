@@ -1,6 +1,5 @@
 import 'server-only';
-// The escrow state machine. Every transition goes through here so the timeline, the payment state
-// and the milestone status always agree.
+// Every milestone state change goes through here, so status, payment and timeline stay in sync.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,7 +7,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments';
-import { isClaudeConfigured, REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
+import { isClaudeConfigured } from '@/lib/ai';
+import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
 import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store';
 import type { Attachment, Milestone, Review } from './types';
 
@@ -19,8 +19,6 @@ export class EscrowError extends Error {
 }
 
 const money = (n: number, ccy: string) => `${n.toFixed(2)} ${ccy}`;
-
-// --- Create ------------------------------------------------------------------------
 
 export const CreateMilestoneInput = z.object({
   title: z.string().trim().min(3).max(120),
@@ -59,8 +57,6 @@ export function createMilestone(raw: unknown): Milestone {
   return insertMilestone(m);
 }
 
-// --- Fund (PayPal authorize) -------------------------------------------------------------
-
 export async function beginFunding(id: string): Promise<{ orderId: string }> {
   const m = mustGet(id);
   if (m.status !== 'awaiting_funding') throw new EscrowError('This milestone is already funded.');
@@ -75,7 +71,7 @@ export async function beginFunding(id: string): Promise<{ orderId: string }> {
 export async function confirmFunding(id: string, orderId: string): Promise<Milestone> {
   const m = mustGet(id);
   if (m.status !== 'awaiting_funding') return m;
-  // Only the order this server created for the milestone can fund it.
+  // Only the order we created for this milestone can fund it.
   if (!m.payment.orderId || m.payment.orderId !== orderId) throw new EscrowError('Order does not belong to this milestone.');
   const payment = await completeFunding(orderId);
   return updateMilestone(id, (x) => {
@@ -89,8 +85,6 @@ export async function confirmFunding(id: string, orderId: string): Promise<Miles
     );
   });
 }
-
-// --- Submit work ---------------------------------------------------------------------
 
 export interface IncomingFile {
   name: string;
@@ -132,8 +126,7 @@ export function submitWork(id: string, input: { notes: string; links: string[]; 
   return { milestone, reviewId };
 }
 
-// --- Review (runs in the background after the submit request returns) ----------------------
-
+// Runs in the background (after()) once the submit request has returned.
 export async function runReview(id: string, reviewId: string): Promise<void> {
   const m = mustGet(id);
   const review = m.reviews.find((r) => r.id === reviewId);
@@ -208,8 +201,6 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
   }
 }
 
-// --- Reading ---------------------------------------------------------------------------------------
-
 /** The milestone, with a pending PayPal payout's status brought up to date. */
 export async function readMilestone(id: string): Promise<Milestone | undefined> {
   const m = getMilestone(id);
@@ -221,8 +212,6 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
     if (status === 'SUCCESS') pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email}`);
   });
 }
-
-// --- Client overrides ----------------------------------------------------------------------
 
 export async function clientDecision(id: string, action: 'approve' | 'request_changes' | 'cancel', note = ''): Promise<Milestone> {
   const m = mustGet(id);
@@ -238,7 +227,8 @@ export async function clientDecision(id: string, action: 'approve' | 'request_ch
     });
   }
   if (action === 'request_changes') {
-    if (!['escalated', 'funded'].includes(m.status)) throw new EscrowError(`Cannot request changes while ${m.status}.`);
+    // Only makes sense once there is a reviewed submission to send back.
+    if (m.status !== 'escalated') throw new EscrowError(`Cannot request changes while ${m.status}.`);
     return updateMilestone(id, (x) => {
       x.status = 'changes_requested';
       const r = x.reviews.at(-1);
@@ -254,8 +244,6 @@ export async function clientDecision(id: string, action: 'approve' | 'request_ch
     pushEvent(x, 'client', 'cancelled', `${x.client.name} cancelled the milestone; the PayPal hold was voided, nothing was charged`);
   });
 }
-
-// --- AI-drafted acceptance criteria --------------------------------------------------------------
 
 const DraftCriteria = z.object({
   criteria: z.array(z.string()).describe('3 to 6 acceptance criteria, each objectively checkable from a submission'),

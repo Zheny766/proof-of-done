@@ -103,7 +103,6 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   // `ai` is read once, when Studio is created.
   const ai = useMemo(() => (aiModels?.length ? buildAi(aiModels) : undefined), [aiModels]);
 
-  // --- Driving Studio ---------------------------------------------------------------
   const load = (
     report: SavedReport,
     selectedPageId = report.state.selectedPageId,
@@ -133,7 +132,6 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
     setMode(next);
   };
 
-  // --- Saving -----------------------------------------------------------------------
   const save = () => {
     const api = apiRef.current;
     if (!api) return;
@@ -157,7 +155,6 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
     } else then();
   };
 
-  // --- Reports ----------------------------------------------------------------------
   const openReport = (id: string) => {
     const report = findReport(reports, id);
     if (report && id !== saved.id) guard(() => load(report));
@@ -188,7 +185,6 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   const renameReport = (id: string, name: string) =>
     editReport(id, (report) => ({ ...report, name }));
 
-  // --- Pages ------------------------------------------------------------------------
   // Studio leaves page navigation to the host, and its state has no page names. Page names are
   // saved as soon as they change; new pages are numbered until they're named.
   const selectPage = (id: string, pageId: string) => {

@@ -1,5 +1,4 @@
-// The AG Studio AI assistant, powered by Claude. The adapter posts each turn to this app's server
-// route (app/api/ai/claude), which holds the Anthropic key, so nothing secret is sent from the browser.
+// Dashboard assistant on Claude. Turns go through our server route, which holds the API key.
 
 import { createAiHarness, type AgAiHarnessSetup, type AgAiPromptStarter } from 'ag-studio';
 import { claudeAdapter } from './claude-adapter';
@@ -20,8 +19,7 @@ const PROMPT_STARTERS: AgAiPromptStarter[] = [
   },
 ];
 
-// `models` are the Claude model ids allowed by CLAUDE_MODELS on the server; the first is the default,
-// and the picker only shows for two or more.
+// `models` come from CLAUDE_MODELS on the server. First one is the default; the picker shows for 2+.
 export function buildAi(models: string[]): AgAiHarnessSetup {
   const adapter = claudeAdapter({ endpoint: '/api/ai/claude' });
 

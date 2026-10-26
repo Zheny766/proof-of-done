@@ -3,8 +3,6 @@
 
 import type { AgPageState, AgReportState, AgWidgetLayoutState } from 'ag-studio';
 
-// --- Helpers ----------------------------------------------------------------------
-
 // Position on the canvas grid, in tracks: 24 columns wide, rows of studioCanvasRowHeight.
 const at = (xTrack: number, yTrack: number, xSpan: number, ySpan: number): AgWidgetLayoutState => ({
   xTrack,
@@ -40,8 +38,6 @@ const kpi = (text: string, value: { id: string; aggregation?: 'sum' | 'avg' | 'c
     style: { typography: typography(22) },
   },
 });
-
-// --- Pages ------------------------------------------------------------------------
 
 const legend = { theme: { common: { legend: { enabled: true } } } };
 

@@ -1,7 +1,6 @@
 'use client';
 
-// The milestone ledger: one AG Grid row per escrowed job, with custom cell renderers for the
-// status, the money on hold and the AI reviewer's confidence.
+// Milestones table on the home page (AG Grid), with renderers for status, amount and AI confidence.
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
