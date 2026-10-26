@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments';
-import { isClaudeConfigured } from '@/lib/ai';
+import { claudeErrorMessage, isClaudeConfigured } from '@/lib/ai';
 import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer';
 import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store';
 import type { Attachment, Milestone, Review } from './types';
@@ -25,7 +25,8 @@ export const CreateMilestoneInput = z.object({
   description: z.string().trim().max(4000).default(''),
   criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
   amount: z.coerce.number().positive().max(10_000),
-  currency: z.enum(['USD', 'EUR', 'GBP', 'AUD', 'CAD']).default('USD'),
+  // USD only for now: the dashboard and the home page totals add amounts up as dollars.
+  currency: z.literal('USD').default('USD'),
   clientName: z.string().trim().min(1).max(80),
   clientEmail: z.email(),
   freelancerName: z.string().trim().min(1).max(80),
@@ -188,7 +189,8 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
       r.finishedAt = nowIso();
     });
   } catch (error) {
-    const message = error instanceof Anthropic.APIError ? `Claude API error ${error.status}: ${error.message}` : (error as Error).message;
+    const claude = claudeErrorMessage(error);
+    const message = claude ? `Claude API error: ${claude}` : (error as Error).message;
     patchReview((r, x) => {
       r.log.push({ at: nowIso(), kind: 'error', text: message.slice(0, 400) });
       r.decision = 'escalate';
@@ -201,10 +203,25 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
   }
 }
 
+// A review runs in the background of the request that started it; if the server restarts
+// meanwhile, nothing would ever finish it.
+const STUCK_REVIEW_MS = 15 * 60_000;
+
 /** The milestone, with a pending PayPal payout's status brought up to date. */
 export async function readMilestone(id: string): Promise<Milestone | undefined> {
   const m = getMilestone(id);
   if (!m) return undefined;
+  const last = m.reviews.at(-1);
+  if (m.status === 'reviewing' && last && !last.finishedAt && Date.now() - +new Date(last.startedAt) > STUCK_REVIEW_MS) {
+    return updateMilestone(id, (x) => {
+      const r = x.reviews.at(-1)!;
+      r.log.push({ at: nowIso(), kind: 'error', text: 'The review never finished (the server may have restarted).' });
+      r.decision = 'escalate';
+      r.finishedAt = nowIso();
+      x.status = 'escalated';
+      pushEvent(x, 'system', 'review_failed', 'The automated review did not finish, so the client decides. The money stays on hold.');
+    });
+  }
   const status = await refreshPayoutStatus(m);
   if (!status) return m;
   return updateMilestone(id, (x) => {

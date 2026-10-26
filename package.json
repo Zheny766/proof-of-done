@@ -31,6 +31,9 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
+  "engines": {
+    "node": ">=22.18"
+  },
   "description": "Payments that release themselves when an AI agent verifies the work is done. PayPal authorize & capture + Claude.",
   "license": "MIT"
 }

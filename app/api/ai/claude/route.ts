@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AgLlmRequest } from 'ag-studio';
-import { aiModels, isClaudeConfigured } from '@/lib/ai';
+import { aiModels, claudeErrorMessage, isClaudeConfigured } from '@/lib/ai';
+import { allowRequest, isCrossSite } from '@/lib/rate-limit';
 import { ClaudeToAgTranslator, encodeConversation, encodeTools, steeringInstructions, toAgResponse } from '@/lib/claude-bridge';
 
 // One assistant turn for AG Studio: AgLlmRequest in, Claude streamed back as AG-UI events over SSE.
@@ -23,6 +24,13 @@ function remember(message: Anthropic.Beta.BetaMessage) {
 const sse = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
 
 export async function POST(request: Request) {
+  if (isCrossSite(request)) return Response.json({ error: { message: 'Cross-site request refused.' } }, { status: 403 });
+  if (Number(request.headers.get('content-length') ?? 0) > 5_000_000) {
+    return Response.json({ error: { message: 'Conversation too large.' } }, { status: 413 });
+  }
+  if (!allowRequest(request, 'assistant', 30)) {
+    return Response.json({ error: { message: 'Too many requests, try again in a minute.' } }, { status: 429 });
+  }
   if (!isClaudeConfigured()) {
     return Response.json({ error: { message: 'The AI assistant is not configured: set ANTHROPIC_API_KEY in .env.local.' } }, { status: 503 });
   }
@@ -71,8 +79,7 @@ export async function POST(request: Request) {
         remember(final);
         send({ type: '__final', response: toAgResponse(final, jsonOutput) });
       } catch (error) {
-        const message =
-          error instanceof Anthropic.APIError ? `Claude API ${error.status}: ${error.message}` : (error as Error).message ?? 'Claude request failed';
+        const message = claudeErrorMessage(error) ?? (error as Error).message ?? 'Claude request failed';
         send({ type: '__error', message });
       } finally {
         controller.close();

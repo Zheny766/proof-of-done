@@ -112,7 +112,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
 export const escrowPipelineWidget: any = {
   id: 'escrow-pipeline',
   label: 'Escrow pipeline',
-  icon: { url: '/favicon.ico' },
+  icon: { url: '/icon.svg' },
   dataMapping: {
     stage: { type: 'field', supportedRoles: ['category'], requires: { cardinality: 'one' }, required: true, aiDescription: 'The escrow stage of each milestone' },
     amount: { type: 'field', supportedRoles: ['numeric'], requires: { cardinality: 'one' }, required: true, aiDescription: 'The money at each stage' },

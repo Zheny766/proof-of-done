@@ -111,7 +111,7 @@ export function MilestonesGrid({ milestones }: { milestones: Milestone[] }) {
   return (
     <div className="flex flex-col gap-3">
       <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search milestones…" aria-label="Search milestones" className="h-10 w-72 rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue" />
-      <div style={{ height: Math.min(560, 56 + rows.length * 52 + 2) }}>
+      <div style={{ height: Math.min(560, Math.max(200, 56 + rows.length * 52 + 2)) }}>
         <AgGridProvider modules={modules}>
           <AgGridReact<Row>
             theme={theme}
@@ -121,6 +121,9 @@ export function MilestonesGrid({ milestones }: { milestones: Milestone[] }) {
             quickFilterText={search}
             getRowId={({ data }) => data.id}
             onRowClicked={({ data }) => data && router.push(`/m/${data.id}`)}
+            onCellKeyDown={({ data, event }) => {
+              if (data && (event as KeyboardEvent | null)?.key === 'Enter') router.push(`/m/${data.id}`);
+            }}
             rowStyle={{ cursor: 'pointer' }}
             overlayNoRowsTemplate="No milestones yet - create one above, or load demo data."
           />

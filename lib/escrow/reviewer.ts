@@ -50,19 +50,27 @@ Rules:
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const TEXT_LIKE = /^(text\/|application\/(json|xml|javascript|x-yaml|x-sh))/;
 const MAX_TEXT_CHARS = 60_000;
+// API limits: 5 MB per image (base64), 32 MB per request. Keep well under both.
+const MAX_IMAGE_BYTES = 3.5 * 1024 * 1024;
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const MAX_BINARY_TOTAL = 18 * 1024 * 1024;
 
 function evidenceBlocks(m: Milestone, s: Submission): Anthropic.Beta.BetaContentBlockParam[] {
   const blocks: Anthropic.Beta.BetaContentBlockParam[] = [];
+  let binaryBytes = 0;
+  const fits = (size: number, max: number) => size <= max && binaryBytes + size <= MAX_BINARY_TOTAL;
   for (const a of s.attachments) {
     const abs = path.join(UPLOAD_DIR, a.file);
     if (!fs.existsSync(abs)) continue;
-    if (IMAGE_TYPES.has(a.mime) && a.size <= 5 * 1024 * 1024) {
+    if (IMAGE_TYPES.has(a.mime) && fits(a.size, MAX_IMAGE_BYTES)) {
+      binaryBytes += a.size;
       blocks.push({ type: 'text', text: `Attachment "${a.name}" (${a.mime}):` });
       blocks.push({
         type: 'image',
         source: { type: 'base64', media_type: a.mime as 'image/png', data: fs.readFileSync(abs).toString('base64') },
       });
-    } else if (a.mime === 'application/pdf' && a.size <= 20 * 1024 * 1024) {
+    } else if (a.mime === 'application/pdf' && fits(a.size, MAX_PDF_BYTES)) {
+      binaryBytes += a.size;
       blocks.push({
         type: 'document',
         title: a.name,
@@ -72,7 +80,7 @@ function evidenceBlocks(m: Milestone, s: Submission): Anthropic.Beta.BetaContent
       const text = fs.readFileSync(abs, 'utf8').slice(0, MAX_TEXT_CHARS);
       blocks.push({ type: 'text', text: `Attachment "${a.name}":\n<file>\n${text}\n</file>` });
     } else {
-      blocks.push({ type: 'text', text: `Attachment "${a.name}" (${a.mime}, ${a.size} bytes) could not be opened by the reviewer.` });
+      blocks.push({ type: 'text', text: `Attachment "${a.name}" (${a.mime}, ${a.size} bytes) was not opened: unsupported type or too large.` });
     }
   }
   const intro = [

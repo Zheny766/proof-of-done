@@ -82,7 +82,7 @@ When the evidence isn't strong enough, the money stays put and the client sees e
 
 ## Run it
 
-Requirements: **Node.js 20.9+**.
+Requirements: **Node.js 22.18+** (Next.js needs 20.9+; the tests use Node's built-in TypeScript support).
 
 ```bash
 git clone https://github.com/Zheny766/proof-of-done && cd proof-of-done
@@ -145,7 +145,7 @@ Run end to end on October 26, 2026 with a sandbox Personal buyer:
 - **Authorization lifetime.** PayPal honors an authorization for 3 days and allows capture for 29. The app shows both dates; automatic re-authorization after the honor period is not implemented yet.
 - **AI can be wrong.** That's why release needs every criterion above a threshold the client picks, why uncertain cases escalate, and why the client can always override. Subjective criteria ("looks modern") should be avoided - the criteria drafter writes checkable ones.
 - **Payouts** must be enabled on the sandbox REST app; if a payout fails, the capture still stands and the failure is shown on the milestone.
-- **No auth or rate limiting** on the API routes (including the Claude route behind the AG Studio assistant). Run it locally, or add auth before deploying it publicly with real keys.
+- **No accounts.** One page shows both the client's and the freelancer's controls, so anyone with a milestone link can act on it. Writes from other sites are refused (Sec-Fetch-Site), and the routes that call Claude are rate-limited per IP, but real roles and logins are still to do.
 - This is a hackathon project, not a licensed escrow service.
 
 ## Built during the hackathon

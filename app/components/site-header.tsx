@@ -5,7 +5,7 @@ import { REVIEW_MODEL } from '@/lib/escrow/reviewer';
 
 export function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2">
+    <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
       <span className="grid h-8 w-8 place-items-center rounded-lg bg-pp-navy text-sm font-black text-white">✓</span>
       <span className="text-lg font-bold tracking-tight text-pp-navy">
         Proof <span className="text-pp-blue">of Done</span>
@@ -21,9 +21,12 @@ export function SiteHeader() {
     <header className="border-b border-pp-border bg-white">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
         <Logo />
-        <nav className="flex items-center gap-5 text-sm font-semibold text-pp-muted">
+        <nav className="flex items-center gap-3 text-sm font-semibold text-pp-muted sm:gap-5">
           <Link href="/" className="hover:text-pp-blue">Milestones</Link>
-          <Link href="/dashboard" className="hover:text-pp-blue">Escrow analytics</Link>
+          <Link href="/dashboard" className="hover:text-pp-blue">
+            <span className="sm:hidden">Analytics</span>
+            <span className="hidden sm:inline">Escrow analytics</span>
+          </Link>
           <span className="hidden items-center gap-2 sm:flex">
             <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset ${mode === 'sandbox' ? 'bg-blue-50 text-pp-blue ring-blue-200' : 'bg-slate-100 text-slate-600 ring-slate-300'}`}>
               PayPal {mode === 'sandbox' ? 'sandbox' : 'simulated'}

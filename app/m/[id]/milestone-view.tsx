@@ -39,7 +39,7 @@ export function MilestoneView({ initial, paypalClientId }: { initial: Milestone;
             {m.client.name} pays {m.freelancer.name} · {STATUS[m.status].hint}
           </p>
         </div>
-        <div className="text-right">
+        <div className="sm:text-right">
           <div className="text-3xl font-bold tabular-nums text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
           <div className="text-xs text-pp-muted">release threshold {Math.round(m.releaseThreshold * 100)}% per criterion</div>
         </div>
@@ -104,7 +104,7 @@ function MoneyFlow({ m }: { m: Milestone }) {
     { label: 'Freelancer paid', sub: m.payment.captureId ? `capture ${m.payment.captureId.slice(0, 14)}…` : m.freelancer.name },
   ];
   return (
-    <ol className="mt-6 grid grid-cols-4 gap-2 rounded-xl border border-pp-border bg-white p-3">
+    <ol className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-pp-border bg-white p-3 sm:grid-cols-4">
       {steps.map((s, i) => {
         const skipped = aiSkipped && i === 2;
         const done = (stage > i || stage === 3) && !skipped;
@@ -297,7 +297,7 @@ function PaymentDetails({ m }: { m: Milestone }) {
         {rows.filter(([, v]) => v).map(([k, v]) => (
           <div key={k} className="flex justify-between gap-3">
             <dt className="text-pp-muted">{k}</dt>
-            <dd suppressHydrationWarning className="truncate text-right font-mono text-xs leading-5">{v}</dd>
+            <dd suppressHydrationWarning className="min-w-0 break-all text-right font-mono text-xs leading-5">{v}</dd>
           </div>
         ))}
       </dl>

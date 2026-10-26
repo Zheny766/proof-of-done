@@ -69,7 +69,7 @@ export function NewMilestoneForm() {
         </label>
         <label className="block text-sm font-medium">
           Amount (USD)
-          <input className={`${field} mt-1`} type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <input className={`${field} mt-1`} type="number" min="1" max="10000" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
         </label>
       </div>
       <label className="block text-sm font-medium">
