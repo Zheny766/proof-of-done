@@ -22,9 +22,9 @@ services:
       - key: POD_SEED_BOARD
         value: "1"
       - key: POD_ARENA_DAILY
-        value: "30"
+        value: "10"
       - key: POD_DEMO_REVIEWS_DAILY
-        value: "60"
+        value: "15"
       - key: POD_REVIEW_MODEL
         value: claude-haiku-5-5
       - key: CLAUDE_MODELS
