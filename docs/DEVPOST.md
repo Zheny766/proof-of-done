@@ -6,7 +6,7 @@
 Proof of Done
 
 ## Elevator pitch (tagline, 200 chars)
-An AI agent that pays for finished work: the client's money waits on PayPal, a Claude agent checks the delivery against every criterion, then captures the payment and pays the freelancer itself.
+Escrow for work done by people or AI agents: PayPal holds the money, Claude checks the delivery against every criterion, a second model double-checks, and PayPal pays out.
 
 ## Inspiration
 With fixed-price freelance work someone always has to go first. Either the freelancer delivers and then chases the payment, or the client pays up front and hopes the work shows up. The numbers are not small:
@@ -28,8 +28,9 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 - Work that is only partly done doesn't have to end in a dispute: either side offers an amount, the other accepts, and the app captures just that part of the authorization. PayPal releases the rest of the hold back to the client, and the freelancer is paid the settled amount.
 - Each side gets its own private link. The server checks it on every action: only the client can fund, approve or cancel, only the freelancer can submit.
 - An AG Studio dashboard shows where the money is, how often the AI paid out on its own, which verdicts were least confident, what the second opinion refused, every PayPal call, and how each freelancer is doing. Its assistant runs on Claude through an adapter I wrote for the AG Studio Agent Framework, and has its own `explain_deal` tool ("why was this one held?"). The dashboard and deal pages also offer read-only WebMCP tools to AI agents in the browser.
-- AI agents can be customers and freelancers too: an MCP server lets an agent like Claude Code post a job (a person approves the payment in PayPal) or take one, deliver files and get paid when the reviewer verifies the work.
-- Judges can try it in 60 seconds: three scenarios (honest work paid, a cheater caught, half the work settled) whose AI reviews are replays of real Claude Opus runs, so the demo needs no keys and costs nothing.
+- AI agents can be hired, not just shop. A client can post a job on the open job board instead of naming a freelancer; once PayPal holds the money it is listed, so an agent only ever sees work that is already paid for. Any agent connects with one line (`claude mcp add --transport http proof-of-done <site>/api/mcp`), finds a job, takes it, delivers and gets paid, with the same checks a person gets: an agent's word that the work is done counts for nothing. In the video, Claude Code does exactly that against the real PayPal sandbox. An agent can also post a job; a person approves the payment in PayPal.
+- Jobs take longer than PayPal's 3-day guarantee on held funds, so a hold that outlasts its honor period is reauthorized (once, as PayPal allows), and the capture goes to the renewed authorization.
+- Judges can try it in 60 seconds: three scenarios (honest work paid, a cheater caught, half the work settled) whose AI reviews are replays of real Claude Opus runs, so they need no keys and cost nothing. A fourth is live, "Try to fool it": you get a draft that misses the brief and write whatever notes you like to get it paid; a real Claude review and the second opinion decide, and a public scoreboard counts the tricks and the payouts.
 
 ## How I built it
 - Next.js 16, React 19, TypeScript, starting from PayPal's PayPal x AG Grid hackathon boilerplate.
@@ -62,21 +63,24 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 Most of the work in an agent that touches money isn't the model. It's the boundaries around it: what the tools allow, what the code refuses, when to hand the decision back to a human, and a log that both sides can read.
 
 ## What's next for Proof of Done
-- Re-authorize when the honor period runs out; milestones with several parts paid one by one from a single authorization (partial captures that keep the authorization open).
-- Real accounts for clients and freelancers; PayPal webhooks for authorization and payout status.
+- Milestones with several parts paid one by one from a single authorization (partial captures that keep the authorization open), and vaulted payment methods for jobs longer than an authorization lives.
+- Real accounts for clients and freelancers, and a reputation for agents built from their verified deliveries.
 - Checks for specific kinds of work: run a repo's tests, open a live site in a headless browser, check image sizes and formats.
 - Disputes: give PayPal the review log as a structured evidence pack.
 
 ## Built with
-`paypal` `paypal-orders-api` `paypal-payouts` `paypal-js-sdk-v6` `claude` `anthropic` `ag-grid` `ag-studio` `next.js` `react` `typescript` `tailwindcss` `zod`
+`paypal` `paypal-orders-api` `paypal-payouts` `paypal-js-sdk-v6` `paypal-agent-toolkit` `claude` `anthropic` `mcp` `ag-grid` `ag-studio` `next.js` `react` `typescript` `tailwindcss` `zod` `render`
 
 ## Tools used (AI / sponsor tools field)
 - Claude Opus 5.5 (Anthropic API): the reviewer agent that decides whether to pay and calls PayPal through its tools, and criteria drafting.
 - Claude Haiku 5.5 (Anthropic API): the independent second opinion that has to confirm every release, and the default model of the AG Studio assistant (through the Claude adapter).
 - Claude Code (AI coding assistant) helped write and review the code; I chose the idea, made the product and design calls, and tested every money path against the PayPal sandbox.
 - AG Grid (milestone table) and AG Studio (escrow dashboard, Agent Framework running on Claude).
-- PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void, Payouts, JS SDK v6.
+- PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void/reauthorize, Payouts, webhooks, JS SDK v6, and PayPal's Agent Toolkit.
+- Model Context Protocol: the job board's tools for agents, hosted over Streamable HTTP and local over stdio. Claude Code is the agent in the video.
+- Render: the hosted demo, from a blueprint.
 
 ## Try it
-- Hosted demo (simulated PayPal and reviewer, no keys needed; the free server may take a minute to wake up): https://proof-of-done-ocrr.onrender.com
+- Hosted demo (the free server may take a minute to wake up): https://proof-of-done-ocrr.onrender.com/demo
+- Open job board for your own agent: https://proof-of-done-ocrr.onrender.com/jobs, connect with `claude mcp add --transport http proof-of-done https://proof-of-done-ocrr.onrender.com/api/mcp`
 - Real flow: setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow.
