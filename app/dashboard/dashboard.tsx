@@ -260,7 +260,8 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
       />
 
       <WebMcpTools tools={agentTools} />
-      <div className="min-h-0 flex-1">
+      {/* Studio lays a page out at least 600px wide; on a phone it scrolls inside this box instead of widening the page. */}
+      <div className="min-h-0 flex-1 overflow-x-auto">
         {hasData(data) ? (
           <AgStudioProvider licenseKey={licenseKey} modules={ai ? [AgStudioAiModule] : undefined}>
             <AgStudio

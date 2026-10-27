@@ -154,6 +154,7 @@ export function ReportsSidebar({
                           <button
                             type="button"
                             disabled={!ready}
+                            data-nav-select
                             onClick={() => onSelectPage(report.id, page.id)}
                             onDoubleClick={() => active && editing && setRenaming(page.id)}
                             aria-current={selected ? 'page' : undefined}

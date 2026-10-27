@@ -13,11 +13,14 @@ const durable = (state: AgReportState) =>
     pages: state.pages.map(({ id, widgets, widgetLayout, layout, filter }) => ({ id, widgets, widgetLayout, layout, filter })),
   });
 
+const narrowScreen = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+
 // The filters panel starts expanded in view mode, where it's the only panel, and collapsed in
-// edit mode, where Compose and Data need the room. Panel state isn't something Save compares.
+// edit mode, where Compose and Data need the room, and on a phone, where it would cover half the
+// report. Panel state isn't something Save compares.
 export const withFiltersPanelFor = (mode: AgStudioMode, state: AgReportState): AgReportState => ({
   ...state,
-  panels: { ...state.panels, filters: { ...state.panels?.filters, collapsed: mode === 'edit' } },
+  panels: { ...state.panels, filters: { ...state.panels?.filters, collapsed: mode === 'edit' || narrowScreen() } },
 });
 
 // Studio leaves page navigation to the host: these add, remove and select pages in state.

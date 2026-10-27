@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/logo';
 import { AgStudioLogo } from './ui/logo';
@@ -24,28 +24,46 @@ function BrandLockup() {
   return (
     <div className="flex items-center gap-3">
       <Logo />
-      <span className="h-6 w-px bg-pp-border" aria-hidden />
-      <span className="flex items-center gap-1 text-xs text-pp-muted">
+      <span className="hidden h-6 w-px bg-pp-border lg:block" aria-hidden />
+      <span className="hidden items-center gap-1 text-xs text-pp-muted lg:flex">
         escrow analytics in <AgStudioLogo className="-ml-1 h-9 w-auto" /> on <PayPalWordmark />
       </span>
     </div>
   );
 }
 
-function TopBar() {
+const LINKS = [
+  { href: '/demo', label: 'Demo' },
+  { href: '/jobs', label: 'Jobs for agents' },
+  { href: '/mine', label: 'My deals' },
+];
+
+function TopBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => void }) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-6 border-b border-pp-border bg-white px-6">
+    <header className="flex h-16 shrink-0 items-center gap-4 border-b border-pp-border bg-white px-4 md:gap-6 md:px-6">
       <BrandLockup />
-      <nav className="ml-auto flex items-center gap-5 text-sm font-semibold text-pp-muted">
-        <Link href="/demo" className="hover:text-pp-blue">Demo</Link>
-        <Link href="/jobs" className="hover:text-pp-blue">Jobs for agents</Link>
-        <Link href="/mine" className="hover:text-pp-blue">My deals</Link>
+      <button
+        type="button"
+        onClick={onMenu}
+        aria-expanded={menuOpen}
+        aria-controls="dashboard-nav"
+        className="ml-auto rounded-full border border-pp-border px-4 py-2 text-sm font-semibold text-pp-navy md:hidden"
+      >
+        {menuOpen ? 'Close' : 'Reports & pages'}
+      </button>
+      <nav className="ml-auto hidden items-center gap-5 text-sm font-semibold text-pp-muted md:flex">
+        {LINKS.map((l) => (
+          <Link key={l.href} href={l.href} className="hover:text-pp-blue">
+            {l.label}
+          </Link>
+        ))}
         <Link href="/dashboard" className="text-pp-blue">Escrow analytics</Link>
       </nav>
     </header>
   );
 }
 
+// On a phone the reports sidebar becomes a drawer, so the report gets the whole width.
 export function AppShell({
   sidebar,
   children,
@@ -53,11 +71,27 @@ export function AppShell({
   sidebar: ReactNode;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="flex h-dvh flex-col bg-pp-canvas font-paypal text-pp-ink">
-      <TopBar />
+      <TopBar menuOpen={open} onMenu={() => setOpen(!open)} />
       <div className="flex min-h-0 flex-1">
-        <nav className="flex w-64 shrink-0 flex-col border-r border-pp-border bg-white" aria-label="Reports">
+        {open && <div className="fixed inset-0 top-16 z-30 bg-pp-ink/30 md:hidden" onClick={() => setOpen(false)} aria-hidden />}
+        <nav
+          id="dashboard-nav"
+          aria-label="Reports"
+          onClickCapture={(e) => {
+            if ((e.target as Element).closest('[data-nav-select]')) setOpen(false);
+          }}
+          className={`${open ? 'flex' : 'hidden'} fixed bottom-0 left-0 top-16 z-40 w-72 max-w-[85vw] flex-col border-r border-pp-border bg-white shadow-xl md:static md:z-auto md:flex md:w-64 md:max-w-none md:shrink-0 md:shadow-none`}
+        >
+          <div className="flex gap-4 border-b border-pp-border px-6 py-3 text-sm font-semibold text-pp-muted md:hidden">
+            {LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="hover:text-pp-blue">
+                {l.label}
+              </Link>
+            ))}
+          </div>
           {sidebar}
         </nav>
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>
