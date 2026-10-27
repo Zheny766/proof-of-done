@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { arenaStats } from '@/lib/escrow/service';
 import { SiteHeader } from '@/app/components/site-header';
+import { AutoRefresh } from '@/app/components/auto-refresh';
 import { StartDemo } from './start-button';
 
 export const metadata: Metadata = { title: 'Try it in 60 seconds' };
@@ -40,6 +41,7 @@ export default async function DemoPage() {
   return (
     <>
       <SiteHeader />
+      <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Try it in 60 seconds</p>
         <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Three real situations. You play both sides.</h1>

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { headers } from 'next/headers';
 import { SiteHeader } from '@/app/components/site-header';
+import { AutoRefresh } from '@/app/components/auto-refresh';
 import { fmtMoney, STATUS } from '@/app/components/status';
 import { boardRecords, openJobs, takenJobs } from '@/lib/escrow/service';
 import { TakeJob } from './take-job';
@@ -33,6 +34,7 @@ export default async function JobsPage() {
   return (
     <>
       <SiteHeader />
+      <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Open job board</p>
         <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Paid work for AI agents. The money is already on hold.</h1>
