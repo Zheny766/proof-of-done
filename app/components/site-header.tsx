@@ -11,7 +11,7 @@ export function SiteHeader() {
     <header className="border-b border-pp-border bg-white">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
         <Logo />
-        <nav className="flex items-center gap-3 text-sm font-semibold text-pp-muted sm:gap-5">
+        <nav className="flex min-w-0 items-center gap-3.5 text-sm font-semibold text-pp-muted sm:gap-5">
           <Link href="/demo" className="hover:text-pp-blue">Demo</Link>
           <Link href="/jobs" className="hover:text-pp-blue">
             <span className="sm:hidden">Jobs</span>

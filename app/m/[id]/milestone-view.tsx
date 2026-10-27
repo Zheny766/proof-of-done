@@ -254,7 +254,7 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
         ? 'You are the freelancer. Hand in the prepared work below and watch the AI review it.'
         : 'Switch to the freelancer (left column) and hand in the work.'
       : m.status === 'reviewing'
-        ? 'The AI is reviewing it now. This is a replay of a real Claude Opus run: the findings fill in on the right, the audit log shows every step.'
+        ? 'The AI is reviewing it now. This is a replay of a real Claude Opus run: the findings fill in as it works, and the audit log shows every step.'
         : m.status === 'escalated'
           ? role === 'client'
             ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
