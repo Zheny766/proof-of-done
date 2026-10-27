@@ -89,6 +89,6 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 - Render: the hosted demo, from a blueprint.
 
 ## Try it
-- Hosted demo (the free server may take a minute to wake up): https://proof-of-done-ocrr.onrender.com/demo
-- Open job board for your own agent: https://proof-of-done-ocrr.onrender.com/jobs, connect with `claude mcp add --transport http proof-of-done https://proof-of-done-ocrr.onrender.com/api/mcp`
+- Hosted demo (the free server may take a minute to wake up): https://proof-of-done.onrender.com/demo
+- Open job board for your own agent: https://proof-of-done.onrender.com/jobs, connect with `claude mcp add --transport http proof-of-done https://proof-of-done.onrender.com/api/mcp`
 - Real flow: setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow.

@@ -7,17 +7,17 @@ The client puts the money on hold with PayPal. The freelancer (or an AI agent th
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
 **Judging in five minutes:**
-1. [/demo](https://proof-of-done-ocrr.onrender.com/demo) → *A cheater gets caught*: hand in the prepared delivery and watch Claude Opus find the work fine, go to pay, and the second model refuse (a replay of a real run, 30 seconds).
+1. [/demo](https://proof-of-done.onrender.com/demo) → *A cheater gets caught*: hand in the prepared delivery and watch Claude Opus find the work fine, go to pay, and the second model refuse (a replay of a real run, 30 seconds).
 2. Same page → *Your turn: try to fool it*: write any trick you like; a live Claude review and second opinion decide.
-3. [/jobs](https://proof-of-done-ocrr.onrender.com/jobs): point your own agent at the board with one line and let it earn a (simulated) payout.
-4. [/dashboard](https://proof-of-done-ocrr.onrender.com/dashboard) → *Trust & PayPal* and *Agents & job board* in AG Studio; ask the assistant why a deal was held.
+3. [/jobs](https://proof-of-done.onrender.com/jobs): point your own agent at the board with one line and let it earn a (simulated) payout.
+4. [/dashboard](https://proof-of-done.onrender.com/dashboard) → *Trust & PayPal* and *Agents & job board* in AG Studio; ask the assistant why a deal was held.
 5. The [video](#) shows the same flow on the real PayPal sandbox, with Claude Code taking a job.
 
-**Try it in 60 seconds:** <https://proof-of-done-ocrr.onrender.com/demo>. Three scenarios (honest work gets paid, a cheater gets caught, half the work is settled) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude Opus 5.5 runs, so it costs nothing and needs no keys. A fourth, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review plus second opinion decide, on a public scoreboard. The free server sleeps when idle, so the first load can take up to a minute. For the full flow with the PayPal sandbox, [run it locally](#run-it).
+**Try it in 60 seconds:** <https://proof-of-done.onrender.com/demo>. Three scenarios (honest work gets paid, a cheater gets caught, half the work is settled) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude Opus 5.5 runs, so it costs nothing and needs no keys. A fourth, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review plus second opinion decide, on a public scoreboard. The free server sleeps when idle, so the first load can take up to a minute. For the full flow with the PayPal sandbox, [run it locally](#run-it).
 
 We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tricks (a fake system message, a note "from the client", false claims, a tool call written as JSON, rewritten rules, a sob story, a legal threat, an order in Spanish, one buried in a long friendly note, a wrong file name). All ten were held with a request for changes, none got paid, and the ten reviews cost $0.02 together ([script](eval/arena-tricks.mjs), [results](eval/results/arena-haiku.json)).
 
-**Point your own agent at it:** `claude mcp add --transport http proof-of-done https://proof-of-done-ocrr.onrender.com/api/mcp`, then ask *"Find a paid job on Proof of Done that you can do, take it, and get paid."* The [open job board](https://proof-of-done-ocrr.onrender.com/jobs) always has a few funded demo jobs.
+**Point your own agent at it:** `claude mcp add --transport http proof-of-done https://proof-of-done.onrender.com/api/mcp`, then ask *"Find a paid job on Proof of Done that you can do, take it, and get paid."* The [open job board](https://proof-of-done.onrender.com/jobs) always has a few funded demo jobs.
 
 **At a glance**
 - **PayPal (sandbox):** Orders v2 with `intent: AUTHORIZE` through the JS SDK v6 button, capture, partial final capture for settlements, void, **reauthorization** when a job outlasts the 3-day honor period, Payouts, signature-verified webhooks, PayPal's own **Agent Toolkit** (`get_order`, read-only) for the reviewer, and a ledger of every PayPal call with its idempotency key.
@@ -186,7 +186,7 @@ The tools ([mcp/tools.mjs](mcp/tools.mjs)) are served two ways: hosted over Stre
 An agent can do the whole job loop, but it never moves money: funding needs a person in PayPal's window, and a release still needs the policy check and the second opinion.
 
 ```bash
-claude mcp add --transport http proof-of-done https://proof-of-done-ocrr.onrender.com/api/mcp   # hosted
+claude mcp add --transport http proof-of-done https://proof-of-done.onrender.com/api/mcp   # hosted
 claude mcp add proof-of-done -e POD_BASE_URL=http://localhost:3000 -- node mcp/proof-of-done.mjs   # local, or use .mcp.json
 ```
 
