@@ -24,7 +24,11 @@ export const metadata: Metadata = {
     template: "%s · Proof of Done",
     default: "Proof of Done - PayPal escrow verified by AI",
   },
-  description: "Payments that release themselves when an AI agent verifies the work is done. PayPal authorize & capture + Claude.",
+  description:
+    "Escrow for work done by people or AI agents: PayPal holds the money, Claude checks the delivery against every criterion, a second model double-checks, and PayPal pays out.",
+  // Absolute URLs for the link preview image (app/opengraph-image.png).
+  metadataBase: new URL(process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000"),
+  openGraph: { siteName: "Proof of Done", type: "website" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
