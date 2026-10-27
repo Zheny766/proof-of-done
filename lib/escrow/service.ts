@@ -588,7 +588,7 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
 // fresh freelancer key, so only they can deliver; a claim with no delivery lapses after a day.
 const CLAIM_MS = 24 * 3_600_000;
 
-const claimActive = (m: Milestone) => !!m.board?.claimedAt && (m.submissions.length > 0 || Date.now() - Date.parse(m.board.claimedAt) < CLAIM_MS);
+export const claimActive = (m: Milestone) => !!m.board?.claimedAt && (m.submissions.length > 0 || Date.now() - Date.parse(m.board.claimedAt) < CLAIM_MS);
 export const isOpenJob = (m: Milestone) => !!m.board && m.status === 'funded' && m.submissions.length === 0 && !claimActive(m);
 
 /** Open jobs, newest first. The money is already on hold for each one. */
@@ -612,8 +612,10 @@ export const takenJobs = (limit = 6): Milestone[] =>
  */
 export function boardRecords() {
   const rows = new Map<string, { name: string; taken: number; paid: number; held: number; working: number; earned: number; demo: boolean }>();
-  for (const m of listMilestones()) {
-    if (!m.board?.claimedAt) continue;
+  const all = listMilestones();
+  for (const m of all) {
+    // A claim that lapsed without a delivery went back to the board: nothing to count.
+    if (!m.board?.claimedAt || (m.status === 'funded' && !claimActive(m))) continue;
     const key = `${m.board.claimedBy}\u0000${m.freelancer.email}`;
     const r = rows.get(key) ?? { name: m.board.claimedBy!, taken: 0, paid: 0, held: 0, working: 0, earned: 0, demo: true };
     r.demo &&= m.description.startsWith('[Demo data]');
@@ -625,7 +627,6 @@ export function boardRecords() {
     else r.held++;
     rows.set(key, r);
   }
-  const all = listMilestones();
   const emails = new Map<string, string>();
   for (const m of all) if (m.board?.claimedAt) emails.set(`${m.board.claimedBy}\u0000${m.freelancer.email}`, m.freelancer.email);
   return [...rows.entries()]

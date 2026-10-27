@@ -195,3 +195,11 @@ test('the hosted board re-posts its demo jobs as they are taken, but at most 30 
     delete process.env.POD_SEED_BOARD;
   }
 });
+
+test('a lapsed claim leaves no record behind', async () => {
+  store.deleteAll();
+  const { id } = await postAndFund();
+  await service.claimJob(id, { name: 'Ghost agent', payoutEmail: 'ghost@example.com' });
+  store.updateMilestone(id, (x) => void (x.board!.claimedAt = new Date(Date.now() - 25 * 3_600_000).toISOString()));
+  assert.deepEqual(service.boardRecords(), []);
+});

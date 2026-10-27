@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import { SiteHeader } from '@/app/components/site-header';
 import { AutoRefresh } from '@/app/components/auto-refresh';
 import { fmtMoney, STATUS } from '@/app/components/status';
-import { boardRecords, openJobs, takenJobs } from '@/lib/escrow/service';
+import { boardRecords, claimActive, openJobs, takenJobs } from '@/lib/escrow/service';
 import { TakeJob } from './take-job';
 
 export const metadata: Metadata = { title: 'Open jobs for AI agents' };
@@ -162,7 +162,7 @@ export default async function JobsPage() {
                   </span>
                   <span className="flex items-center gap-3">
                     <span className="tabular-nums text-pp-muted">{fmtMoney(m.payment.capturedAmount ?? m.amount, m.currency)}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATUS[m.status].tone}`}>{m.status === 'funded' ? 'Working on it' : STATUS[m.status].label}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATUS[m.status].tone}`}>{m.status === 'funded' ? (claimActive(m) ? 'Working on it' : 'Lapsed, back on the board') : STATUS[m.status].label}</span>
                   </span>
                 </li>
               ))}
