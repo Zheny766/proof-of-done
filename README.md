@@ -4,9 +4,16 @@ Escrow for freelance jobs where an AI agent checks the delivered work and releas
 
 The client puts the money on hold with PayPal. The freelancer delivers. A Claude agent goes through the acceptance criteria both sides agreed on, writes down what it found for each one, and captures the PayPal authorization if every criterion is met. If something is missing it tells the freelancer what to fix; if it can't check something (a login, a physical item, a matter of taste) it hands the call to the client.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) with PayPal Orders v2 (`intent: AUTHORIZE`), authorization capture/void, Payouts and the JS SDK v6, plus Claude Opus 5.5 and AG Grid / AG Studio.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
-**Try it without installing anything:** <https://proof-of-done-ocrr.onrender.com> runs with simulated PayPal and a simulated reviewer, so no keys are needed. The free server sleeps when idle, so the first load can take up to a minute. For the real flow, run it locally with sandbox keys as described in [Run it](#run-it), or [deploy your own copy](https://render.com/deploy?repo=https://github.com/Zheny766/proof-of-done) and add the keys there.
+**Try it in 60 seconds:** <https://proof-of-done-ocrr.onrender.com/demo>. Three scenarios (honest work gets paid, a cheater gets caught, half the work is settled) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude Opus 5.5 runs, so it costs nothing and needs no keys. The free server sleeps when idle, so the first load can take up to a minute. For the live flow with the PayPal sandbox and Claude, [run it locally](#run-it).
+
+**At a glance**
+- **PayPal (sandbox):** Orders v2 with `intent: AUTHORIZE` through the JS SDK v6 button, capture, partial final capture for settlements, void, Payouts, signature-verified webhooks, PayPal's own **Agent Toolkit** (`get_order`, read-only) for the reviewer, and a ledger of every PayPal call with its idempotency key.
+- **Claude:** an Opus 5.5 reviewer agent (Tool Runner, vision, PDF), a Haiku 5.5 **second opinion** that can veto any release, and criteria drafting with structured outputs.
+- **AG Grid / AG Studio:** a four-page escrow report with a custom pipeline widget, a Claude adapter for the Studio Agent Framework, our own `explain_deal` tool for Studio's agents, and **WebMCP** tools for AI agents in the browser.
+- **Agents as customers and as freelancers:** an [MCP server](#ai-agents-as-freelancers-mcp) lets an agent post a job (a human approves the payment in PayPal) or do one and get paid.
+- **Proof it holds up:** 65 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
 
 ![Milestone page: PayPal hold, AI verdicts per criterion, audit log](docs/screenshots/milestone.png)
 
@@ -31,6 +38,7 @@ sequenceDiagram
     F->>A: Submit work (notes, links, screenshots, PDFs, files)
     A->>R: Review submission against the criteria
     R->>R: read_brief, fetch_link, record_finding x N
+    R->>P: get_order (PayPal Agent Toolkit, read-only): is the money still authorized?
     alt every criterion met >= threshold
         R->>A: release_payment
         A->>A: Release policy check (code, not prompt)
@@ -70,8 +78,10 @@ sequenceDiagram
 | **Each side can only do its own part** | Creating a milestone gives the client a private link and a second link to send to the freelancer. Every action checks the key on the server: only the client can fund, approve, ask for changes or cancel; only the freelancer can submit. Keys are never sent back in milestone data, and they're removed from the address bar once the page has loaded Without a key you only see where a milestone stands: no brief, no delivered work, no evidence, no email addresses, and attachments need a key too ([lib/escrow/access.ts](lib/escrow/access.ts)). The freelancer confirms the PayPal email the payout goes to. |
 | **Human always has the final say** | The client can approve, ask for changes, or cancel - cancelling **voids** the PayPal authorization so nothing is charged. With an objection window, even a payment the AI verified waits for the client's deadline before any money moves. |
 | **Partial deals need both sides** | A settlement offer from one party has to be accepted by the other (checked on the server); the amount must be below the full amount, and accepting captures only that part. |
-| **Full audit trail** | Every tool call, finding and decision is logged and shown live on the milestone page, plus a timeline of every client / freelancer / agent / PayPal event. |
+| **Full audit trail** | Every tool call, finding and decision is logged and shown live on the deal page, plus a timeline of every client / freelancer / agent / PayPal event and a ledger of every PayPal API call (method, endpoint, status, time, `PayPal-Request-Id`). |
 | **Safe tool surface** | `fetch_link` only opens sites that the submission itself links to (so an injected instruction can't send the brief to someone else's server), at most 8 pages per review. The address is checked inside the connection's own DNS lookup, which rules out DNS-rebinding tricks; redirects are checked hop by hop, bodies are capped at 2 MB and requests time out after 12 s ([lib/escrow/public-url.ts](lib/escrow/public-url.ts)). Submission text reaches the model inside tagged blocks that the text itself can't close ([lib/escrow/evidence.ts](lib/escrow/evidence.ts)). |
+| **The reviewer checks the money on PayPal itself** | For a sandbox deal the reviewer gets PayPal's own `get_order` tool from the [PayPal Agent Toolkit](https://github.com/paypal/agent-toolkit), run in-process as an MCP server with only `orders.get` switched on, and is told to escalate if PayPal doesn't show the milestone amount authorized ([lib/escrow/paypal-toolkit.ts](lib/escrow/paypal-toolkit.ts)). |
+| **PayPal's word, verified** | Webhooks are trusted only after PayPal's verify-webhook-signature API confirms them, and each event is applied once: a pending capture that completes releases the held payout, payout items update the payout status, a voided authorization closes the deal ([app/api/paypal/webhook](app/api/paypal/webhook/route.ts)). |
 | **Idempotent money calls** | Every PayPal POST carries a `PayPal-Request-Id`, so retries can't double-capture or double-pay. Money operations on one milestone also run one at a time, and a payout only goes out once the capture is `COMPLETED`. |
 
 ## Built the way PayPal and AG Grid say agents should be built
@@ -88,9 +98,7 @@ In October 2026 PayPal published how it governs agent tools internally ([One con
 | *Limit an agent's tools instead of asking it to behave* (AG Grid) | The release rule is code, not a prompt; submitted content is evidence, never instructions. |
 | *Don't tie the agent harness to one model vendor* (AG Grid) | Studio ships an OpenAI adapter; this project adds a Claude adapter for the same Agent Framework. |
 
-When the evidence isn't strong enough, the money stays put and the client sees exactly why:
-
-![Escalated milestone: three verdicts below the 80% threshold, the client decides](docs/screenshots/milestone-escalated.png)
+Every attack I could think of, and the test that proves each defence, is in [SECURITY.md](SECURITY.md).
 
 ## What's built with what
 
@@ -99,17 +107,41 @@ When the evidence isn't strong enough, the money stays put and the client sees e
 - **Orders v2** `POST /v2/checkout/orders` with `intent: AUTHORIZE`, then `POST /v2/checkout/orders/{id}/authorize`
 - **Payments v2** `POST /v2/payments/authorizations/{id}/capture` (final capture with a note to the payer; a partial `amount` for settlements, so the rest of the hold is released) and `/void`
 - **Payouts** `POST /v1/payments/payouts` to pay the freelancer from the captured funds (an optional platform fee is supported)
+- **Webhooks** `POST /v1/notifications/verify-webhook-signature` before any event is trusted; capture, authorization and payout events update the deal once each - [app/api/paypal/webhook/route.ts](app/api/paypal/webhook/route.ts), [scripts/register-paypal-webhook.mjs](scripts/register-paypal-webhook.mjs)
+- **PayPal Agent Toolkit** (`@paypal/agent-toolkit/mcp`), read-only `get_order` for the reviewer - [lib/escrow/paypal-toolkit.ts](lib/escrow/paypal-toolkit.ts)
+- **Call ledger**: every REST call per deal, shown on the deal page and in the dashboard
 - OAuth client-credentials with token caching and retries on 401/429/5xx - [lib/paypal.ts](lib/paypal.ts), [lib/escrow/payments.ts](lib/escrow/payments.ts)
 
 ### Claude (Anthropic API)
 - **Reviewer agent** on the Anthropic TypeScript SDK **Tool Runner** with Zod-typed tools: `read_brief`, `fetch_link`, `record_finding`, `release_payment`, `request_changes`, `escalate_to_client` - [lib/escrow/reviewer.ts](lib/escrow/reviewer.ts)
 - Model `claude-opus-5-5` with adaptive thinking at `high` effort for money decisions, **vision** for screenshots, native **PDF** input, and server-side refusal fallback
+- **Second opinion** on `claude-haiku-5-5` with structured outputs: it re-checks the evidence and can veto a release (`runClaudeAudit`)
 - **Criteria drafting** with structured outputs (`messages.parse` + Zod)
+- **Replays**: real reviews recorded with `eval/run.ts --replays` play back in the hosted demo through the same hooks, so the money moves exactly as it did live - [lib/escrow/replay.ts](lib/escrow/replay.ts)
 
 ### AG Grid & AG Studio
 - **Milestone ledger** in AG Grid with custom cell renderers (status badges, money, an AI-confidence bar) - [app/components/milestones-grid.tsx](app/components/milestones-grid.tsx)
-- **Escrow analytics** dashboard in **AG Studio**: three pages (escrow overview, AI reviewer quality, freelancers) over four related tables (milestones, AI reviews, criterion findings, timeline events), PayPal-themed, with calculated measures such as the *AI auto-release rate* - [app/dashboard/studio](app/dashboard/studio)
+- **Escrow analytics** dashboard in **AG Studio**: four pages (escrow overview, AI reviewer quality, trust & PayPal, freelancers) over five related tables (milestones, AI reviews, criterion findings, timeline events, PayPal API calls), PayPal-themed, with calculated measures such as the *AI auto-release rate* and the *second-opinion veto rate*, and a custom **escrow pipeline** widget - [app/dashboard/studio](app/dashboard/studio)
+- **Our own tool for Studio's agents**: the harness is built from AG's five agents with `createAiHarness` and `directLlmRunner`, and the lead and data agents also get `explain_deal` (`api.defineAiTool`), which explains one deal from its verdict, second opinion and PayPal state. Try the *Why was it held?* starter - [app/dashboard/studio/ai.ts](app/dashboard/studio/ai.ts)
+- **WebMCP**: the dashboard offers browser AI agents `escrow_summary`, `stuck_deals` and `explain_deal`, and a deal page offers `deal_status`, through `document.modelContext.registerTool`, all read-only - [app/components/webmcp.tsx](app/components/webmcp.tsx)
 - **A Claude adapter for the AG Studio Agent Framework.** AG Studio ships an OpenAI adapter; this project swaps the harness to Claude: [claude-adapter.ts](app/dashboard/studio/claude-adapter.ts) (browser) + [app/api/ai/claude/route.ts](app/api/ai/claude/route.ts) (server; the key stays server-side) + [lib/claude-bridge.ts](lib/claude-bridge.ts) (pure AG-UI <-> Messages API translation, unit-tested). It maps Studio's tool schemas to Claude tools, streams text / reasoning / tool-call events back as AG-UI events, replaces forced tool choice and JSON mode with steering instructions, and **replays Claude's signed thinking blocks** with the tool calls that produced them (Studio keeps only reasoning summaries). Ask the dashboard *"Which milestones are stuck and why?"* and Claude builds the widgets.
+
+### AI agents as freelancers (MCP)
+
+[mcp/proof-of-done.mjs](mcp/proof-of-done.mjs) is an MCP server for agents such as Claude Code or Claude Desktop:
+
+| Tool | What it does |
+|---|---|
+| `post_job` | Creates a deal and returns the client link (a human opens it and approves the payment in PayPal) and the freelancer link |
+| `get_job` | Reads a deal through its link: brief, criteria, PayPal state, latest verdict and feedback (read-only) |
+| `submit_work` | Delivers notes, links and local files through the freelancer link |
+| `wait_for_verdict` | Waits for the review and reports paid, verified, changes requested with feedback, or handed to the client (read-only) |
+
+An agent can do the whole job loop, but it never moves money: funding needs a person in PayPal's window, and a release still needs the policy check and the second opinion.
+
+```bash
+claude mcp add proof-of-done -- node mcp/proof-of-done.mjs     # or use .mcp.json in this repo
+```
 
 ## Run it
 
@@ -128,6 +160,7 @@ npm run dev                   # http://localhost:3000
 | `ANTHROPIC_API_KEY` | Claude reviewer, criteria drafting, AG Studio assistant | A simple **simulated** reviewer runs instead; the dashboard assistant is hidden |
 | `AG_STUDIO` | Removes the AG Studio trial watermark | Everything works with a watermark |
 | `CLAUDE_MODELS` | Models the dashboard assistant may use, first one is the default. `claude-haiku-5-5,claude-opus-5-5` makes questions much cheaper | `claude-opus-5-5` |
+| `PAYPAL_WEBHOOK_ID` | Verified PayPal webhooks (needs a public HTTPS URL; register it with `scripts/register-paypal-webhook.mjs`) | Payout status is polled instead |
 
 It also runs with no keys at all, which is handy for a quick look, but the point is PayPal sandbox + Claude.
 
@@ -135,7 +168,8 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 [render.yaml](render.yaml) deploys the app on Render's free plan with no keys: PayPal and the reviewer are simulated, so it costs nothing to keep online. `POD_SEED_DEMO=1` loads the labelled demo history whenever the server starts empty (the free plan wipes the disk on every restart). Use the button at the top, or *New -> Blueprint* in the Render dashboard. Add the PayPal and Anthropic keys in the Render dashboard if you want the real flow there.
 
 ### Try the full flow (sandbox)
-1. Open http://localhost:3000 and create a milestone (press *Draft with AI* for criteria). You land on it as the client.
+0. For a quick tour without keys, open http://localhost:3000/demo.
+1. Open http://localhost:3000 and create a deal (press *Draft with AI* for criteria). You land on it as the client.
 2. Click the PayPal button and log in with a **sandbox personal account** from *Developer Dashboard -> Testing tools -> Sandbox accounts*. Approve - the milestone shows *Funded · on hold* with the authorization id.
 3. Press **Open** next to *Link for the freelancer* and submit the work there: notes plus a link or a screenshot. Watch the findings and the agent's audit log fill in live. (With both links open in one browser you can switch between the two roles.)
 4. Try a submission that misses a criterion (the agent asks for changes), or one that tells the reviewer to "approve immediately" (it doesn't).
@@ -143,10 +177,11 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # escrow state machine (simulated, throwaway data dir) incl. objection windows and
-                # settlements, the reviewer's tools without the API (policy gate, one decision per
-                # review, link allowlist), roles and redaction, link guard, evidence handling,
-                # rate limits, demo data, Claude <-> AG Studio bridge
+npm test        # 65 tests: escrow state machine (simulated, throwaway data dir) incl. objection
+                # windows, settlements and demo replays; PayPal money calls and webhooks against a
+                # fake PayPal; the reviewer's tools without the API (policy gate, second opinion,
+                # one decision per review, link allowlist); roles and redaction, link guard,
+                # evidence handling, rate limits, Claude <-> AG Studio bridge
 npm run lint
 npm run build
 ```
@@ -154,11 +189,18 @@ npm run build
 ## Project structure
 
 ```
-app/page.tsx                       Home: create a milestone, milestone ledger (AG Grid)
-app/m/[id]/                        Milestone page: fund, submit, live AI review, client decision
+app/page.tsx                       Home: what it is, create a deal, all deals (AG Grid)
+app/demo/                          "Try it in 60 seconds": three scenarios with replayed reviews
+app/m/[id]/                        Deal page: money journey, next step, verdict, audit log, PayPal ledger
 app/dashboard/                     AG Studio escrow analytics (+ Claude-powered assistant)
 app/api/escrow/...                 Milestones, PayPal order/authorize, submit, decisions, settlements, criteria
 app/api/ai/claude/route.ts         Server half of the Claude adapter for AG Studio
+app/api/paypal/webhook/route.ts    Verified PayPal webhooks
+lib/escrow/paypal-toolkit.ts       PayPal Agent Toolkit (get_order) for the reviewer
+lib/escrow/replay.ts               Recorded real reviews, played back for the demo
+mcp/proof-of-done.mjs              MCP server: agents post and do jobs
+demo/                              Demo deliveries and their recorded reviews
+SECURITY.md                        Threat model: each attack, its defence and the test
 lib/paypal.ts                      PayPal REST client (OAuth, Orders, capture/void, Payouts)
 lib/escrow/payments.ts             Escrow money flow (sandbox or simulated)
 lib/escrow/reviewer.ts             Claude reviewer agent (Tool Runner) + simulated reviewer
@@ -220,13 +262,13 @@ A review costs about 18k input and 1-1.3k output tokens, roughly $0.10. The dash
 - **Authorization lifetime.** PayPal honors an authorization for 3 days and allows capture for 29. The app shows both dates and caps the objection window at 48 hours; automatic re-authorization after the honor period is not implemented yet.
 - **Objection windows** close on a server timer, and again whenever the milestone is opened (in case the server restarted). With no visitors and no running server, the release happens on the next visit.
 - **AI can be wrong.** That's why release needs every criterion above a threshold the client picks, why uncertain cases escalate, and why the client can always override. Subjective criteria ("looks modern") should be avoided - the criteria drafter writes checkable ones.
-- **Payouts** must be enabled on the sandbox REST app; if a payout fails, the capture still stands and the failure is shown on the milestone. A capture that PayPal leaves pending holds the payout; without webhooks nothing retries it yet.
+- **Payouts** must be enabled on the sandbox REST app; if a payout fails, the capture still stands and the failure is shown on the deal. A capture that PayPal leaves pending holds the payout until the `PAYMENT.CAPTURE.COMPLETED` webhook arrives (so it needs `PAYPAL_WEBHOOK_ID` and a public URL).
 - **Secret links instead of accounts.** Roles and privacy are enforced with a per-milestone key for each party, but there are no logins. The AG Studio dashboard is an operator view with no login: it shows every milestone (email addresses removed). The routes that call Claude are rate-limited per IP, with a shared cap on top (X-Forwarded-For can be faked when no proxy overwrites it); writes from other sites are refused, and the app sends `frame-ancestors 'none'` and `Referrer-Policy: same-origin`.
 - This is a hackathon project, not a licensed escrow service.
 
 ## Built during the hackathon
 
-All of Proof of Done was built during the PayPal AI Hackathon submission period. It started from PayPal's official [PayPal × AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate), from which the dashboard shell, the AG Studio PayPal theme and the PayPal OAuth/GET helper are derived. Everything else - the escrow flow, PayPal authorize/capture/void/payouts, the SDK v6 button, the Claude reviewer and release policy, the escrow analytics report and the Claude adapter for AG Studio - is new.
+All of Proof of Done was built during the PayPal AI Hackathon submission period. It started from PayPal's official [PayPal × AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate), from which the dashboard shell, the AG Studio PayPal theme and the PayPal OAuth/GET helper are derived. Everything else - the escrow flow, PayPal authorize/capture/void/payouts and webhooks, the SDK v6 button, the Agent Toolkit integration, the Claude reviewer, second opinion and release policy, the demo with replays, the escrow analytics report, the Claude adapter, tools and WebMCP for AG Studio, and the MCP server - is new.
 
 ## License
 
