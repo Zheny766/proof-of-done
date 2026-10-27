@@ -59,3 +59,14 @@ test('the scoreboard counts a payout only when the AI released it', () => {
   service.startDemo('arena'); // started, never handed in
   assert.deepEqual(service.arenaStats(), { attempts: 3, paid: 1, vetoed: 1, live: true });
 });
+
+test('the challenge never gets a standing: what the scoreboard shows is the AI alone', () => {
+  for (let i = 0; i < 3; i++) {
+    const m = service.startDemo('arena');
+    store.updateMilestone(m.id, (x) => {
+      x.reviews.push({ id: 'r', submissionId: 's', startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), engine: 'claude', findings: [], log: [], audit: { engine: 'claude', agreed: false, summary: '', disputed: [], redFlags: ['steering'] } });
+      x.status = 'changes_requested';
+    });
+  }
+  assert.equal(service.trustFor('you@visitor.example').tier, 'new');
+});

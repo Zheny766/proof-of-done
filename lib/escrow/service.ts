@@ -237,7 +237,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
           if (latest.status !== 'reviewing') return { error: `the milestone is ${latest.status} now` };
           // Someone on probation gets paid only with the client's OK, however good this delivery looks.
           const trust = trustFor(latest.freelancer.email, id);
-          if (trust.tier === 'probation') {
+          if (trust.tier === 'probation' && !scripted(latest)) {
             updateMilestone(id, (x) => {
               x.status = 'escalated';
               pushEvent(x, 'agent', 'verified_probation', `AI reviewer verified every criterion: ${summary}`);
@@ -564,6 +564,9 @@ export type TrustTier = 'new' | 'regular' | 'trusted' | 'probation';
 export type Trust = { tier: TrustTier; decided: number; paid: number; flagged: number; reason: string };
 
 const RED_FLAG_DAYS = 30;
+// The demo scenarios share placeholder identities (and the challenge must show what the AI does on its
+// own), so they neither count towards nor get a standing. Board jobs taken by visitors' agents do.
+const scripted = (m: Milestone) => !!m.demo && m.demo.scenario !== 'board';
 export const CLAIM_LIMIT: Record<TrustTier, number> = { probation: 1, new: 2, regular: 3, trusted: 5 };
 
 export function trustFor(email: string, exceptId?: string): Trust {
@@ -573,7 +576,7 @@ export function trustFor(email: string, exceptId?: string): Trust {
   let paid = 0;
   let flagged = 0;
   for (const m of listMilestones()) {
-    if (m.id === exceptId || !who || m.freelancer.email.toLowerCase() !== who) continue;
+    if (m.id === exceptId || !who || scripted(m) || m.freelancer.email.toLowerCase() !== who) continue;
     const finished = m.reviews.filter((r) => r.finishedAt);
     if (finished.some((r) => r.audit?.redFlags.length && Date.parse(r.finishedAt!) > since)) flagged++;
     if (!finished.length || !['released', 'changes_requested', 'escalated', 'cancelled'].includes(m.status)) continue;

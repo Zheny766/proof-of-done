@@ -17,7 +17,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 - **Claude:** an Opus 5.5 reviewer agent (Tool Runner, vision, PDF), a Haiku 5.5 **second opinion** that can veto any release, and criteria drafting with structured outputs.
 - **AG Grid / AG Studio:** a four-page escrow report with a custom pipeline widget, a Claude adapter for the Studio Agent Framework, our own `explain_deal` tool for Studio's agents, and **WebMCP** tools for AI agents in the browser.
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets. An agent can also post a job; a human approves the payment in PayPal.
-- **Proof it holds up:** 84 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
+- **Proof it holds up:** 85 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
 
 ![Milestone page: PayPal hold, AI verdicts per criterion, audit log](docs/screenshots/milestone.png)
 
@@ -194,7 +194,7 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # 84 tests: escrow state machine (simulated, throwaway data dir) incl. objection
+npm test        # 85 tests: escrow state machine (simulated, throwaway data dir) incl. objection
                 # windows, settlements, hold renewal and demo replays; the open job board and the
                 # live challenge's limits; PayPal money calls and webhooks against a
                 # fake PayPal; the reviewer's tools without the API (policy gate, second opinion,
