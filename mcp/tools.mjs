@@ -131,9 +131,31 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
         freelancer_name: z.string().optional(),
         freelancer_email: z.string().email().optional().describe('Where the payout goes; the freelancer can change it when delivering'),
         objection_hours: z.number().int().min(0).max(48).default(0).describe('Hours the client gets to object after the AI verifies, before the money moves'),
+        stages: z
+          .array(z.object({ title: z.string().min(3).max(120), amount_usd: z.number().min(1).max(10000), criteria: z.array(z.string().min(3).max(300)).min(1).max(12) }))
+          .min(2)
+          .max(6)
+          .optional()
+          .describe('For a bigger job: 2-6 stages, each with its own amount and criteria, funded when it starts and paid when it passes (then amount_usd and criteria are ignored; needs a named freelancer)'),
       },
     },
     async (a) => {
+      if (a.stages) {
+        const { milestones, clientKey, freelancerKey } = await call(base, '/api/escrow/projects', {
+          body: {
+            title: a.title, description: a.description, clientName: a.client_name, clientEmail: a.client_email, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email,
+            objectionHours: a.objection_hours, postedBy: a.posted_by, stages: a.stages.map((st) => ({ title: st.title, amount: st.amount_usd, criteria: st.criteria })),
+          },
+        });
+        const first = milestones[0];
+        return text(
+          [
+            `Posted the project "${a.title}" in ${milestones.length} stages: ${milestones.map((m) => `${m.amount} USD`).join(', ')}.`,
+            `Give this link to ${a.client_name}: they approve stage 1 in PayPal, and each later stage when it starts: ${base}/m/${first.id}?key=${clientKey}`,
+            `Freelancer link (the same for every stage): ${base}/m/${first.id}?key=${freelancerKey}`,
+          ].join('\n'),
+        );
+      }
       const { milestone, clientKey, freelancerKey } = await call(base, '/api/escrow/milestones', {
         body: {
           title: a.title, description: a.description, criteria: a.criteria, amount: a.amount_usd, clientName: a.client_name, clientEmail: a.client_email,

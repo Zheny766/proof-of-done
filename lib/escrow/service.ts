@@ -143,7 +143,12 @@ export function createProject(raw: unknown): Milestone[] {
       x.access = { ...access };
       x.project = { id: projectId, title: input.title, stage: i + 1, stageIds };
       x.timeline = [];
-      pushEvent(x, 'client', 'created', `${x.client.name} created stage ${i + 1} of ${stageIds.length} of "${input.title}" for ${money(Number(x.amount), x.currency)}`);
+      pushEvent(
+        x,
+        'client',
+        'created',
+        `${input.postedBy ? `${input.postedBy} posted` : `${x.client.name} created`} stage ${i + 1} of ${stageIds.length} of "${input.title}" for ${money(Number(x.amount), x.currency)}`,
+      );
     }),
   );
 }
