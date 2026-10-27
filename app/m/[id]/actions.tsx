@@ -93,7 +93,13 @@ export function NextStep({
         'border-teal-200',
       );
     }
-    return box(`${m.client.name} decides`, `The reviewer couldn't verify everything on its own, so ${m.client.name} makes the call. The money stays on hold.`);
+    const vetoed = m.reviews.at(-1)?.audit?.agreed === false;
+    return box(
+      `${m.client.name} decides`,
+      vetoed
+        ? `The second model refused to confirm the release, so ${m.client.name} makes the call. The money stays on hold.`
+        : `The reviewer couldn't verify everything on its own, so ${m.client.name} makes the call. The money stays on hold.`,
+    );
   }
   return <ClientDecision m={m} milestoneKey={milestoneKey} onChange={onChange} />;
 }
@@ -305,6 +311,7 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   // Escalated because the freelancer is on probation, after the latest delivery.
   const lastSubmitted = m.submissions.at(-1)?.at ?? '';
   const probation = m.timeline.findLast((e) => e.type === 'probation' && e.at >= lastSubmitted);
+  const vetoed = m.reviews.at(-1)?.audit?.agreed === false;
   const title = verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
@@ -317,6 +324,8 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
           </>
         ) : m.status === 'escalated' && probation ? (
           `${probation.text}. The AI verified every criterion; read the verdict, then decide.`
+        ) : m.status === 'escalated' && vetoed ? (
+          'The reviewer was ready to pay, but the second model refused to confirm it. Read why in the verdict, then decide.'
         ) : m.status === 'escalated' ? (
           'The reviewer couldn’t verify everything on its own. Read its notes in the verdict, then decide.'
         ) : m.status === 'changes_requested' ? (
