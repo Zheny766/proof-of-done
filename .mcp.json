@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "proof-of-done": {
+      "command": "node",
+      "args": ["mcp/proof-of-done.mjs"],
+      "env": { "POD_BASE_URL": "http://localhost:3000" }
+    }
+  }
+}
