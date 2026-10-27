@@ -8,12 +8,15 @@ import { AgStudioLogo } from './ui/logo';
 // The app frame, laid out like the PayPal Developer Dashboard: a white top bar, a left sidebar
 // and a light canvas. Shared by the dashboard, its loading skeleton and its error page.
 
+// Drawn as SVG text: it's a logo, so the light "Pal" is exempt from text contrast rules.
 function PayPalWordmark({ className = '' }: { className?: string }) {
   return (
-    <span role="img" aria-label="PayPal" className={`font-bold italic tracking-tight ${className}`}>
-      <span aria-hidden className="text-pp-blue-dark">Pay</span>
-      <span aria-hidden className="text-pp-sky">Pal</span>
-    </span>
+    <svg role="img" aria-label="PayPal" viewBox="0 0 54 20" className={`h-5 w-auto overflow-visible ${className}`}>
+      <text x="0" y="15" fontSize="16" fontWeight="700" fontStyle="italic" letterSpacing="-0.4">
+        <tspan fill="var(--pp-blue-dark)">Pay</tspan>
+        <tspan fill="var(--pp-sky)">Pal</tspan>
+      </text>
+    </svg>
   );
 }
 
@@ -23,7 +26,7 @@ function BrandLockup() {
       <Logo />
       <span className="h-6 w-px bg-pp-border" aria-hidden />
       <span className="flex items-center gap-1 text-xs text-pp-muted">
-        escrow analytics in <AgStudioLogo className="-ml-1 h-9 w-auto" /> on <PayPalWordmark className="text-base" />
+        escrow analytics in <AgStudioLogo className="-ml-1 h-9 w-auto" /> on <PayPalWordmark />
       </span>
     </div>
   );
