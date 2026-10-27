@@ -10,7 +10,12 @@ export function describeDeal(m: Milestone): string {
   const lines = [
     `${m.title} (${m.id}): ${m.amount} ${m.currency}, ${m.client.name} pays ${m.freelancer.name}.`,
     `Status: ${m.status}${m.releaseAt ? `, pays out at ${m.releaseAt} unless the client objects` : ''}.`,
-    `PayPal (${m.payment.mode}): authorization ${m.payment.authorizationStatus ?? 'none'}${m.payment.captureId ? `, captured ${m.payment.capturedAmount ?? m.amount}` : ''}${m.payment.payoutStatus ? `, payout ${m.payment.payoutStatus}` : ''}.`,
+    `PayPal (${m.payment.mode}): authorization ${m.payment.authorizationStatus ?? 'none'}${m.payment.reauthorizedAt ? ' (reauthorized after the 3-day honor period)' : ''}${m.payment.captureId ? `, captured ${m.payment.capturedAmount ?? m.amount}` : ''}${m.payment.payoutStatus ? `, payout ${m.payment.payoutStatus}` : ''}.`,
+    ...(m.project ? [`Stage ${m.project.stage} of ${m.project.stageIds.length} of the project "${m.project.title}"; each stage is funded after the one before it is paid.`] : []),
+    ...(m.board ? [m.board.claimedAt ? `Taken from the open job board by ${m.board.claimedBy}.` : 'On the open job board, not taken yet.'] : []),
+    ...(m.postedBy ? [`Posted for the client by the AI agent ${m.postedBy}.`] : []),
+    ...(m.disputes?.length ? [`PayPal dispute(s): ${m.disputes.map((d) => `${d.id} (${d.reason}, ${d.status})`).join('; ')}.`] : []),
+    ...(m.timeline.some((e) => e.type === 'probation') ? ['The AI verified the work, but the payee is on probation (a poor record), so the client approves the payment.'] : []),
     `Criteria (release needs every one met at ${Math.round(m.releaseThreshold * 100)}% or more):`,
     ...m.criteria.map((c, i) => {
       const f = findings[i];
