@@ -15,7 +15,7 @@ import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { onPayPalCall } from '../paypal.ts';
 import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
 import { demoFile, loadReplay, runReplayReview } from './replay.ts';
-import { getMilestone, insertMilestone, listMilestones, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
+import { deleteWhere, getMilestone, insertMilestone, listMilestones, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
 import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
 
 export { CLAIM_LIMIT, trustFor, type Trust, type TrustTier } from './trust.ts';
@@ -712,7 +712,18 @@ const DEMO_FREELANCERS: Record<string, [string, string]> = {
   arena: ['You', 'you@visitor.example'],
 };
 
+// Demo deals are private throwaways: after two days they go, and at most 300 are opened a day, so
+// the free server's store stays small whatever a bot does.
+const DEMO_KEEP_MS = 2 * 86_400_000;
+const DEMO_DAILY = 300;
+
 export function startDemo(scenario: string): Milestone {
+  // The challenge's attempts stay (they are the scoreboard, and capped per day anyway).
+  deleteWhere((m) => !!m.demo && !['board', 'arena'].includes(m.demo.scenario) && Date.now() - Date.parse(m.createdAt) > DEMO_KEEP_MS);
+  const since = Date.now() - 86_400_000;
+  if (listMilestones().filter((m) => m.demo && m.demo.scenario !== 'board' && Date.parse(m.createdAt) > since).length >= DEMO_DAILY) {
+    throw new EscrowError('The demo is very busy today. Try again tomorrow, or run it locally.', 429);
+  }
   if (scenario === 'arena') arenaCheck();
   // The arena reuses the half-done brunch menu's brief; its delivery is the visitor's own words.
   const replay = loadReplay(scenario === 'arena' ? 'partial' : scenario);

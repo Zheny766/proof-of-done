@@ -331,3 +331,11 @@ test('the deal record for a dispute: evidence, every step, the PayPal ids and th
   assert.equal(record.certificate, `https://pod.example/m/${id}/proof`);
   assert.ok(!JSON.stringify(record).includes('clientKey'), 'no access keys');
 });
+
+test('demo deals are throwaways: gone after two days', () => {
+  const old = service.startDemo('honest');
+  store.updateMilestone(old.id, (x) => void (x.createdAt = new Date(Date.now() - 3 * 86_400_000).toISOString()));
+  const fresh = service.startDemo('honest');
+  assert.equal(store.getMilestone(old.id), undefined);
+  assert.ok(store.getMilestone(fresh.id));
+});

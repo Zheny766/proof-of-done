@@ -71,6 +71,17 @@ export function pushEvent(m: Milestone, actor: TimelineEvent['actor'], type: str
   m.timeline.push({ at: nowIso(), actor, type, text });
 }
 
+/** Remove the milestones that match (and their uploaded files). Returns how many went. */
+export function deleteWhere(match: (m: Milestone) => boolean): number {
+  const db = load();
+  const gone = db.milestones.filter(match);
+  if (!gone.length) return 0;
+  db.milestones = db.milestones.filter((m) => !match(m));
+  save(db);
+  for (const m of gone) fs.rmSync(path.join(UPLOAD_DIR, m.id), { recursive: true, force: true });
+  return gone.length;
+}
+
 export function deleteAll() {
   save({ milestones: [] });
 }
