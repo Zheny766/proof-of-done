@@ -138,7 +138,8 @@ export function createProject(raw: unknown): Milestone[] {
   const projectId = newId('prj');
   const access = newAccess();
   const stages = input.stages.map((st) =>
-    createMilestone({ ...input, title: `${input.title}: ${st.title}`, amount: st.amount, criteria: st.criteria, postToBoard: false }),
+    // A deal title is at most 120 characters; the stage name gives way if the two together are longer.
+    createMilestone({ ...input, title: `${input.title}: ${st.title}`.slice(0, 120), amount: st.amount, criteria: st.criteria, postToBoard: false }),
   );
   const stageIds = stages.map((m) => m.id);
   return stages.map((m, i) =>

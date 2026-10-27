@@ -73,3 +73,8 @@ test('a cancelled stage lets the next one start; projects stay off the open boar
   assert.throws(() => service.createProject({ ...project, freelancerName: undefined, freelancerEmail: undefined }), /needs the freelancer/);
   assert.throws(() => service.createProject({ ...project, stages: project.stages.slice(0, 1) }));
 });
+
+test('a long project title and stage name still fit a deal title', () => {
+  const stages = service.createProject({ ...project, title: 'P'.repeat(110), stages: project.stages.slice(0, 2).map((st) => ({ ...st, title: 'Stage name that is long' })) });
+  assert.ok(stages.every((m) => m.title.length <= 120));
+});
