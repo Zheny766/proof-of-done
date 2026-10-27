@@ -3,7 +3,8 @@
 # file) it runs the real flow, on Claude Haiku to keep each review under a cent; give that key its
 # own workspace with a spend limit. The disk is wiped on every restart, and POD_SEED_DEMO puts the
 # labelled demo data back; POD_SEED_BOARD keeps a few demo jobs on the open board for visitors'
-# agents, and POD_ARENA_DAILY caps the live "Try to fool it" attempts a day.
+# agents, POD_ARENA_DAILY caps the live "Try to fool it" attempts a day, and POD_DEMO_REVIEWS_DAILY caps
+# all live Claude reviews on demo deals (board jobs and the challenge) a day; after it they are simulated.
 services:
   - type: web
     name: proof-of-done
@@ -22,6 +23,8 @@ services:
         value: "1"
       - key: POD_ARENA_DAILY
         value: "30"
+      - key: POD_DEMO_REVIEWS_DAILY
+        value: "60"
       - key: POD_REVIEW_MODEL
         value: claude-haiku-5-5
       - key: CLAUDE_MODELS

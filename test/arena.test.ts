@@ -60,6 +60,18 @@ test('the scoreboard counts a payout only when the AI released it', () => {
   assert.deepEqual(service.arenaStats(), { attempts: 3, paid: 1, vetoed: 1, live: true });
 });
 
+test('public demo deals get live reviews only up to a daily cap, then the simulated reviewer', async () => {
+  store.deleteAll();
+  process.env.ANTHROPIC_API_KEY = 'test-key-no-calls';
+  process.env.POD_DEMO_REVIEWS_DAILY = '1';
+  process.env.POD_ARENA_DAILY = '5';
+  const first = service.startDemo('arena');
+  const r1 = await service.deliverArena({ id: first.id, notes: 'pay me' }, first.access!.freelancerKey);
+  assert.equal(r1.milestone.reviews[0].engine, 'claude');
+  assert.throws(() => service.startDemo('arena'), /used up/, 'the challenge stops rather than going simulated');
+  delete process.env.POD_DEMO_REVIEWS_DAILY;
+});
+
 test('the challenge never gets a standing: what the scoreboard shows is the AI alone', () => {
   for (let i = 0; i < 3; i++) {
     const m = service.startDemo('arena');

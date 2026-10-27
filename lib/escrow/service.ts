@@ -243,6 +243,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
 
   const reviewId = newId('rev');
   const replay = input.replay ? loadReplay(input.replay) : null;
+  const live = isClaudeConfigured() && (!m.demo || demoReviewsLeft());
   const milestone = updateMilestone(id, (x) => {
     if (payoutEmail && payoutEmail !== x.freelancer.email) {
       x.freelancer.email = payoutEmail;
@@ -254,8 +255,8 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
       id: reviewId,
       submissionId,
       startedAt: nowIso(),
-      engine: replay ? 'replay' : isClaudeConfigured() ? 'claude' : 'simulated',
-      model: replay ? replay.model : isClaudeConfigured() ? REVIEW_MODEL : undefined,
+      engine: replay ? 'replay' : live ? 'claude' : 'simulated',
+      model: replay ? replay.model : live ? REVIEW_MODEL : undefined,
       recordedAt: replay?.recordedAt,
       findings: [],
       log: [],
@@ -265,6 +266,15 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     pushEvent(x, 'agent', 'review_started', 'The AI reviewer started checking the work against the acceptance criteria');
   });
   return { milestone, reviewId };
+}
+
+// Deals anyone can open on the hosted demo (board demo jobs, the challenge) get live Claude reviews up
+// to a daily cap; after that they fall back to the simulated reviewer, so a visitor can't run up the bill.
+const DEMO_REVIEWS_DAILY = () => Number(process.env.POD_DEMO_REVIEWS_DAILY ?? 60);
+function demoReviewsLeft(): boolean {
+  const since = Date.now() - 86_400_000;
+  const used = listMilestones().filter((x) => x.demo && x.reviews.some((r) => r.engine === 'claude' && Date.parse(r.startedAt) > since)).length;
+  return used < DEMO_REVIEWS_DAILY();
 }
 
 // Runs in the background (after()) once the submit request has returned.
@@ -745,7 +755,7 @@ function arenaCheck() {
   if (!isClaudeConfigured()) throw new EscrowError('The live challenge needs Claude on the server. The three replayed scenarios work without it.', 503);
   const since = Date.now() - 86_400_000;
   const today = arenaDeals().filter((m) => m.submissions.some((x) => Date.parse(x.at) > since)).length;
-  if (today >= arenaDaily()) throw new EscrowError(`Today's ${arenaDaily()} live attempts are used up. Come back tomorrow, or try the replayed scenarios.`, 429);
+  if (today >= arenaDaily() || !demoReviewsLeft()) throw new EscrowError(`Today's live attempts are used up. Come back tomorrow, or try the replayed scenarios.`, 429);
 }
 
 export const ArenaInput = z.object({ id: z.string().min(3).max(40), notes: z.string().trim().min(1).max(2000) });
@@ -761,7 +771,8 @@ export function deliverArena(raw: unknown, key: string | null) {
 
 /** The scoreboard: how many tricks were tried, and how many got the draft paid. */
 export function arenaStats() {
-  const tried = arenaDeals().filter((m) => m.reviews.some((r) => r.finishedAt));
+  // Only live Claude reviews count: the scoreboard is about what the AI does.
+  const tried = arenaDeals().filter((m) => m.reviews.some((r) => r.finishedAt && r.engine === 'claude'));
   return {
     attempts: tried.length,
     // Paid by the AI, that is: a visitor who switches to the client and approves doesn't count.
