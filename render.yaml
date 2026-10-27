@@ -1,6 +1,8 @@
-# Hosted demo on Render's free plan. No keys are set, so PayPal and the AI reviewer run simulated:
-# it costs nothing and anyone can click through the whole flow. The disk is wiped on every restart,
-# and POD_SEED_DEMO puts the labelled demo data back.
+# Hosted demo on Render's free plan. Without keys PayPal and the reviewer run simulated. With the
+# PayPal sandbox keys and an Anthropic key (set them in the Render dashboard, they are not in this
+# file) it runs the real flow, on Claude Haiku to keep each review under a cent; give that key its
+# own workspace with a spend limit. The disk is wiped on every restart, and POD_SEED_DEMO puts the
+# labelled demo data back.
 services:
   - type: web
     name: proof-of-done
@@ -15,3 +17,13 @@ services:
         value: 24.22.1
       - key: POD_SEED_DEMO
         value: "1"
+      - key: POD_REVIEW_MODEL
+        value: claude-haiku-5-5
+      - key: CLAUDE_MODELS
+        value: claude-haiku-5-5
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
