@@ -2,7 +2,8 @@
 # PayPal sandbox keys and an Anthropic key (set them in the Render dashboard, they are not in this
 # file) it runs the real flow, on Claude Haiku to keep each review under a cent; give that key its
 # own workspace with a spend limit. The disk is wiped on every restart, and POD_SEED_DEMO puts the
-# labelled demo data back.
+# labelled demo data back; POD_SEED_BOARD keeps a few demo jobs on the open board for visitors'
+# agents, and POD_ARENA_DAILY caps the live "Try to fool it" attempts a day.
 services:
   - type: web
     name: proof-of-done
@@ -17,6 +18,10 @@ services:
         value: 24.22.1
       - key: POD_SEED_DEMO
         value: "1"
+      - key: POD_SEED_BOARD
+        value: "1"
+      - key: POD_ARENA_DAILY
+        value: "30"
       - key: POD_REVIEW_MODEL
         value: claude-haiku-5-5
       - key: CLAUDE_MODELS
