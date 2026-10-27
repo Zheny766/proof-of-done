@@ -40,8 +40,15 @@ async function accessToken(): Promise<string> {
   return access_token;
 }
 
+/** One PayPal REST call, as recorded in a milestone's ledger. */
+export type PayPalCall = { at: string; method: string; path: string; status: number; ms: number; requestId?: string; debugId?: string };
+let callListener: ((call: PayPalCall) => void) | undefined;
+/** Called after every PayPal request (not the token requests), retries included. */
+export const onPayPalCall = (listener: (call: PayPalCall) => void) => void (callListener = listener);
+
 async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
   for (let attempt = 1; ; attempt++) {
+    const started = Date.now();
     const res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: {
@@ -52,6 +59,15 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, 
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: 'no-store',
+    });
+    callListener?.({
+      at: new Date(started).toISOString(),
+      method,
+      path,
+      status: res.status,
+      ms: Date.now() - started,
+      requestId: idempotencyKey,
+      debugId: res.headers.get('paypal-debug-id') ?? undefined,
     });
     if (res.ok) {
       const text = await res.text();
@@ -199,4 +215,22 @@ export function createPayout(input: {
 /** Current status of a payout batch (PENDING -> SUCCESS once the money reaches the receiver). */
 export function getPayoutBatch(batchId: string): Promise<PayoutBatch> {
   return get<PayoutBatch>(`/v1/payments/payouts/${encodeURIComponent(batchId)}`);
+}
+
+/**
+ * Ask PayPal whether a webhook delivery really came from PayPal, for our webhook. `event` must be the
+ * delivery's JSON body exactly as received.
+ */
+export async function verifyWebhookSignature(headers: Headers, event: unknown, webhookId: string): Promise<boolean> {
+  const h = (name: string) => headers.get(name) ?? '';
+  const res = await post<{ verification_status?: string }>('/v1/notifications/verify-webhook-signature', {
+    auth_algo: h('paypal-auth-algo'),
+    cert_url: h('paypal-cert-url'),
+    transmission_id: h('paypal-transmission-id'),
+    transmission_sig: h('paypal-transmission-sig'),
+    transmission_time: h('paypal-transmission-time'),
+    webhook_id: webhookId,
+    webhook_event: event,
+  });
+  return res.verification_status === 'SUCCESS';
 }

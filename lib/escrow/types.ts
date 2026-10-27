@@ -142,6 +142,10 @@ export interface Milestone {
   /** When a verified milestone's payment goes out, unless the client objects first. */
   releaseAt?: string;
   settlement?: SettlementOffer;
+  /** Every PayPal REST call made for this milestone (newest last, capped). */
+  paypalCalls?: { at: string; method: string; path: string; status: number; ms: number; requestId?: string; debugId?: string }[];
+  /** PayPal webhook events already applied, so a redelivery is a no-op. */
+  webhookEvents?: string[];
   /** Created by "Try it in 60 seconds": a simulated hold and a prepared delivery whose review is a replay. */
   demo?: { scenario: string };
   status: MilestoneStatus;

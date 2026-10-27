@@ -103,22 +103,28 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     return result;
   }
 
-  // A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it.
+  return { ...result, ...(await sendPayout(m, amount, note)) };
+}
+
+/** Pay the freelancer from captured money. A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it. */
+async function sendPayout(m: Milestone, amount: string, note: string): Promise<Partial<PaymentState>> {
   try {
-    const payoutAmount = (Number(amount) * (1 - PLATFORM_FEE_PCT / 100)).toFixed(2);
     const batch = await createPayout({
       milestoneId: m.id,
       receiverEmail: m.freelancer.email,
-      amount: payoutAmount,
+      amount: (Number(amount) * (1 - PLATFORM_FEE_PCT / 100)).toFixed(2),
       currency: m.currency,
       note,
     });
-    result.payoutBatchId = batch.batch_header.payout_batch_id;
-    result.payoutStatus = batch.batch_header.batch_status;
+    return { payoutBatchId: batch.batch_header.payout_batch_id, payoutStatus: batch.batch_header.batch_status };
   } catch (error) {
-    result.payoutStatus = `FAILED: ${(error as Error).message.slice(0, 160)}`;
+    return { payoutStatus: `FAILED: ${(error as Error).message.slice(0, 160)}` };
   }
-  return result;
+}
+
+/** A held payout, once PayPal reports the capture completed. */
+export function payOutHeld(m: Milestone): Promise<Partial<PaymentState>> {
+  return sendPayout(m, m.payment.capturedAmount ?? m.amount, 'Work accepted: the capture completed');
 }
 
 export async function cancelFunding(m: Milestone): Promise<Partial<PaymentState>> {

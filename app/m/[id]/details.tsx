@@ -43,6 +43,29 @@ export function PaymentDetails({ m }: { m: Milestone }) {
         ))}
         {!p.orderId && <p className="text-sm text-pp-muted">No PayPal order yet.</p>}
       </dl>
+      {!!m.paypalCalls?.length && (
+        <details className="group mt-4 border-t border-pp-border pt-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-pp-blue">
+            <span className="group-open:hidden">Show the {m.paypalCalls.length} PayPal API calls</span>
+            <span className="hidden group-open:inline">PayPal API calls · each POST carries an idempotency key</span>
+          </summary>
+          <ol className="mt-3 space-y-2">
+            {m.paypalCalls.map((c, i) => (
+              <li key={i} className="rounded-lg bg-pp-canvas/70 px-3 py-2 font-mono text-[11px] leading-5">
+                <div className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate">
+                    <b>{c.method}</b> {c.path}
+                  </span>
+                  <span className={c.status < 300 ? 'text-emerald-700' : 'text-pp-danger'}>{c.status}</span>
+                </div>
+                <div suppressHydrationWarning className="text-pp-muted">
+                  {fmtDate(c.at)} · {c.ms} ms{c.requestId ? ` · PayPal-Request-Id ${c.requestId}` : ''}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
     </section>
   );
 }

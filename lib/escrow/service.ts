@@ -1,6 +1,7 @@
 import 'server-only';
 // Every milestone state change goes through here, so status, payment and timeline stay in sync.
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,11 +10,12 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
 import { sniffType } from './evidence.ts';
-import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments.ts';
+import { cancelFunding, completeFunding, paymentMode, payOutHeld, refreshPayoutStatus, releaseFunds, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
+import { onPayPalCall } from '../paypal.ts';
 import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
 import { demoFile, loadReplay, runReplayReview } from './replay.ts';
-import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
+import { getMilestone, insertMilestone, listMilestones, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
 import type { Attachment, Milestone, Review, Role } from './types.ts';
 
 export class EscrowError extends Error {
@@ -29,8 +31,15 @@ const money = (n: number, ccy: string) => `${n.toFixed(2)} ${ccy}`;
 // Money operations on one milestone run one at a time (two tabs, a double click, a poll racing a
 // click), so every status check sees the result of the previous operation.
 const queues = new Map<string, Promise<unknown>>();
+// Which milestone the running operation belongs to, so its PayPal calls land in its ledger.
+const working = new AsyncLocalStorage<string>();
+onPayPalCall((call) => {
+  const id = working.getStore();
+  if (id && getMilestone(id)) updateMilestone(id, (x) => void (x.paypalCalls = [...(x.paypalCalls ?? []), call].slice(-60)));
+});
 function exclusive<T>(id: string, fn: () => Promise<T>): Promise<T> {
-  const run = (queues.get(id) ?? Promise.resolve()).then(fn, fn);
+  const inContext = () => working.run(id, fn);
+  const run = (queues.get(id) ?? Promise.resolve()).then(inContext, inContext);
   const tail = run.catch(() => {});
   queues.set(id, tail);
   void tail.then(() => queues.get(id) === tail && queues.delete(id));
@@ -498,6 +507,85 @@ export function deliverDemo(id: string, key: string | null) {
   if (!replay) throw new EscrowError('This is not a demo deal.');
   const files = replay.files.map((name) => ({ name, type: 'application/pdf', bytes: demoFile(name) }));
   return submitWork(id, { notes: replay.notes, links: [], files, replay: m.demo!.scenario }, key);
+}
+
+// PayPal webhooks (signature already verified by the route). They bring status changes we would
+// otherwise only learn by polling: a pending capture that completed, a payout that arrived or failed,
+// an authorization voided on PayPal's side. Each event is applied once.
+type WebhookResource = {
+  id?: string;
+  custom_id?: string;
+  payout_batch_id?: string;
+  batch_header?: { payout_batch_id?: string };
+  payout_item?: { sender_item_id?: string };
+  supplementary_data?: { related_ids?: { authorization_id?: string } };
+};
+export type WebhookEvent = { id: string; event_type: string; resource?: WebhookResource };
+
+function milestoneForEvent(e: WebhookEvent): Milestone | undefined {
+  const r = e.resource ?? {};
+  const related = r.supplementary_data?.related_ids ?? {};
+  const payoutItem = r.payout_item ?? {};
+  return listMilestones().find(
+    (m) =>
+      (r.custom_id && r.custom_id === m.id) ||
+      (payoutItem.sender_item_id && payoutItem.sender_item_id === m.id) ||
+      (m.payment.captureId && r.id === m.payment.captureId) ||
+      (m.payment.authorizationId && (r.id === m.payment.authorizationId || related.authorization_id === m.payment.authorizationId)) ||
+      (m.payment.payoutBatchId && (r.payout_batch_id === m.payment.payoutBatchId || r.batch_header?.payout_batch_id === m.payment.payoutBatchId)),
+  );
+}
+
+export async function applyWebhook(e: WebhookEvent): Promise<'applied' | 'duplicate' | 'ignored'> {
+  const found = milestoneForEvent(e);
+  if (!found) return 'ignored';
+  return exclusive(found.id, async () => {
+    const m = mustGet(found.id);
+    if (m.webhookEvents?.includes(e.id)) return 'duplicate';
+    const via = `(PayPal webhook ${e.event_type})`;
+    let effect: ((x: Milestone) => void) | undefined;
+    const type = e.event_type;
+    if (type === 'PAYMENT.CAPTURE.COMPLETED' && m.payment.payoutStatus?.startsWith('HELD')) {
+      // The capture went through after all: only now does the freelancer get paid.
+      const payout = await payOutHeld(m);
+      effect = (x) => {
+        x.payment = { ...x.payment, ...payout };
+        pushEvent(x, 'paypal', 'capture_completed', `PayPal completed the capture, so the payout goes out now ${via}`);
+        pushPayoutEvent(x, payout);
+      };
+    } else if (type === 'PAYMENT.CAPTURE.DENIED' || type === 'PAYMENT.CAPTURE.DECLINED') {
+      effect = (x) => {
+        x.payment.payoutStatus = 'NOT SENT: PayPal denied the capture';
+        pushEvent(x, 'paypal', 'capture_denied', `PayPal denied the capture; nothing is paid out ${via}`);
+      };
+    } else if (type === 'PAYMENT.AUTHORIZATION.VOIDED' && m.status !== 'cancelled' && m.status !== 'released') {
+      effect = (x) => {
+        x.payment.authorizationStatus = 'VOIDED';
+        x.payment.voidedAt = nowIso();
+        x.status = 'cancelled';
+        x.releaseAt = undefined;
+        x.settlement = undefined;
+        pushEvent(x, 'paypal', 'voided', `PayPal voided the authorization; nothing will be charged ${via}`);
+      };
+    } else if (type === 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED' || type === 'PAYMENT.PAYOUTSBATCH.SUCCESS') {
+      effect = (x) => {
+        if (x.payment.payoutStatus === 'SUCCESS') return;
+        x.payment.payoutStatus = 'SUCCESS';
+        pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email} ${via}`);
+      };
+    } else if (/^PAYMENT\.PAYOUTS-ITEM\.(FAILED|RETURNED|UNCLAIMED|BLOCKED|DENIED|REFUNDED)$/.test(type)) {
+      const outcome = type.split('.').pop()!;
+      effect = (x) => {
+        x.payment.payoutStatus = outcome;
+        pushEvent(x, 'system', 'payout_failed', `The PayPal payout was ${outcome.toLowerCase()} ${via}`);
+      };
+    }
+    updateMilestone(m.id, (x) => {
+      x.webhookEvents = [...(x.webhookEvents ?? []), e.id].slice(-100);
+      effect?.(x);
+    });
+    return effect ? 'applied' : 'ignored';
+  });
 }
 
 const DraftCriteria = z.object({

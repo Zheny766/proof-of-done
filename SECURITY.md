@@ -46,6 +46,7 @@ Sandbox only: the app talks to `api-m.sandbox.paypal.com` and nothing else.
 | **A declined capture** | Nothing is paid out; the hold stays and the error is shown | `test/paypal-money.test.ts` › *a declined capture throws, and nothing is paid out* |
 | **A settlement that leaves money on the hold** | The partial capture is a final capture, so PayPal releases the rest (checked live: a $1.00 re-capture afterwards was refused with `AUTHORIZATION_ALREADY_CAPTURED`) | `test/paypal-money.test.ts` › *a settlement captures only the agreed amount, as the final capture, and pays out that amount* |
 | **Cancelling an authorization that is already voided or expired** | Treated as cancelled; any other PayPal error is not | `test/paypal-money.test.ts` › *cancelling an authorization PayPal already voided still cancels; other errors do not* |
+| **A forged PayPal webhook** ("the payout succeeded", "the capture completed") | Nothing is trusted until PayPal's verify-webhook-signature API confirms the delivery for our webhook id; each event id is applied once | `test/webhooks.test.ts` › *only a signature PayPal confirms is trusted, checked with our webhook id*, *a completed capture releases a held payout, and a redelivery does nothing* |
 | **A corrupt data file** silently treated as empty (and then overwritten) | Loading refuses; nothing is written | `test/escrow-flow.test.ts` › *a corrupt data file is an error, never an empty store* |
 
 ## Privacy and cost
