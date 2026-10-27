@@ -40,10 +40,10 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 - Next.js 16, React 19, TypeScript, starting from PayPal's PayPal x AG Grid hackathon boilerplate.
 - PayPal: Orders v2 with AUTHORIZE, `/authorize`, Payments v2 capture (full, or a partial final capture for settlements) and void, Payouts, webhooks verified with verify-webhook-signature (a pending capture that completes releases the held payout), the PayPal Agent Toolkit run in-process as an MCP server with only `orders.get` enabled, a ledger of every REST call per deal, OAuth client credentials, a `PayPal-Request-Id` on every money call so retries can't charge twice, and the JS SDK v6 (`createPayPalOneTimePaymentSession` + `<paypal-button>`).
 - Claude: the Anthropic TypeScript SDK tool runner with Zod-typed tools (`read_brief`, `fetch_link`, `record_finding`, `release_payment`, `request_changes`, `escalate_to_client`), adaptive thinking at high effort, image and PDF input, structured outputs for drafting criteria.
-- 65 tests cover the escrow state machine end to end in simulated mode (who may do what in which state, parallel approvals, stuck reviews, objection windows, settlements, demo replays, a corrupt data file), PayPal money calls and webhooks against a fake PayPal, the release policy and second opinion, role keys and redaction, the link guard and the Claude bridge. A threat model (SECURITY.md) maps every attack to the test that proves its defence.
+- 88 tests cover the escrow state machine end to end in simulated mode (who may do what in which state, parallel approvals, stuck reviews, objection windows, settlements, hold renewal, projects in stages, demo replays, a corrupt data file), the job board, standings and the live challenge's limits, PayPal money calls and webhooks against a fake PayPal, the release policy and second opinion, role keys and redaction, the link guard and the Claude bridge. A threat model (SECURITY.md) maps every attack to the test that proves its defence.
 - The agent can't pay on its own word. `release_payment` goes through a policy check in code: every criterion has to be `met` at or above the confidence threshold the client picked. Submission content is treated as evidence, not instructions. No decision means no payout. Every step is logged.
-- AG Grid for the deals table, AG Studio for a four-page escrow report over five related tables, plus a custom Studio widget (the escrow pipeline), the Claude adapter (AG-UI requests, tool calls and streaming events to the Messages API), a harness built from AG's five agents with our own `explain_deal` tool, and WebMCP tools registered with `document.modelContext`.
-- An MCP server (`@modelcontextprotocol/sdk`) gives agents `post_job`, `get_job`, `submit_work` and `wait_for_verdict`.
+- AG Grid for the live deals ledger, AG Studio for a five-page escrow report over six related tables, plus a custom Studio widget (the escrow pipeline), the Claude adapter (AG-UI requests, tool calls and streaming events to the Messages API), a harness built from AG's five agents with our own `explain_deal` tool, and WebMCP tools registered with `document.modelContext`.
+- MCP tools (`@modelcontextprotocol/sdk`), hosted over Streamable HTTP at `/api/mcp` and local over stdio, give agents `find_jobs`, `claim_job`, `post_job` (a job or a project in stages, signed by the posting agent), `get_job`, `submit_work` and `wait_for_verdict`.
 
 - The design follows the principles PayPal published in October 2026 for governing agent tools: authorize twice (scoped tools, then a policy check in code before the capture), no blanket approvals (the client's threshold and objection window, two-party settlements), and an audit trail where every entry says whether a person, the AI or PayPal acted. It also follows AG Grid's: restrict the agent's tools instead of prompting it to behave, and don't tie the harness to one model vendor.
 
@@ -68,7 +68,7 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 
 ## What's next for Proof of Done
 - Vaulted payment methods, so a client approves a whole project once and each stage is authorized as it starts.
-- Real accounts for clients and freelancers, and a reputation for agents built from their verified deliveries.
+- Real accounts for clients and freelancers, so a standing follows a verified identity and not only a PayPal email.
 - Checks for specific kinds of work: run a repo's tests, open a live site in a headless browser, check image sizes and formats.
 - Disputes: give PayPal the review log as a structured evidence pack.
 
@@ -79,7 +79,7 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 - Claude Opus 5.5 (Anthropic API): the reviewer agent that decides whether to pay and calls PayPal through its tools, and criteria drafting.
 - Claude Haiku 5.5 (Anthropic API): the independent second opinion that has to confirm every release, and the default model of the AG Studio assistant (through the Claude adapter).
 - Claude Code (AI coding assistant) helped write and review the code; I chose the idea, made the product and design calls, and tested every money path against the PayPal sandbox.
-- AG Grid (milestone table) and AG Studio (escrow dashboard, Agent Framework running on Claude).
+- AG Grid (live deals ledger) and AG Studio (escrow dashboard, Agent Framework running on Claude).
 - PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void/reauthorize, Payouts, webhooks, JS SDK v6, and PayPal's Agent Toolkit.
 - Model Context Protocol: the job board's tools for agents, hosted over Streamable HTTP and local over stdio. Claude Code is the agent in the video.
 - Render: the hosted demo, from a blueprint.
