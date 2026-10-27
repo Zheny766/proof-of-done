@@ -5,13 +5,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { redactEmails, viewerEventText } from './access.ts';
 import { latestFindings } from './policy.ts';
 import type { Milestone } from './types.ts';
 
 export type SandboxRun = ReturnType<typeof publicRun>;
-
-const EMAIL = /[\w.+-]+@[\w-]+(\.[\w-]+)+/g;
-const scrub = (text: string) => text.replace(EMAIL, '(email)');
 
 export function publicRun(m: Milestone) {
   if (m.payment.mode !== 'sandbox' || !m.payment.authorizationId) throw new Error(`${m.id} did not run on the PayPal sandbox.`);
@@ -25,7 +23,7 @@ export function publicRun(m: Milestone) {
     currency: m.currency,
     status: m.status,
     createdAt: m.createdAt,
-    takenBy: m.board?.claimedBy ?? null,
+    takenBy: m.board?.claimedBy ? redactEmails(m.board.claimedBy) : null,
     criteria: m.criteria.map((c, i) => ({ text: c.text, status: findings[i]?.status ?? null, confidence: findings[i]?.confidence ?? null })),
     review: review
       ? {
@@ -49,7 +47,8 @@ export function publicRun(m: Milestone) {
       voidedAt: p.voidedAt ?? null,
     },
     calls: (m.paypalCalls ?? []).map((c) => ({ at: c.at, method: c.method, path: c.path, status: c.status, ms: c.ms, debugId: c.debugId ?? null })),
-    timeline: m.timeline.map((e) => ({ at: e.at, actor: e.actor, text: scrub(e.text) })),
+    // The same steps a visitor without a link sees: no notes, no reviewer summaries, no emails.
+    timeline: m.timeline.map((e) => ({ at: e.at, actor: e.actor, text: viewerEventText(e) })),
   };
 }
 

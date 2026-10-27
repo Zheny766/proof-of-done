@@ -40,7 +40,12 @@ const deal = (over: Partial<Milestone> = {}) =>
         audit: { engine: 'claude', model: 'claude-haiku-5-5', agreed: true, summary: 'ok', disputed: [], redFlags: [] },
       },
     ],
-    timeline: [{ at: '', actor: 'paypal', type: 'payout', text: 'PayPal paid out to diego@example.com (batch B1)' }],
+    board: { postedAt: '', claimedAt: '', claimedBy: 'agent@bots.example.com' },
+    timeline: [
+      { at: '', actor: 'paypal', type: 'payout', text: 'PayPal paid out to diego@example.com (batch B1)' },
+      { at: '', actor: 'agent', type: 'changes', text: 'AI reviewer asked for changes: the menu lists the house secret sauce' },
+      { at: '', actor: 'client', type: 'objected', text: 'Client objected: my private reason' },
+    ],
     ...over,
   }) as unknown as Milestone;
 
@@ -53,9 +58,11 @@ test('a sandbox run keeps the PayPal ids, debug ids and verdicts, and nothing pr
   assert.deepEqual(run.criteria, [{ text: 'A one-page PDF', status: 'met', confidence: 0.96 }]);
   assert.deepEqual(run.review, { reviewer: 'claude-opus-5-5', decision: 'release', secondOpinion: { by: 'claude-haiku-5-5', agreed: true } });
   const json = JSON.stringify(run);
-  for (const secret of [m.access!.clientKey, m.access!.freelancerKey, 'Secret brief', 'my work', 'saw the menu', 'read the secret brief', '@example.com', 'capture-A1'])
+  for (const secret of [m.access!.clientKey, m.access!.freelancerKey, 'Secret brief', 'my work', 'saw the menu', 'read the secret brief', '@example.com', 'capture-A1', 'secret sauce', 'private reason'])
     assert.ok(!json.includes(secret), `leaked: ${secret}`);
-  assert.match(run.timeline[0].text, /paid out to \(email\)/);
+  assert.match(run.timeline[0].text, /paid out to \[email\]/);
+  assert.deepEqual(run.timeline.slice(1).map((e) => e.text), ['AI reviewer asked for changes', 'Client objected']);
+  assert.equal(run.takenBy, '[email]');
 });
 
 test('only deals that ran on the PayPal sandbox can be exported', () => {

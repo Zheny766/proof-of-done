@@ -33,6 +33,10 @@ export function publicMilestone(m: Milestone): Milestone {
 const EMAIL = /[^\s@()]+@[^\s@()]+\.[^\s@()]+/g;
 export const redactEmails = (text: string) => text.replace(EMAIL, '[email]');
 
+// The reviewer's summaries and the parties' notes come after a colon and can quote the work.
+export const viewerEventText = (e: { actor: string; text: string }) =>
+  redactEmails(['agent', 'client', 'freelancer'].includes(e.actor) ? e.text.split(': ')[0] : e.text);
+
 /**
  * What someone without either link sees: where the milestone stands, but not the brief, the
  * delivered work, the reviewer's evidence or anyone's email address.
@@ -56,8 +60,7 @@ export function viewerMilestone(m: Milestone): Milestone {
       audit: r.audit && { ...r.audit, summary: '', disputed: r.audit.disputed.map((d) => ({ ...d, reason: '' })), redFlags: [] },
     })),
     settlement: undefined,
-    // The reviewer's summaries and the parties' notes come after a colon and can quote the work.
-    timeline: p.timeline.map((e) => ({ ...e, text: redactEmails(['agent', 'client', 'freelancer'].includes(e.actor) ? e.text.split(': ')[0] : e.text) })),
+    timeline: p.timeline.map((e) => ({ ...e, text: viewerEventText(e) })),
   };
 }
 
