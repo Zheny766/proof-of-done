@@ -38,5 +38,15 @@
     "node": ">=22.18"
   },
   "description": "Payments that release themselves when an AI agent verifies the work is done. PayPal authorize & capture + Claude.",
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "@paypal/agent-toolkit": {
+      "ai": "^5.0.52",
+      "@langchain/core": "^0.3.80",
+      "mathjs": "^15.2.0",
+      "zod": "$zod"
+    },
+    "langsmith": "^0.6.0",
+    "uuid": "^11.1.1"
+  }
 }

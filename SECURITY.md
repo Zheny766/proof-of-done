@@ -72,6 +72,8 @@ Sandbox only: the app talks to `api-m.sandbox.paypal.com` and nothing else.
 |---|---|---|
 | **People without a link see the brief, the work or emails** | They only see where a milestone stands; evidence, notes, offers and email addresses are removed | `test/access.test.ts` › *a viewer sees progress, not the work or contact details*, *public data never contains the keys* |
 | **Running up the Anthropic bill** through the Claude-backed routes | Per-IP limits with a shared cap (spoofed `X-Forwarded-For` doesn't help); the hosted demo uses a key in its own workspace with a monthly spend limit | `test/rate-limit.test.ts` › *per-IP limit*, *rotating fake X-Forwarded-For values still hit the shared cap* |
+| **A vulnerable dependency** (PayPal's Agent Toolkit pulls in LangChain, the AI SDK, mathjs and more, several with published advisories) | Only the toolkit's MCP entry is loaded, with `get_order` alone switched on; its dependencies are pinned to patched versions in `package.json` `overrides`, and CI fails on any known advisory | `npm audit` (0 vulnerabilities, run in CI); the toolkit's `get_order` checked against the PayPal sandbox after the pin |
+
 
 ## Not covered
 
