@@ -160,6 +160,9 @@ test('uploads are stored with the type from their bytes', async () => {
     freelancerKey,
   );
   assert.deepEqual(milestone.submissions.at(-1)!.attachments.map((a) => a.mime), ['image/png', 'application/octet-stream']);
+  // Each file's SHA-256 goes on the proof certificate, so anyone holding the file can check it.
+  const sha = (await import('node:crypto')).createHash('sha256').update(png).digest('hex');
+  assert.equal(milestone.submissions.at(-1)!.attachments[0].sha256, sha);
 });
 
 test('only USD, positive amounts, at least one criterion', () => {

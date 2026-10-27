@@ -40,11 +40,20 @@ export function NextStep({
   );
 
   if (m.status === 'released') {
+    const certificate = (
+      <a href={`/m/${m.id}/proof`} className="mt-3 inline-block text-sm font-semibold text-pp-blue hover:underline">
+        Open the proof certificate →
+      </a>
+    );
     return box(
       settled ? `Settled for ${fmtMoney(settled, m.currency)}` : `${amount} paid`,
-      settled
-        ? `PayPal captured ${fmtMoney(settled, m.currency)} for ${m.freelancer.name}; the other ${fmtMoney(Number(m.amount) - Number(settled), m.currency)} of the hold went back to ${m.client.name}.`
-        : `PayPal captured the hold and paid ${m.freelancer.name}. Payout: ${m.payment.payoutStatus?.toLowerCase() ?? 'sent'}.`,
+      <>
+        {settled
+          ? `PayPal captured ${fmtMoney(settled, m.currency)} for ${m.freelancer.name}; the other ${fmtMoney(Number(m.amount) - Number(settled), m.currency)} of the hold went back to ${m.client.name}.`
+          : `PayPal captured the hold and paid ${m.freelancer.name}. Payout: ${m.payment.payoutStatus?.toLowerCase() ?? 'sent'}.`}
+        <br />
+        {certificate}
+      </>,
       'border-emerald-200',
     );
   }

@@ -30,6 +30,8 @@ export interface Attachment {
   size: number;
   /** Path relative to the uploads directory. */
   file: string;
+  /** SHA-256 of the file as delivered, hex: the proof certificate lists it, so anyone with the file can check it. */
+  sha256?: string;
 }
 
 export interface Submission {

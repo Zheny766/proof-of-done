@@ -238,7 +238,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     const safe = f.name.replace(/[^\w.\-]+/g, '_').slice(-80) || `file${i}`;
     const rel = path.join(id, submissionId, `${i}_${safe}`);
     fs.writeFileSync(path.join(UPLOAD_DIR, rel), f.bytes);
-    return { id: newId('att'), name: f.name, mime: sniffType(f.bytes, f.type), size: f.bytes.length, file: rel };
+    return { id: newId('att'), name: f.name, mime: sniffType(f.bytes, f.type), size: f.bytes.length, file: rel, sha256: crypto.createHash('sha256').update(f.bytes).digest('hex') };
   });
 
   const reviewId = newId('rev');

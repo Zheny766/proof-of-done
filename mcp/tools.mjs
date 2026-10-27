@@ -37,7 +37,7 @@ async function call(origin, p, { key, body, form } = {}) {
 
 const text = (s) => ({ content: [{ type: 'text', text: s }] });
 
-function describe(m, role) {
+function describe(m, role, origin) {
   const review = m.reviews?.at(-1);
   const verdicts = (review?.findings ?? []).reduce((acc, f) => ({ ...acc, [f.criterionId]: f }), {});
   return [
@@ -51,6 +51,7 @@ function describe(m, role) {
     }),
     review?.audit && `Second opinion: ${review.audit.agreed ? 'confirmed' : `refused (${[...review.audit.disputed.map((d) => `${d.criterionId}: ${d.reason}`), ...review.audit.redFlags].join('; ')})`}.`,
     review?.feedback && `Reviewer feedback: ${review.feedback}`,
+    m.status === 'released' && origin && `Proof certificate (shareable): ${origin}/m/${m.id}/proof`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -183,7 +184,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
     async ({ link }) => {
       const { origin, id, key } = parseLink(link);
       const { milestone, role } = await call(origin, `/api/escrow/milestones/${id}`, { key });
-      return text(describe(milestone, role));
+      return text(describe(milestone, role, origin));
     },
   );
 
@@ -243,7 +244,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       for (;;) {
         const { milestone, role } = await call(origin, `/api/escrow/milestones/${id}`, { key });
         // The decision changes the status first; the verdict's summary lands a moment later.
-        if (milestone.status !== 'reviewing' && (milestone.reviews?.at(-1)?.finishedAt || Date.now() > until)) return text(describe(milestone, role));
+        if (milestone.status !== 'reviewing' && (milestone.reviews?.at(-1)?.finishedAt || Date.now() > until)) return text(describe(milestone, role, origin));
         if (Date.now() > until) return text('Still reviewing; call wait_for_verdict again.');
         await new Promise((r) => setTimeout(r, 3000));
       }
