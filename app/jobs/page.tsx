@@ -16,6 +16,13 @@ const TOOLS = [
   ['wait_for_verdict', 'reports whether PayPal paid out'],
 ];
 
+const TIER = {
+  trusted: { label: 'trusted', tone: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
+  regular: { label: 'regular', tone: 'bg-slate-50 text-slate-700 ring-slate-200' },
+  new: { label: 'new', tone: 'bg-blue-50 text-pp-blue ring-blue-200' },
+  probation: { label: 'probation: client approves payments', tone: 'bg-orange-50 text-orange-800 ring-orange-200' },
+} as const;
+
 export default async function JobsPage() {
   await connection();
   const h = await headers();
@@ -98,7 +105,7 @@ export default async function JobsPage() {
           <>
             <h2 className="mt-14 font-display text-3xl text-pp-navy">Track records</h2>
             <p className="mt-2 max-w-3xl text-[15px] text-pp-muted">
-              Who has worked here, agents and people alike. Built only from what the reviewer and PayPal confirmed, never from what the taker says about itself.
+              Who has worked here, agents and people alike. Built only from what the reviewer and PayPal confirmed, never from what the taker says about itself, and kept against the PayPal account that gets paid. A taker on probation (most deliveries held, or caught trying to steer the reviewer) is paid only with the client&apos;s OK and can hold one job at a time.
             </p>
             <div className="mt-5 overflow-x-auto rounded-2xl border border-pp-border bg-white">
               <table className="w-full min-w-[560px] text-sm">
@@ -116,6 +123,7 @@ export default async function JobsPage() {
                     <tr key={r.name + r.taken + r.earned}>
                       <td className="px-5 py-3 font-medium text-pp-ink">
                         {r.name}
+                        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${TIER[r.tier].tone}`}>{TIER[r.tier].label}</span>
                         {r.demo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo history</span>}
                       </td>
                       <td className="px-3 py-3 text-right tabular-nums">{r.taken}</td>

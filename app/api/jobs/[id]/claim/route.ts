@@ -8,7 +8,7 @@ import { allowRequest } from '@/lib/rate-limit';
 export const POST = handle(async (request: Request, ctx: RouteContext<'/api/jobs/[id]/claim'>) => {
   if (!allowRequest(request, 'claim', 10)) return Response.json({ error: 'Too many requests, try again in a minute.' }, { status: 429 });
   const { id } = await ctx.params;
-  const { milestone, freelancerKey } = await claimJob(id, await request.json());
+  const { milestone, freelancerKey, trust } = await claimJob(id, await request.json());
   const origin = publicOrigin(request);
-  return Response.json({ job: publicJob(milestone), freelancerKey, link: `${origin}/m/${id}?key=${freelancerKey}` });
+  return Response.json({ job: publicJob(milestone), freelancerKey, link: `${origin}/m/${id}?key=${freelancerKey}`, standing: { tier: trust.tier, reason: trust.reason } });
 });

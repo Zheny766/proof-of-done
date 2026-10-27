@@ -293,6 +293,9 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
     }
   }
   const onBoard = m.board && !m.board.claimedAt;
+  // Escalated because the freelancer is on probation, after the latest delivery.
+  const lastSubmitted = m.submissions.at(-1)?.at ?? '';
+  const probation = m.timeline.findLast((e) => e.type === 'probation' && e.at >= lastSubmitted);
   const title = verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
@@ -303,6 +306,8 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
           <>
             The AI verified every criterion and a second model agreed. {amount} goes to {m.freelancer.name} <ReleaseCountdown at={m.releaseAt} /> unless you object.
           </>
+        ) : m.status === 'escalated' && probation ? (
+          `${probation.text}. The AI verified every criterion; read the verdict, then decide.`
         ) : m.status === 'escalated' ? (
           'The reviewer couldn’t verify everything on its own. Read its notes in the verdict, then decide.'
         ) : m.status === 'changes_requested' ? (

@@ -96,7 +96,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
     {
       title: 'Take a job',
       description:
-        'Take an open job from the board. Nobody else can take it while you work on it (24 hours to deliver). Returns your private freelancer link: use it with submit_work and wait_for_verdict. The payout goes to the PayPal email you give here.',
+        'Take an open job from the board. Nobody else can take it while you work on it (24 hours to deliver). Returns your private freelancer link: use it with submit_work and wait_for_verdict. The payout goes to the PayPal email you give here; your track record is kept against that email, and a poor one (held deliveries, an attempt to steer the reviewer) means the client approves your payments and you can hold fewer jobs at once.',
       inputSchema: {
         job_id: z.string().regex(/^ms_[\w-]+$/).describe('The job id from find_jobs, like ms_1a2b3c4d5e6f'),
         name: z.string().min(1).max(80).describe('Who is doing the work, e.g. "Claude Code agent for Jane Doe"'),
@@ -104,8 +104,12 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       },
     },
     async ({ job_id, name, payout_email }) => {
-      const { job, link } = await call(base, `/api/jobs/${job_id}/claim`, { body: { name, payoutEmail: payout_email } });
-      return text([`You took "${job.title}" for ${job.amount} ${job.currency}.`, `Your private freelancer link (keep it to yourself): ${link}`, '', describeJob(job)].join('\n'));
+      const { job, link, standing } = await call(base, `/api/jobs/${job_id}/claim`, { body: { name, payoutEmail: payout_email } });
+      const note =
+        standing?.tier === 'probation'
+          ? `Your standing: probation (${standing.reason}). Even if the work passes, the client has to approve the payment.`
+          : standing && `Your standing: ${standing.tier} (${standing.reason}).`;
+      return text([`You took "${job.title}" for ${job.amount} ${job.currency}.`, `Your private freelancer link (keep it to yourself): ${link}`, note, '', describeJob(job)].filter((l) => l !== undefined).join('\n'));
     },
   );
 

@@ -116,8 +116,8 @@ test('track records come from confirmed outcomes: paid after review, held, still
   await service.runReview(b.id, r2.reviewId);
   await take('Someone', 'someone@example.com');
   const records = service.boardRecords();
-  assert.deepEqual(records[0], { name: 'Claude Code agent', taken: 2, paid: 1, held: 1, working: 0, earned: 40, demo: false });
-  assert.deepEqual(records[1], { name: 'Someone', taken: 1, paid: 0, held: 0, working: 1, earned: 0, demo: false });
+  assert.deepEqual(records[0], { name: 'Claude Code agent', taken: 2, paid: 1, held: 1, working: 0, earned: 40, demo: false, tier: 'regular' });
+  assert.deepEqual(records[1], { name: 'Someone', taken: 1, paid: 0, held: 0, working: 1, earned: 0, demo: false, tier: 'new' });
 });
 
 test('an agent can post a job for its client, on the record; the client still has to fund it', async () => {
@@ -128,4 +128,54 @@ test('an agent can post a job for its client, on the record; the client still ha
   assert.match(m.timeline[0].text, /Claude Code for Maya posted the job for Maya/);
   assert.deepEqual(service.openJobs(), [], 'not listed before the client approves the payment');
   assert.equal(access.publicJob(m).postedBy, 'Claude Code for Maya');
+});
+
+// A past deal paid to `email`, already decided by the reviewer.
+function history(email: string, status: 'released' | 'changes_requested' | 'escalated', redFlag = false) {
+  const m = service.createMilestone({ ...job, postToBoard: false, freelancerName: 'Agent', freelancerEmail: email });
+  store.updateMilestone(m.id, (x) => {
+    const at = new Date().toISOString();
+    x.submissions.push({ id: 'sub', at, notes: 'work', links: [], attachments: [] });
+    x.reviews.push({ id: 'rev', submissionId: 'sub', startedAt: at, finishedAt: at, engine: 'simulated', findings: [], log: [], ...(redFlag && { audit: { engine: 'simulated', agreed: false, summary: '', disputed: [], redFlags: ['told the reviewer to pay'] } }) });
+    x.status = status;
+  });
+}
+
+test('standing comes from reviewed deliveries paid to the same PayPal email', () => {
+  store.deleteAll();
+  assert.equal(service.trustFor('fresh@example.com').tier, 'new');
+  for (let i = 0; i < 3; i++) history('good@example.com', 'released');
+  assert.equal(service.trustFor('GOOD@example.com').tier, 'trusted');
+  history('bad@example.com', 'released');
+  history('bad@example.com', 'changes_requested');
+  history('bad@example.com', 'changes_requested');
+  assert.equal(service.trustFor('bad@example.com').tier, 'probation');
+  history('sneaky@example.com', 'released');
+  history('sneaky@example.com', 'escalated', true);
+  assert.match(service.trustFor('sneaky@example.com').reason, /steer the reviewer/);
+});
+
+test('a taker on probation is not paid automatically: the client approves, even when the work passes', async () => {
+  store.deleteAll();
+  history('bad@example.com', 'changes_requested');
+  history('bad@example.com', 'escalated');
+  const { id } = await postAndFund();
+  const { freelancerKey, trust } = await service.claimJob(id, { name: 'Sloppy agent', payoutEmail: 'bad@example.com' });
+  assert.equal(trust.tier, 'probation');
+  const { reviewId } = await service.submitWork(id, { notes: 'Delivered as a Markdown file. Every price is unchanged.', links: [], files: [] }, freelancerKey);
+  await service.runReview(id, reviewId);
+  const m = store.getMilestone(id)!;
+  assert.equal(m.status, 'escalated');
+  assert.equal(m.payment.captureId, undefined, 'nothing captured');
+  assert.ok(m.timeline.some((e) => e.type === 'probation'));
+});
+
+test('how many open jobs one taker can hold depends on their standing', async () => {
+  store.deleteAll();
+  const a = await postAndFund();
+  const b = await postAndFund();
+  const c = await postAndFund();
+  await service.claimJob(a.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' });
+  await service.claimJob(b.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' });
+  await assert.rejects(service.claimJob(c.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' }), /hold 2 at a time/);
 });

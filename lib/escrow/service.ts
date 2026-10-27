@@ -235,6 +235,16 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
         try {
           const latest = mustGet(id);
           if (latest.status !== 'reviewing') return { error: `the milestone is ${latest.status} now` };
+          // Someone on probation gets paid only with the client's OK, however good this delivery looks.
+          const trust = trustFor(latest.freelancer.email, id);
+          if (trust.tier === 'probation') {
+            updateMilestone(id, (x) => {
+              x.status = 'escalated';
+              pushEvent(x, 'agent', 'verified_probation', `AI reviewer verified every criterion: ${summary}`);
+              pushEvent(x, 'system', 'probation', `${x.freelancer.name} is on probation (${trust.reason}), so ${x.client.name} approves this payment`);
+            });
+            return { error: `${latest.freelancer.name} is on probation (${trust.reason}); the client approves this payment` };
+          }
           const hours = latest.objectionHours ?? 0;
           // The client asked for time to object: the money moves when the window closes.
           if (hours > 0) {
@@ -541,7 +551,41 @@ export function boardRecords() {
     else r.held++;
     rows.set(key, r);
   }
-  return [...rows.values()].sort((a, b) => b.earned - a.earned || b.paid - a.paid);
+  const emails = new Map<string, string>();
+  for (const m of listMilestones()) if (m.board?.claimedAt) emails.set(`${m.board.claimedBy}\u0000${m.freelancer.email}`, m.freelancer.email);
+  return [...rows.entries()]
+    .map(([key, r]) => ({ ...r, tier: trustFor(emails.get(key) ?? '').tier }))
+    .sort((a, b) => b.earned - a.earned || b.paid - a.paid);
+}
+
+// Standing of whoever gets paid, keyed by the PayPal email the money goes to (that is the identity
+// that matters to a payment). It only counts what the reviewer decided, never what the taker says.
+export type TrustTier = 'new' | 'regular' | 'trusted' | 'probation';
+export type Trust = { tier: TrustTier; decided: number; paid: number; flagged: number; reason: string };
+
+const RED_FLAG_DAYS = 30;
+export const CLAIM_LIMIT: Record<TrustTier, number> = { probation: 1, new: 2, regular: 3, trusted: 5 };
+
+export function trustFor(email: string, exceptId?: string): Trust {
+  const who = email.trim().toLowerCase();
+  const since = Date.now() - RED_FLAG_DAYS * 86_400_000;
+  let decided = 0;
+  let paid = 0;
+  let flagged = 0;
+  for (const m of listMilestones()) {
+    if (m.id === exceptId || !who || m.freelancer.email.toLowerCase() !== who) continue;
+    const finished = m.reviews.filter((r) => r.finishedAt);
+    if (finished.some((r) => r.audit?.redFlags.length && Date.parse(r.finishedAt!) > since)) flagged++;
+    if (!finished.length || !['released', 'changes_requested', 'escalated', 'cancelled'].includes(m.status)) continue;
+    decided++;
+    if (m.status === 'released') paid++;
+  }
+  const held = decided - paid;
+  if (flagged) return { tier: 'probation', decided, paid, flagged, reason: `the second opinion flagged an attempt to steer the reviewer in the last ${RED_FLAG_DAYS} days` };
+  if (decided >= 2 && paid / decided < 0.5) return { tier: 'probation', decided, paid, flagged, reason: `${held} of ${decided} deliveries were held` };
+  if (paid >= 3 && paid / decided >= 0.8) return { tier: 'trusted', decided, paid, flagged, reason: `${paid} of ${decided} deliveries paid after review` };
+  if (decided < 2) return { tier: 'new', decided, paid, flagged, reason: 'fewer than 2 reviewed deliveries' };
+  return { tier: 'regular', decided, paid, flagged, reason: `${paid} of ${decided} deliveries paid after review` };
 }
 
 export const ClaimJobInput = z.object({
@@ -550,10 +594,16 @@ export const ClaimJobInput = z.object({
 });
 
 export const claimJob = (id: string, raw: unknown) => exclusive(id, async () => claimJobNow(id, ClaimJobInput.parse(raw)));
-function claimJobNow(id: string, input: z.infer<typeof ClaimJobInput>): { milestone: Milestone; freelancerKey: string } {
+function claimJobNow(id: string, input: z.infer<typeof ClaimJobInput>): { milestone: Milestone; freelancerKey: string; trust: Trust } {
   const m = mustGet(id);
   if (!m.board) throw new EscrowError('This job is not on the open board.', 404);
   if (!isOpenJob(m)) throw new EscrowError(claimActive(m) ? 'Someone already took this job.' : 'This job is not open: it has no PayPal hold or it is already done.', 409);
+  // Taking a job blocks it for everyone else, so how many one taker can hold depends on their record.
+  const trust = trustFor(input.payoutEmail);
+  const holding = listMilestones().filter((x) => x.board && claimActive(x) && x.status === 'funded' && !x.submissions.length && x.freelancer.email.toLowerCase() === input.payoutEmail.toLowerCase()).length;
+  if (holding >= CLAIM_LIMIT[trust.tier]) {
+    throw new EscrowError(`Deliver the job you already took first: with your record (${trust.tier}) you can hold ${CLAIM_LIMIT[trust.tier]} at a time.`, 429);
+  }
   const freelancerKey = newAccess().freelancerKey;
   const milestone = updateMilestone(id, (x) => {
     x.access = { ...x.access!, freelancerKey };
@@ -561,7 +611,7 @@ function claimJobNow(id: string, input: z.infer<typeof ClaimJobInput>): { milest
     x.board = { ...x.board!, claimedAt: nowIso(), claimedBy: input.name };
     pushEvent(x, 'freelancer', 'claimed', `${input.name} took the job from the open board`);
   });
-  return { milestone, freelancerKey };
+  return { milestone, freelancerKey, trust };
 }
 
 // The hosted demo keeps a few jobs on the board (simulated holds), so a visitor's agent always has
