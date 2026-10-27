@@ -144,11 +144,14 @@ export function authorizeOrder(orderId: string): Promise<Order> {
   return post<Order>(`/v2/checkout/orders/${encodeURIComponent(orderId)}/authorize`, {}, `auth-${orderId}`);
 }
 
-/** Move the held money. `final_capture` closes the authorization. */
-export function captureAuthorization(authorizationId: string, note: string): Promise<Capture> {
+/**
+ * Move the held money: all of it, or `amount` for a settlement. `final_capture` closes the
+ * authorization, so nothing more can be captured and the rest of the hold goes back to the buyer.
+ */
+export function captureAuthorization(authorizationId: string, note: string, amount?: Money): Promise<Capture> {
   return post<Capture>(
     `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/capture`,
-    { final_capture: true, note_to_payer: note.slice(0, 255) },
+    { ...(amount && { amount }), final_capture: true, note_to_payer: note.slice(0, 255) },
     `capture-${authorizationId}`,
   );
 }

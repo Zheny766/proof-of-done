@@ -7,6 +7,7 @@ export type MilestoneStatus =
   | 'reviewing' // a submission is being checked by the AI reviewer
   | 'changes_requested' // reviewer found unmet criteria; freelancer can resubmit
   | 'escalated' // reviewer was not confident; the client decides
+  | 'verified' // reviewer verified everything; the money moves when the client's objection window closes
   | 'released' // authorization captured, freelancer paid
   | 'cancelled'; // authorization voided, nothing charged
 
@@ -84,6 +85,16 @@ export interface PaymentState {
   payoutBatchId?: string;
   payoutStatus?: string;
   payerEmail?: string;
+  /** Set when less than the full amount was captured (a settlement); PayPal released the rest of the hold. */
+  capturedAmount?: string;
+}
+
+/** An open offer to close the milestone for part of the money. The other party accepts or declines. */
+export interface SettlementOffer {
+  by: 'client' | 'freelancer';
+  amount: string;
+  note: string;
+  at: string;
 }
 
 export interface MilestoneAccess {
@@ -111,6 +122,11 @@ export interface Milestone {
   freelancer: Party;
   /** Minimum per-criterion confidence the agent needs before it may release money. */
   releaseThreshold: number;
+  /** Hours the client has to object after the AI verifies the work, before the money moves. 0 or missing: right away. */
+  objectionHours?: number;
+  /** When a verified milestone's payment goes out, unless the client objects first. */
+  releaseAt?: string;
+  settlement?: SettlementOffer;
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

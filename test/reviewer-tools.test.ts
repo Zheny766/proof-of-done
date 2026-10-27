@@ -34,7 +34,7 @@ function setup() {
     release: async () => {
       calls.push('release');
       await new Promise((r) => setTimeout(r, 20)); // a PayPal round trip
-      return null;
+      return {};
     },
     requestChanges: async () => void calls.push('changes'),
     escalate: async () => void calls.push('escalate'),

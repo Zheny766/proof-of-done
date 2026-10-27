@@ -13,6 +13,10 @@ export function aiModels(): string[] {
   return models.length > 0 ? models : ['claude-opus-5-5'];
 }
 
+/** On a refusal the API retries the turn on a fallback model. Haiku has no fallback and rejects the parameter. */
+export const refusalFallback = (model: string) =>
+  model.startsWith('claude-haiku') ? {} : { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const };
+
 /** The human-readable part of an Anthropic API error (the SDK message includes the raw JSON body). */
 export function claudeErrorMessage(error: unknown): string | null {
   if (!(error instanceof Anthropic.APIError)) return null;

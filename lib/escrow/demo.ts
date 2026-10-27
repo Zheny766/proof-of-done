@@ -2,7 +2,7 @@ import 'server-only';
 // Fake history for the dashboard. Everything is marked "[Demo data]" and uses simulated payments.
 
 import { newAccess } from './access.ts';
-import { insertMilestone, newId } from './store.ts';
+import { insertMilestone, listMilestones, newId } from './store.ts';
 import type { CriterionFinding, Milestone, MilestoneStatus, ReviewDecision } from './types.ts';
 
 const JOBS: { title: string; criteria: string[]; amount: number; category: string }[] = [
@@ -124,4 +124,9 @@ export function seedDemo(count = 30): number {
     insertMilestone(m);
   }
   return count;
+}
+
+/** Hosted demo (POD_SEED_DEMO=1): a server that starts empty, as on every restart there, gets the demo data. */
+export function seedDemoIfEmpty() {
+  if (process.env.POD_SEED_DEMO === '1' && listMilestones().length === 0) seedDemo(30);
 }

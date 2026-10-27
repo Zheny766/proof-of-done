@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AgLlmRequest } from 'ag-studio';
-import { aiModels, claudeErrorMessage, isClaudeConfigured } from '@/lib/ai';
+import { aiModels, claudeErrorMessage, isClaudeConfigured, refusalFallback } from '@/lib/ai';
 import { allowRequest, isCrossSite } from '@/lib/rate-limit';
 import { ClaudeToAgTranslator, encodeConversation, encodeTools, steeringInstructions, toAgResponse } from '@/lib/claude-bridge';
 
@@ -70,9 +70,7 @@ export async function POST(request: Request) {
             ...(tools.length && { tools, tool_choice: { type: 'auto' as const } }),
             thinking: { type: 'adaptive', display: 'summarized' },
             output_config: { effort: effort as 'medium' },
-            // On a refusal the API retries the turn on a fallback model instead of just stopping.
-            betas: ['server-side-fallback-2026-07-01'],
-            fallbacks: 'default',
+            ...refusalFallback(model),
           },
           { signal: request.signal },
         );

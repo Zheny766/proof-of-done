@@ -207,3 +207,75 @@ test('demo data never happens in the future and keeps holds inside the 29-day wi
   }
   store.deleteAll();
 });
+
+const goodNotes = 'The page is live at a public URL. The menu lists 6 items with prices.';
+
+test('objection window: verified work waits, the client can object or pay now', async () => {
+  let { id, clientKey, freelancerKey } = await funded({ objectionHours: 24 });
+  let m = await submitAndReview(id, freelancerKey, goodNotes);
+  assert.equal(m.status, 'verified');
+  assert.equal(m.payment.captureId, undefined, 'nothing captured yet');
+  assert.ok(Date.parse(m.releaseAt!) > Date.now() + 23 * 3_600_000);
+  assert.equal((await service.readMilestone(id))!.status, 'verified', 'not due yet');
+  await assert.rejects(service.clientDecision(id, 'approve', '', freelancerKey), /Only the client/);
+  m = await service.clientDecision(id, 'request_changes', 'The menu PDF is missing', clientKey);
+  assert.equal(m.status, 'changes_requested');
+  assert.equal(m.releaseAt, undefined);
+  assert.match(m.timeline.at(-1)!.text, /objected/);
+
+  ({ id, clientKey, freelancerKey } = await funded({ objectionHours: 24 }));
+  await submitAndReview(id, freelancerKey, goodNotes);
+  m = await service.clientDecision(id, 'approve', '', clientKey);
+  assert.equal(m.status, 'released');
+  assert.equal(m.releaseAt, undefined);
+});
+
+test('objection window: with no objection the money moves once, when the window closes', async () => {
+  const { id, freelancerKey } = await funded({ objectionHours: 1 });
+  await submitAndReview(id, freelancerKey, goodNotes);
+  store.updateMilestone(id, (x) => {
+    x.releaseAt = new Date(Date.now() - 1000).toISOString();
+  });
+  const [a, b] = await Promise.all([service.readMilestone(id), service.readMilestone(id)]);
+  assert.equal(a!.status, 'released');
+  assert.equal(b!.status, 'released');
+  assert.equal(count(id, 'captured'), 1, 'two readers, one capture');
+  assert.equal(count(id, 'window_closed'), 1);
+  assert.equal(count(id, 'verified'), 1);
+});
+
+test('settling for part: one side offers, only the other accepts, PayPal captures just that', async () => {
+  const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
+  await assert.rejects(service.settle(id, { action: 'propose', amount: 50 }, freelancerKey), /Cannot settle while funded/);
+  await submitAndReview(id, freelancerKey, goodNotes);
+  assert.equal(store.getMilestone(id)!.status, 'escalated');
+  await assert.rejects(service.settle(id, { action: 'propose', amount: 120 }, freelancerKey), /less than/);
+  await assert.rejects(service.settle(id, { action: 'propose', amount: 50 }, null), /Only the client or the freelancer/);
+  await assert.rejects(service.settle(id, { action: 'accept' }, clientKey), /no open offer/);
+
+  let m = await service.settle(id, { action: 'propose', amount: 80, note: 'Menu done, no booking form' }, freelancerKey);
+  assert.equal(m.settlement?.by, 'freelancer');
+  assert.equal(m.settlement?.amount, '80.00');
+  const { viewerMilestone } = await import('../lib/escrow/access.ts');
+  assert.equal(viewerMilestone(m).settlement, undefined, 'outsiders do not see offers');
+  await assert.rejects(service.settle(id, { action: 'accept' }, freelancerKey), /other party/);
+  m = await service.settle(id, { action: 'decline' }, clientKey);
+  assert.equal(m.settlement, undefined);
+
+  await service.settle(id, { action: 'propose', amount: 70 }, clientKey);
+  m = await service.settle(id, { action: 'accept' }, freelancerKey);
+  assert.equal(m.status, 'released');
+  assert.equal(m.payment.capturedAmount, '70.00');
+  assert.equal(count(id, 'settled'), 1);
+  assert.match(m.timeline.find((e) => e.type === 'captured')!.text, /other 50\.00 USD of the hold went back/);
+  await assert.rejects(service.settle(id, { action: 'propose', amount: 10 }, clientKey), /Cannot settle while released/);
+});
+
+test('a new submission withdraws an open offer', async () => {
+  const { id, freelancerKey } = await funded();
+  await submitAndReview(id, freelancerKey, 'Hello');
+  assert.equal(store.getMilestone(id)!.status, 'changes_requested');
+  await service.settle(id, { action: 'propose', amount: 60 }, freelancerKey);
+  await service.submitWork(id, { notes: 'Fixed everything', links: [], files: [] }, freelancerKey);
+  assert.equal(store.getMilestone(id)!.settlement, undefined);
+});

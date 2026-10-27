@@ -1,6 +1,7 @@
 import { connection } from 'next/server';
 import Link from 'next/link';
 import { viewerMilestone } from '@/lib/escrow/access';
+import { seedDemoIfEmpty } from '@/lib/escrow/demo';
 import { listMilestones } from '@/lib/escrow/store';
 import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
@@ -10,9 +11,10 @@ import { fmtMoney } from './components/status';
 
 export default async function Home() {
   await connection();
+  seedDemoIfEmpty();
   const milestones = listMilestones();
-  const held = milestones.filter((m) => ['funded', 'reviewing', 'changes_requested', 'escalated'].includes(m.status)).reduce((s, m) => s + Number(m.amount), 0);
-  const released = milestones.filter((m) => m.status === 'released').reduce((s, m) => s + Number(m.amount), 0);
+  const held = milestones.filter((m) => ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status)).reduce((s, m) => s + Number(m.amount), 0);
+  const released = milestones.filter((m) => m.status === 'released').reduce((s, m) => s + Number(m.payment.capturedAmount ?? m.amount), 0);
 
   return (
     <>

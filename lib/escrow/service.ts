@@ -54,6 +54,8 @@ export const CreateMilestoneInput = z.object({
   freelancerName: z.string().trim().min(1).max(80),
   freelancerEmail: z.email(),
   releaseThreshold: z.coerce.number().min(0.5).max(0.99).default(0.8),
+  // Capped well inside PayPal's 3-day honor period, so the capture after the window still goes through.
+  objectionHours: z.coerce.number().int().min(0).max(48).default(0),
 });
 
 export function createMilestone(raw: unknown): Milestone {
@@ -68,6 +70,7 @@ export function createMilestone(raw: unknown): Milestone {
     client: { name: input.clientName, email: input.clientEmail },
     freelancer: { name: input.freelancerName, email: input.freelancerEmail },
     releaseThreshold: input.releaseThreshold,
+    objectionHours: input.objectionHours,
     status: 'awaiting_funding',
     payment: { mode: paymentMode() },
     submissions: [],
@@ -152,6 +155,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
       pushEvent(x, 'freelancer', 'payout_email', `${x.freelancer.name} set the PayPal email for the payout`);
     }
     x.submissions.push({ id: submissionId, at: nowIso(), notes: input.notes.trim(), links: input.links, attachments });
+    x.settlement = undefined;
     x.reviews.push({
       id: reviewId,
       submissionId,
@@ -192,7 +196,20 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
       exclusive(id, async () => {
         try {
           const latest = mustGet(id);
-          if (latest.status !== 'reviewing') return `the milestone is ${latest.status} now`;
+          if (latest.status !== 'reviewing') return { error: `the milestone is ${latest.status} now` };
+          const hours = latest.objectionHours ?? 0;
+          // The client asked for time to object: the money moves when the window closes.
+          if (hours > 0) {
+            const releaseAt = new Date(Date.now() + hours * 3_600_000).toISOString();
+            updateMilestone(id, (x) => {
+              x.status = 'verified';
+              x.releaseAt = releaseAt;
+              pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
+              pushEvent(x, 'system', 'release_scheduled', `The payment goes out in ${hours} h unless ${x.client.name} objects`);
+            });
+            scheduleRelease(id, releaseAt);
+            return { releaseAt };
+          }
           const payment = await releaseFunds(latest, `Work accepted: ${summary}`);
           updateMilestone(id, (x) => {
             x.payment = { ...x.payment, ...payment };
@@ -201,9 +218,9 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
             pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
             pushPayoutEvent(x, payment);
           });
-          return null;
+          return {};
         } catch (error) {
-          return (error as Error).message.slice(0, 300);
+          return { error: (error as Error).message.slice(0, 300) };
         }
       }),
     // A review that outlived the stuck-review timeout must not overwrite what happened since.
@@ -268,6 +285,7 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
       pushEvent(x, 'system', 'review_failed', 'The automated review did not finish, so the client decides. The money stays on hold.');
     });
   }
+  if (m.status === 'verified' && m.releaseAt && Date.parse(m.releaseAt) <= Date.now()) return releaseWhenDue(id);
   if (!['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? '')) return m;
   return exclusive(id, async () => {
     const latest = mustGet(id);
@@ -280,30 +298,67 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
   });
 }
 
+// The objection window closed without an objection: release the money. Runs on a timer, and again
+// whenever the milestone is read, in case the server restarted in between.
+function releaseWhenDue(id: string): Promise<Milestone> {
+  return exclusive(id, async () => {
+    const m = mustGet(id);
+    if (m.status !== 'verified' || !m.releaseAt || Date.parse(m.releaseAt) > Date.now()) return m;
+    try {
+      const payment = await releaseFunds(m, 'Work accepted: verified, and the objection window closed');
+      return updateMilestone(id, (x) => {
+        x.payment = { ...x.payment, ...payment };
+        x.status = 'released';
+        x.releaseAt = undefined;
+        pushEvent(x, 'system', 'window_closed', `${x.client.name} did not object within ${x.objectionHours} h, so the payment goes out`);
+        pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
+        pushPayoutEvent(x, payment);
+      });
+    } catch (error) {
+      // Nothing was captured; the client decides what happens with the hold.
+      return updateMilestone(id, (x) => {
+        x.status = 'escalated';
+        x.releaseAt = undefined;
+        pushEvent(x, 'system', 'release_failed', `Releasing the payment failed (${(error as Error).message.slice(0, 160)}). The client decides.`);
+      });
+    }
+  });
+}
+
+function scheduleRelease(id: string, releaseAt: string) {
+  const timer = setTimeout(() => void releaseWhenDue(id).catch(() => {}), Math.max(0, Date.parse(releaseAt) - Date.now()) + 1000);
+  timer.unref?.();
+}
+
 export const clientDecision = (id: string, action: 'approve' | 'request_changes' | 'cancel', note: string, key: string | null) =>
   exclusive(id, () => clientDecisionNow(id, action, note, key));
 async function clientDecisionNow(id: string, action: 'approve' | 'request_changes' | 'cancel', note: string, key: string | null): Promise<Milestone> {
   const m = mustGet(id);
   requireRole(m, key, 'client');
   if (action === 'approve') {
-    if (!['funded', 'escalated', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot release while ${m.status}.`);
+    if (!['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status)) throw new EscrowError(`Cannot release while ${m.status}.`);
     const payment = await releaseFunds(m, note || 'Released by the client');
     return updateMilestone(id, (x) => {
       x.payment = { ...x.payment, ...payment };
       x.status = 'released';
+      x.releaseAt = undefined;
+      x.settlement = undefined;
       pushEvent(x, 'client', 'approved', `${x.client.name} approved the work and released the payment${note ? `: ${note}` : ''}`);
       pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
       pushPayoutEvent(x, payment);
     });
   }
   if (action === 'request_changes') {
-    // Only makes sense once there is a reviewed submission to send back.
-    if (m.status !== 'escalated') throw new EscrowError(`Cannot request changes while ${m.status}.`);
+    // Only makes sense once there is a reviewed submission to send back. In the objection window
+    // this is the client's objection to the AI's verdict.
+    if (m.status !== 'escalated' && m.status !== 'verified') throw new EscrowError(`Cannot request changes while ${m.status}.`);
     return updateMilestone(id, (x) => {
+      const objected = x.status === 'verified';
       x.status = 'changes_requested';
+      x.releaseAt = undefined;
       const r = x.reviews.at(-1);
-      if (r) r.feedback = note || r.feedback;
-      pushEvent(x, 'client', 'changes_requested', `${x.client.name} asked for changes${note ? `: ${note}` : ''}`);
+      if (r) r.feedback = note || (objected ? 'The client objected to the verification.' : r.feedback);
+      pushEvent(x, 'client', 'changes_requested', `${x.client.name} ${objected ? 'objected and asked' : 'asked'} for changes${note ? `: ${note}` : ''}`);
     });
   }
   if (['released', 'cancelled', 'reviewing'].includes(m.status)) throw new EscrowError(`Cannot cancel while ${m.status}.`);
@@ -311,6 +366,8 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
     x.status = 'cancelled';
+    x.releaseAt = undefined;
+    x.settlement = undefined;
     pushEvent(
       x,
       'client',
@@ -319,6 +376,60 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
         ? `${x.client.name} cancelled the milestone; the PayPal hold was voided, nothing was charged`
         : `${x.client.name} cancelled the milestone before funding it`,
     );
+  });
+}
+
+// Settling for part of the money: when the work is partly done and the two sides agree on an amount.
+// Either party proposes, only the other one can accept, and accepting captures just that amount.
+const SETTLE_STATES = ['changes_requested', 'escalated'];
+
+export type SettlementAction = { action: 'propose'; amount: number; note?: string } | { action: 'accept' } | { action: 'decline' };
+
+export const settle = (id: string, input: SettlementAction, key: string | null) => exclusive(id, () => settleNow(id, input, key));
+async function settleNow(id: string, input: SettlementAction, key: string | null): Promise<Milestone> {
+  const m = mustGet(id);
+  const role = roleFor(m, key);
+  if (role === 'viewer') throw new EscrowError('Only the client or the freelancer can settle - open your link.', 403);
+  const name = role === 'client' ? m.client.name : m.freelancer.name;
+  const offer = m.settlement;
+
+  if (input.action === 'propose') {
+    if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`Cannot settle while ${m.status}.`);
+    const amount = Math.round(input.amount * 100) / 100;
+    if (!(amount >= 1 && amount < Number(m.amount))) {
+      throw new EscrowError(`Offer between ${money(1, m.currency)} and less than ${money(Number(m.amount), m.currency)}; for the full amount, approve the work.`);
+    }
+    const note = (input.note ?? '').trim().slice(0, 500);
+    return updateMilestone(id, (x) => {
+      x.settlement = { by: role, amount: amount.toFixed(2), note, at: nowIso() };
+      pushEvent(x, role, 'settlement_offer', `${name} offered to settle for ${money(amount, x.currency)} of ${money(Number(x.amount), x.currency)}${note ? `: ${note}` : ''}`);
+    });
+  }
+
+  if (!offer) throw new EscrowError('There is no open offer.');
+  if (input.action === 'decline') {
+    return updateMilestone(id, (x) => {
+      x.settlement = undefined;
+      pushEvent(x, role, 'settlement_declined', offer.by === role ? `${name} withdrew the offer` : `${name} declined the offer of ${money(Number(offer.amount), x.currency)}`);
+    });
+  }
+
+  if (offer.by === role) throw new EscrowError('The other party has to accept your offer.', 403);
+  if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`Cannot settle while ${m.status}.`);
+  const payment = await releaseFunds(m, `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount);
+  return updateMilestone(id, (x) => {
+    x.payment = { ...x.payment, ...payment };
+    x.status = 'released';
+    x.settlement = undefined;
+    const rest = Number(x.amount) - Number(offer.amount);
+    pushEvent(x, role, 'settled', `${name} accepted: settled for ${money(Number(offer.amount), x.currency)}`);
+    pushEvent(
+      x,
+      'paypal',
+      'captured',
+      `PayPal captured ${money(Number(offer.amount), x.currency)} (capture ${payment.captureId}); the other ${money(rest, x.currency)} of the hold went back to ${x.client.name}`,
+    );
+    pushPayoutEvent(x, payment);
   });
 }
 

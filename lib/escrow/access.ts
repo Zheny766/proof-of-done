@@ -48,7 +48,8 @@ export function viewerMilestone(m: Milestone): Milestone {
     payment: { ...p.payment, payerEmail: undefined },
     submissions: p.submissions.map((s) => ({ ...s, notes: '', links: [], attachments: [] })),
     reviews: p.reviews.map((r) => ({ ...r, summary: undefined, feedback: undefined, log: [], findings: r.findings.map((f) => ({ ...f, evidence: '' })) })),
-    // The reviewer's summaries and the client's notes come after a colon and can quote the work.
-    timeline: p.timeline.map((e) => ({ ...e, text: redactEmails(e.actor === 'agent' || e.actor === 'client' ? e.text.split(': ')[0] : e.text) })),
+    settlement: undefined,
+    // The reviewer's summaries and the parties' notes come after a colon and can quote the work.
+    timeline: p.timeline.map((e) => ({ ...e, text: redactEmails(['agent', 'client', 'freelancer'].includes(e.actor) ? e.text.split(': ')[0] : e.text) })),
   };
 }

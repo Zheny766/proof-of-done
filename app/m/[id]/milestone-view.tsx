@@ -179,7 +179,18 @@ export function MilestoneView({
 
           {role === 'freelancer' && (m.status === 'funded' || m.status === 'changes_requested') && <SubmitWork m={m} milestoneKey={key} onSubmitted={setM} />}
 
-          {role === 'client' && ['funded', 'escalated', 'changes_requested'].includes(m.status) && <ClientDecision m={m} milestoneKey={key} onChange={setM} />}
+          {role === 'freelancer' && m.status === 'verified' && (
+            <section className={card}>
+              <h2 className={h2}>Freelancer</h2>
+              <p className="mt-2 text-sm">
+                The AI verified your work. The payment goes out <ReleaseCountdown at={m.releaseAt} /> unless {m.client.name} objects before then.
+              </p>
+            </section>
+          )}
+
+          {role === 'client' && ['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status) && <ClientDecision m={m} milestoneKey={key} onChange={setM} />}
+
+          {role !== 'viewer' && ['changes_requested', 'escalated'].includes(m.status) && <Settlement m={m} role={role} milestoneKey={key} onChange={setM} />}
 
           {role === 'client' && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
 
@@ -215,21 +226,32 @@ export function MilestoneView({
 }
 
 function MoneyFlow({ m }: { m: Milestone }) {
-  const stage = { awaiting_funding: 0, funded: 1, reviewing: 2, changes_requested: 2, escalated: 2, released: 3, cancelled: -1 }[m.status];
+  // Index of the step in progress; 4 means every step is done.
+  const stage = { awaiting_funding: 0, funded: 1, reviewing: 2, changes_requested: 2, escalated: 2, verified: 3, released: 4, cancelled: -1 }[m.status];
   const reviewNote = { reviewing: 'checking now', changes_requested: 'changes requested', escalated: 'waiting for the client' }[m.status as string];
-  // A client can approve and pay without an AI review; don't show that step as done then.
+  // A client can approve and pay (or both sides settle) without the AI verifying; don't show that step as done then.
   const aiSkipped = m.status === 'released' && !m.timeline.some((e) => e.type === 'verified');
+  const settled = m.payment.capturedAmount;
   const steps = [
     { label: 'Client funds', sub: m.client.name },
     { label: 'PayPal holds funds', sub: m.payment.authorizationId ? `auth ${m.payment.authorizationId.slice(0, 14)}…` : 'authorize intent' },
-    { label: 'AI verifies the work', sub: aiSkipped ? 'skipped: client approved' : (reviewNote ?? `${m.criteria.length} criteria`) },
-    { label: 'Freelancer paid', sub: m.payment.captureId ? `capture ${m.payment.captureId.slice(0, 14)}…` : m.freelancer.name },
+    { label: 'AI verifies the work', sub: aiSkipped ? (settled ? 'skipped: settled' : 'skipped: client approved') : (reviewNote ?? `${m.criteria.length} criteria`) },
+    {
+      label: 'Freelancer paid',
+      sub: settled
+        ? `${fmtMoney(settled, m.currency)} of ${fmtMoney(m.amount, m.currency)}`
+        : m.payment.captureId
+          ? `capture ${m.payment.captureId.slice(0, 14)}…`
+          : m.status === 'verified'
+            ? 'after the objection window'
+            : m.freelancer.name,
+    },
   ];
   return (
     <ol className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-pp-border bg-white p-3 sm:grid-cols-4">
       {steps.map((s, i) => {
         const skipped = aiSkipped && i === 2;
-        const done = (stage > i || stage === 3) && !skipped;
+        const done = stage > i && !skipped;
         const active = stage === i;
         return (
           <li key={s.label} className={`rounded-lg px-3 py-2 ${done ? 'bg-emerald-50' : active ? 'bg-pp-highlight ring-1 ring-pp-blue' : stage === -1 ? 'bg-rose-50/40' : 'bg-slate-50'}`}>
@@ -281,8 +303,17 @@ function DecisionBanner({ m }: { m: Milestone }) {
   const review = m.reviews.at(-1);
   const byAgent = review?.decision;
   const aiReleased = m.timeline.some((e) => e.type === 'verified');
+  const settled = m.payment.capturedAmount;
   const banners: Partial<Record<Milestone['status'], [string, string]>> = {
-    released: [aiReleased ? 'Verified · payment released' : 'Approved by the client · payment released', 'bg-emerald-50 text-emerald-900 ring-emerald-200'],
+    released: [
+      settled
+        ? `Settled · ${fmtMoney(settled, m.currency)} paid, ${fmtMoney(Number(m.amount) - Number(settled), m.currency)} back to the client`
+        : aiReleased
+          ? 'Verified · payment released'
+          : 'Approved by the client · payment released',
+      'bg-emerald-50 text-emerald-900 ring-emerald-200',
+    ],
+    verified: ['Verified · the payment goes out when the objection window closes', 'bg-teal-50 text-teal-900 ring-teal-200'],
     changes_requested: ['Changes requested · money stays on hold', 'bg-amber-50 text-amber-900 ring-amber-200'],
     escalated: ['Escalated · the client decides', 'bg-orange-50 text-orange-900 ring-orange-200'],
     cancelled: ['Cancelled · nothing was charged', 'bg-rose-50 text-rose-900 ring-rose-200'],
@@ -291,8 +322,8 @@ function DecisionBanner({ m }: { m: Milestone }) {
   if (!banner) return null;
   const [title, tone] = banner;
   // The reviewer's own words only fit if the outcome is still its decision.
-  const agentOutcome = { release: 'released', request_changes: 'changes_requested', escalate: 'escalated' } as const;
-  const summary = byAgent && agentOutcome[byAgent] === m.status ? review?.summary : undefined;
+  const agentOutcome = { release: ['released', 'verified'], request_changes: ['changes_requested'], escalate: ['escalated'] } as const;
+  const summary = byAgent && (agentOutcome[byAgent] as readonly string[]).includes(m.status) && !settled ? review?.summary : undefined;
   const feedback = m.status === 'changes_requested' || m.status === 'escalated' ? review?.feedback : undefined;
   return (
     <div className={`mt-4 rounded-lg p-4 ring-1 ring-inset ${tone}`}>
@@ -455,6 +486,7 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   const [error, setError] = useState('');
   // Paying and voiding can't be undone, so they take a second, explicit click.
   const [confirming, setConfirming] = useState<'approve' | 'cancel' | null>(null);
+  const verified = m.status === 'verified';
   async function act(action: 'approve' | 'request_changes' | 'cancel') {
     setConfirming(null);
     setBusy(action);
@@ -473,9 +505,14 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
     }
   }
   return (
-    <section className={`${card} ${m.status === 'escalated' ? 'ring-2 ring-orange-300' : ''}`}>
-      <h2 className={h2}>Client · always has the final say</h2>
+    <section className={`${card} ${m.status === 'escalated' ? 'ring-2 ring-orange-300' : verified ? 'ring-2 ring-teal-300' : ''}`}>
+      <h2 className={h2}>{verified ? 'Client · your objection window' : 'Client · always has the final say'}</h2>
       {m.status === 'escalated' && <p className="mt-2 text-sm text-orange-900">The reviewer could not verify everything on its own. Check its notes and decide.</p>}
+      {verified && (
+        <p className="mt-2 text-sm text-teal-900">
+          The AI verified every criterion. The payment goes out <ReleaseCountdown at={m.releaseAt} /> unless you object. Check its findings first.
+        </p>
+      )}
       <input aria-label="Note to the freelancer" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note to the freelancer" className="mt-3 h-10 w-full rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
       {confirming ? (
         <div role="alertdialog" aria-label="Confirm" className="mt-3 rounded-lg bg-pp-canvas p-3 text-sm">
@@ -499,9 +536,106 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
         </div>
       ) : (
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <button onClick={() => setConfirming('approve')} disabled={!!busy} className="h-10 rounded-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{busy === 'approve' ? '…' : 'Approve & pay'}</button>
-          <button onClick={() => act('request_changes')} disabled={!!busy || m.status !== 'escalated'} title={m.status === 'escalated' ? undefined : 'Available once a submission has been reviewed'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Ask for changes</button>
+          <button onClick={() => setConfirming('approve')} disabled={!!busy} className="h-10 rounded-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{busy === 'approve' ? '…' : verified ? 'Pay now' : 'Approve & pay'}</button>
+          <button onClick={() => act('request_changes')} disabled={!!busy || (m.status !== 'escalated' && !verified)} title={m.status === 'escalated' || verified ? undefined : 'Available once a submission has been reviewed'} className="h-10 rounded-full border border-amber-400 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">{verified ? 'Object' : 'Ask for changes'}</button>
           <button onClick={() => setConfirming('cancel')} disabled={!!busy} className="h-10 rounded-full border border-rose-300 text-xs font-semibold text-pp-danger hover:bg-rose-50 disabled:opacity-50">{busy === 'cancel' ? '…' : 'Cancel & void'}</button>
+        </div>
+      )}
+      {error && <p className="mt-2 rounded-md bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
+    </section>
+  );
+}
+
+function ReleaseCountdown({ at }: { at?: string }) {
+  const minute = useSyncExternalStore(noSubscribe, currentMinute, () => 0);
+  if (!at) return null;
+  const left = Math.ceil((Date.parse(at) - minute * 60_000) / 60_000);
+  const span = left <= 1 ? 'any moment now' : left < 60 ? `in ${left} min` : `in ${Math.floor(left / 60)} h ${left % 60} min`;
+  return (
+    <b suppressHydrationWarning>
+      {minute ? span : 'soon'} ({fmtDate(at)})
+    </b>
+  );
+}
+
+function Settlement({ m, role, milestoneKey, onChange }: { m: Milestone; role: Party; milestoneKey: string | null; onChange: (m: Milestone) => void }) {
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const offer = m.settlement;
+  const other = role === 'client' ? m.freelancer.name : m.client.name;
+  async function send(body: Record<string, unknown>) {
+    setBusy(true);
+    setError('');
+    setConfirming(false);
+    try {
+      const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/settlement`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
+        body: JSON.stringify(body),
+      });
+      onChange(milestone);
+      setAmount('');
+      setNote('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const rest = offer ? Number(m.amount) - Number(offer.amount) : 0;
+  return (
+    <section className={`${card} ${offer && offer.by !== role ? 'ring-2 ring-pp-blue' : ''}`}>
+      <h2 className={h2}>Settle for part of the money</h2>
+      {!offer ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send({ action: 'propose', amount: Number(amount), note });
+          }}
+          className="mt-2 space-y-2"
+        >
+          <p className="text-sm">
+            Part of the work is done? Offer {other} an amount. If they accept, PayPal captures only that and the rest of the hold goes back to {m.client.name}.
+          </p>
+          <div className="flex gap-2">
+            <input type="number" required min={1} max={Number(m.amount) - 0.01} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount to settle for" placeholder={`Less than ${fmtMoney(m.amount, m.currency)}`} className="h-10 w-40 rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Why this amount" placeholder="Why this amount (optional)" className="h-10 min-w-0 flex-1 rounded-md border border-pp-border px-3 text-sm outline-none focus:border-pp-blue" />
+          </div>
+          <button disabled={busy} className="h-10 rounded-full border border-pp-blue px-4 text-xs font-semibold text-pp-blue hover:bg-pp-highlight disabled:opacity-50">{busy ? '…' : 'Send offer'}</button>
+        </form>
+      ) : offer.by === role ? (
+        <div className="mt-2 space-y-2 text-sm">
+          <p>
+            You offered <b>{fmtMoney(offer.amount, m.currency)}</b> of {fmtMoney(m.amount, m.currency)}. Waiting for {other} to accept or decline.
+          </p>
+          {offer.note && <p className="text-pp-muted">&ldquo;{offer.note}&rdquo;</p>}
+          <button onClick={() => send({ action: 'decline' })} disabled={busy} className="h-9 rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue disabled:opacity-50">Withdraw the offer</button>
+        </div>
+      ) : (
+        <div className="mt-2 space-y-2 text-sm">
+          <p>
+            {other} offers to settle for <b>{fmtMoney(offer.amount, m.currency)}</b> of {fmtMoney(m.amount, m.currency)}.
+          </p>
+          {offer.note && <p className="text-pp-muted">&ldquo;{offer.note}&rdquo;</p>}
+          {confirming ? (
+            <div role="alertdialog" aria-label="Confirm" className="rounded-lg bg-pp-canvas p-3">
+              <p>
+                PayPal captures {fmtMoney(offer.amount, m.currency)} and pays {m.freelancer.name}; the other {fmtMoney(rest, m.currency)} of the hold goes back to {m.client.name}. This closes the milestone and can&apos;t be undone.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => send({ action: 'accept' })} autoFocus className="h-9 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700">Yes, settle</button>
+                <button onClick={() => setConfirming(false)} className="h-9 rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue">Back</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setConfirming(true)} disabled={busy} className="h-10 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">Accept</button>
+              <button onClick={() => send({ action: 'decline' })} disabled={busy} className="h-10 rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue disabled:opacity-50">Decline</button>
+            </div>
+          )}
         </div>
       )}
       {error && <p className="mt-2 rounded-md bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
@@ -517,7 +651,8 @@ function PaymentDetails({ m }: { m: Milestone }) {
     ['Authorization', p.authorizationId && `${p.authorizationId} · ${p.authorizationStatus ?? ''}`],
     ['Honor period ends', p.honorExpiresAt && fmtDate(p.honorExpiresAt)],
     ['Authorization expires', p.expiresAt && fmtDate(p.expiresAt)],
-    ['Capture', p.captureId],
+    ['Releases', m.status === 'verified' && m.releaseAt ? fmtDate(m.releaseAt) : undefined],
+    ['Capture', p.captureId && (p.capturedAmount ? `${p.captureId} · ${fmtMoney(p.capturedAmount, m.currency)} of ${fmtMoney(m.amount, m.currency)}` : p.captureId)],
     ['Payout', p.payoutBatchId ? `${p.payoutBatchId} · ${p.payoutStatus}` : p.payoutStatus],
     ['Voided', p.voidedAt && fmtDate(p.voidedAt)],
   ];

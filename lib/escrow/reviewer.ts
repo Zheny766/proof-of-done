@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { checkReleasePolicy } from './policy.ts';
 import { cleanName, fence, htmlToText, normalHost, submittedHosts } from './evidence.ts';
 import { fetchPublic } from './public-url.ts';
+import { refusalFallback } from '../ai.ts';
 import { UPLOAD_DIR } from './store.ts';
 import type { AgentLogEntry, CriterionFinding, Milestone, ReviewDecision, Submission } from './types.ts';
 
@@ -19,8 +20,8 @@ export const REVIEW_MODEL = process.env.POD_REVIEW_MODEL || 'claude-opus-5-5';
 export interface ReviewHooks {
   log: (entry: Omit<AgentLogEntry, 'at'>) => void;
   finding: (f: CriterionFinding) => void;
-  /** Returns an error message if the capture failed, null on success. */
-  release: (summary: string) => Promise<string | null>;
+  /** `error` if the capture failed; `releaseAt` if the money moves once the client's objection window closes. */
+  release: (summary: string) => Promise<{ error?: string; releaseAt?: string }>;
   requestChanges: (feedback: string, summary: string) => Promise<void>;
   escalate: (reason: string, summary: string) => Promise<void>;
 }
@@ -194,12 +195,16 @@ export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks) {
         hooks.log({ kind: 'info', text: `Release blocked by policy: ${policy.reasons.join('; ')}` });
         return `Refused by the release policy: ${policy.reasons.join('; ')}. Choose request_changes or escalate_to_client, or correct a finding only if it was genuinely wrong.`;
       }
-      const err = await hooks.release(summary);
-      if (err) {
+      const result = await hooks.release(summary);
+      if (result.error) {
         deciding = false;
-        return `Release failed: ${err}. Escalate to the client.`;
+        return `Release failed: ${result.error}. Escalate to the client.`;
       }
       outcome = { decision: 'release', summary };
+      if (result.releaseAt) {
+        hooks.log({ kind: 'decision', text: `Verified; payment scheduled for the end of the objection window: ${summary}` });
+        return `Verified. The payment is captured and paid out at ${result.releaseAt} unless the client objects first. You are done.`;
+      }
       hooks.log({ kind: 'decision', text: `Released payment: ${summary}` });
       return 'Payment captured on PayPal and paid out to the freelancer. You are done.';
     },
@@ -252,9 +257,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
     max_iterations: 16,
     thread: false,
     output_config: { effort: 'high' },
-    // On a refusal the API retries the turn on a fallback model instead of just stopping.
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
+    ...refusalFallback(REVIEW_MODEL),
     system: SYSTEM_PROMPT,
     tools,
     messages: [{ role: 'user', content: evidenceBlocks(m, s) }],
@@ -319,9 +322,9 @@ export async function runSimulatedReview(m: Milestone, s: Submission, hooks: Rev
   const policy = checkReleasePolicy(m.criteria, findings, m.releaseThreshold);
   if (policy.ok) {
     const summary = 'All criteria appear to be covered by the submission.';
-    const err = await hooks.release(summary);
-    if (!err) {
-      hooks.log({ kind: 'decision', text: `Released payment: ${summary}` });
+    const result = await hooks.release(summary);
+    if (!result.error) {
+      hooks.log({ kind: 'decision', text: result.releaseAt ? `Verified; payment scheduled for the end of the objection window: ${summary}` : `Released payment: ${summary}` });
       return { decision: 'release', summary };
     }
   }

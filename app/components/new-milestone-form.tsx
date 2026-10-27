@@ -18,6 +18,7 @@ export function NewMilestoneForm() {
   const [freelancerName, setFreelancerName] = useState('Maya Okafor');
   const [freelancerEmail, setFreelancerEmail] = useState('maya@freelance.example');
   const [threshold, setThreshold] = useState(0.8);
+  const [objectionHours, setObjectionHours] = useState(0);
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -50,7 +51,7 @@ export function NewMilestoneForm() {
         body: JSON.stringify({
           title, description, amount, currency: 'USD',
           criteria: criteria.map((c) => c.trim()).filter(Boolean),
-          clientName, clientEmail, freelancerName, freelancerEmail, releaseThreshold: threshold,
+          clientName, clientEmail, freelancerName, freelancerEmail, releaseThreshold: threshold, objectionHours,
         }),
       });
       router.push(`/m/${milestone.id}?key=${clientKey}`);
@@ -113,6 +114,16 @@ export function NewMilestoneForm() {
         Release threshold: <span className="font-semibold text-pp-blue">{Math.round(threshold * 100)}%</span>
         <span className="font-normal text-pp-muted"> · minimum AI confidence per criterion before money can move</span>
         <input type="range" min="0.5" max="0.95" step="0.05" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="mt-2 w-full accent-[var(--pp-blue)]" />
+      </label>
+
+      <label className="block text-sm font-medium">
+        When the AI verifies the work
+        <select value={objectionHours} onChange={(e) => setObjectionHours(Number(e.target.value))} className={`${field} mt-1`}>
+          <option value={0}>Pay the freelancer right away</option>
+          <option value={1}>Give me 1 hour to object first</option>
+          <option value={24}>Give me 24 hours to object first</option>
+          <option value={48}>Give me 48 hours to object first</option>
+        </select>
       </label>
 
       {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-pp-danger">{error}</p>}

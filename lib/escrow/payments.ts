@@ -67,9 +67,11 @@ export async function completeFunding(orderId: string, expected?: { amount: stri
   };
 }
 
-export async function releaseFunds(m: Milestone, note: string): Promise<Partial<PaymentState>> {
+/** Capture the hold and pay the freelancer. `amount` (less than the full amount) settles for part of it. */
+export async function releaseFunds(m: Milestone, note: string, amount = m.amount): Promise<Partial<PaymentState>> {
   const authId = m.payment.authorizationId;
   if (!authId) throw new Error('No PayPal authorization to capture');
+  const partial = amount !== m.amount ? { capturedAmount: amount } : {};
 
   if (m.payment.mode === 'simulated') {
     return {
@@ -78,10 +80,11 @@ export async function releaseFunds(m: Milestone, note: string): Promise<Partial<
       authorizationStatus: 'CAPTURED',
       payoutBatchId: fakeId('PAYOUT'),
       payoutStatus: 'SUCCESS',
+      ...partial,
     };
   }
 
-  const capture = await captureAuthorization(authId, note);
+  const capture = await captureAuthorization(authId, note, partial.capturedAmount ? { currency_code: m.currency, value: amount } : undefined);
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);
@@ -90,6 +93,7 @@ export async function releaseFunds(m: Milestone, note: string): Promise<Partial<
     captureId: capture.id,
     capturedAt: capture.create_time ?? new Date().toISOString(),
     authorizationStatus: 'CAPTURED',
+    ...partial,
   };
 
   // Pay out only money that has actually arrived. A pending capture (e.g. an eCheck) would mean
@@ -101,7 +105,7 @@ export async function releaseFunds(m: Milestone, note: string): Promise<Partial<
 
   // A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it.
   try {
-    const payoutAmount = (Number(m.amount) * (1 - PLATFORM_FEE_PCT / 100)).toFixed(2);
+    const payoutAmount = (Number(amount) * (1 - PLATFORM_FEE_PCT / 100)).toFixed(2);
     const batch = await createPayout({
       milestoneId: m.id,
       receiverEmail: m.freelancer.email,

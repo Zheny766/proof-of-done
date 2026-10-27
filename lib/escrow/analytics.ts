@@ -91,6 +91,7 @@ const STAGE: Record<string, string> = {
   reviewing: '3 · In review',
   changes_requested: '3 · Changes requested',
   escalated: '3 · Escalated to client',
+  verified: '3 · Verified, releasing',
   released: '4 · Paid',
   cancelled: '0 · Cancelled',
 };
@@ -117,6 +118,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
 
   for (const m of milestones) {
     const amount = Number(m.amount);
+    const captured = Number(m.payment.capturedAmount ?? m.amount);
     const lastReview = m.reviews.at(-1);
     const latest = lastReview ? latestFindings(m.criteria, lastReview.findings).filter(Boolean) : [];
     const releasedEvent = m.timeline.find((e) => e.type === 'captured');
@@ -133,10 +135,12 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       freelancer: m.freelancer.name,
       currency: m.currency,
       amount,
-      escrowed: m.status === 'cancelled' ? 0 : amount,
-      onHold: ['funded', 'reviewing', 'changes_requested', 'escalated'].includes(m.status) ? amount : 0,
-      released: m.status === 'released' ? amount : 0,
-      voided: m.status === 'cancelled' && m.payment.authorizationId ? amount : 0,
+      // Money still in play or paid out: a cancelled hold and the part of a settlement that went back to the client drop out.
+      escrowed: m.status === 'cancelled' ? 0 : m.status === 'released' ? captured : amount,
+      onHold: ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status) ? amount : 0,
+      released: m.status === 'released' ? captured : 0,
+      // A settlement captures part of the hold; PayPal releases the rest back to the client.
+      voided: m.status === 'cancelled' && m.payment.authorizationId ? amount : amount - (m.status === 'released' ? captured : amount),
       createdAt: m.createdAt,
       createdDate: m.createdAt.slice(0, 10),
       fundedAt,

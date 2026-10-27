@@ -1,0 +1,17 @@
+# Hosted demo on Render's free plan. No keys are set, so PayPal and the AI reviewer run simulated:
+# it costs nothing and anyone can click through the whole flow. The disk is wiped on every restart,
+# and POD_SEED_DEMO puts the labelled demo data back.
+services:
+  - type: web
+    name: proof-of-done
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: POD_SEED_DEMO
+        value: "1"

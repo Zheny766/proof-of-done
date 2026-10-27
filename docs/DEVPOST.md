@@ -23,17 +23,20 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 - The freelancer submits the work: notes, links, screenshots, PDFs, files.
 - A Claude Opus 5.5 reviewer agent reads the brief, opens the links, looks at the images and documents, and records a finding for each criterion: met / not met / unclear, with a confidence and the evidence.
 - Then it makes one decision: release (capture the authorization and send a PayPal Payout to the freelancer), request changes (with specific feedback, money stays on hold), or escalate to the client.
-- The client can always step in: approve, ask for changes, or cancel, which voids the authorization so nothing is charged.
+- The client can always step in: approve, ask for changes, or cancel, which voids the authorization so nothing is charged. A client who wants a safety net can ask for an objection window (1, 24 or 48 hours): the AI's verdict then starts a countdown, and the money moves only if the client doesn't object in time.
+- Work that is only partly done doesn't have to end in a dispute: either side offers an amount, the other accepts, and the app captures just that part of the authorization. PayPal releases the rest of the hold back to the client, and the freelancer is paid the settled amount.
 - Each side gets its own private link. The server checks it on every action: only the client can fund, approve or cancel, only the freelancer can submit.
 - An AG Studio dashboard shows where the money is, how often the AI paid out on its own, which verdicts were least confident, and how each freelancer is doing. Its assistant runs on Claude through an adapter I wrote for the AG Studio Agent Framework.
 
 ## How I built it
 - Next.js 16, React 19, TypeScript, starting from PayPal's PayPal x AG Grid hackathon boilerplate.
-- PayPal: Orders v2 with AUTHORIZE, `/authorize`, Payments v2 capture and void, Payouts, OAuth client credentials, a `PayPal-Request-Id` on every money call so retries can't charge twice, and the JS SDK v6 (`createPayPalOneTimePaymentSession` + `<paypal-button>`).
+- PayPal: Orders v2 with AUTHORIZE, `/authorize`, Payments v2 capture (full, or a partial final capture for settlements) and void, Payouts, OAuth client credentials, a `PayPal-Request-Id` on every money call so retries can't charge twice, and the JS SDK v6 (`createPayPalOneTimePaymentSession` + `<paypal-button>`).
 - Claude: the Anthropic TypeScript SDK tool runner with Zod-typed tools (`read_brief`, `fetch_link`, `record_finding`, `release_payment`, `request_changes`, `escalate_to_client`), adaptive thinking at high effort, image and PDF input, structured outputs for drafting criteria.
 - Tests cover the escrow state machine end to end in simulated mode (who may do what in which state, parallel approvals, stuck reviews, a corrupt data file), plus the release policy, role keys and redaction, the link guard and the Claude bridge.
 - The agent can't pay on its own word. `release_payment` goes through a policy check in code: every criterion has to be `met` at or above the confidence threshold the client picked. Submission content is treated as evidence, not instructions. No decision means no payout. Every step is logged.
 - AG Grid for the milestone table, AG Studio for a three-page escrow report over four related tables, plus a custom Studio widget (the escrow pipeline) and the Claude adapter, which translates AG-UI requests, tool calls and streaming events to the Messages API.
+
+- The design follows the principles PayPal published in October 2026 for governing agent tools: authorize twice (scoped tools, then a policy check in code before the capture), no blanket approvals (the client's threshold and objection window, two-party settlements), and an audit trail where every entry says whether a person, the AI or PayPal acted. It also follows AG Grid's: restrict the agent's tools instead of prompting it to behave, and don't tie the harness to one model vendor.
 
 ## Challenges I ran into
 - Letting an AI move money without just trusting it. What worked: tools instead of a free-text verdict, and a release rule in code that the model can't argue with.
@@ -54,7 +57,7 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 Most of the work in an agent that touches money isn't the model. It's the boundaries around it: what the tools allow, what the code refuses, when to hand the decision back to a human, and a log that both sides can read.
 
 ## What's next for Proof of Done
-- Re-authorize when the honor period runs out; partial captures for milestones with several parts.
+- Re-authorize when the honor period runs out; milestones with several parts paid one by one from a single authorization (partial captures that keep the authorization open).
 - Real accounts for clients and freelancers; PayPal webhooks for authorization and payout status.
 - Checks for specific kinds of work: run a repo's tests, open a live site in a headless browser, check image sizes and formats.
 - Disputes: give PayPal the review log as a structured evidence pack.
@@ -69,4 +72,4 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 - PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void, Payouts, JS SDK v6.
 
 ## Try it
-Setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow.
+Setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow. The repo also includes a Render blueprint for a free hosted copy in simulated mode.

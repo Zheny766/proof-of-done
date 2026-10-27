@@ -6,6 +6,7 @@ export const STATUS: Record<MilestoneStatus, { label: string; tone: string; hint
   reviewing: { label: 'AI reviewing', tone: 'bg-violet-50 text-violet-700 ring-violet-200', hint: 'The reviewer is checking the work against the criteria.' },
   changes_requested: { label: 'Changes requested', tone: 'bg-amber-50 text-amber-800 ring-amber-200', hint: 'Something is missing. The freelancer can resubmit.' },
   escalated: { label: 'Needs client', tone: 'bg-orange-50 text-orange-800 ring-orange-200', hint: 'The reviewer could not verify everything. The client decides.' },
+  verified: { label: 'Verified · releasing', tone: 'bg-teal-50 text-teal-800 ring-teal-200', hint: 'The AI verified the work. The payment goes out when the objection window closes.' },
   released: { label: 'Paid', tone: 'bg-emerald-50 text-emerald-800 ring-emerald-200', hint: 'Captured on PayPal and paid out.' },
   cancelled: { label: 'Cancelled', tone: 'bg-rose-50 text-rose-700 ring-rose-200', hint: 'The hold was voided. Nothing was charged.' },
 };
