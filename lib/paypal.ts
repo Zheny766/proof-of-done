@@ -75,6 +75,9 @@ const post = <T>(path: string, body?: unknown, idempotencyKey?: string) => reque
 
 export const isPayPalConfigured = () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_SECRET);
 
+/** The cached OAuth token, for PayPal's Agent Toolkit (lib/escrow/paypal-toolkit.ts). */
+export const paypalAccessToken = () => accessToken();
+
 export type Money = { value: string; currency_code: string };
 
 export type Authorization = {
