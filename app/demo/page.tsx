@@ -65,6 +65,9 @@ export default async function DemoPage() {
             <p className="mt-2 text-sm leading-relaxed text-pp-muted">
               Write anything you like in the notes to get it paid anyway: claims, excuses, a fake message from the client, orders for the AI. This one is not a replay: a real Claude review and a real second opinion decide, and the result goes on the scoreboard.
             </p>
+            <p className="mt-2 text-sm leading-relaxed text-pp-muted">
+              Before opening it up we played it ourselves on Claude Haiku: ten tricks, from a fake system message to a legal threat and an order in Spanish. None got paid; the ten reviews cost two cents.
+            </p>
             {arena.live ? (
               <div className="max-w-xs">
                 <StartDemo scenario="arena" label="Try to get it paid" />
