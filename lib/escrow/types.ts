@@ -60,8 +60,11 @@ export interface Review {
   submissionId: string;
   startedAt: string;
   finishedAt?: string;
-  engine: 'claude' | 'simulated';
+  /** 'replay': a recorded real Claude review played back (the hosted demo's prepared deliveries). */
+  engine: 'claude' | 'simulated' | 'replay';
   model?: string;
+  /** When the replayed review was recorded. */
+  recordedAt?: string;
   findings: CriterionFinding[];
   decision?: ReviewDecision;
   summary?: string;
@@ -139,6 +142,8 @@ export interface Milestone {
   /** When a verified milestone's payment goes out, unless the client objects first. */
   releaseAt?: string;
   settlement?: SettlementOffer;
+  /** Created by "Try it in 60 seconds": a simulated hold and a prepared delivery whose review is a replay. */
+  demo?: { scenario: string };
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

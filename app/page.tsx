@@ -28,7 +28,7 @@ const SAFEGUARDS = [
 export default async function Home() {
   await connection();
   seedDemoIfEmpty();
-  const milestones = listMilestones();
+  const milestones = listMilestones().filter((m) => !m.demo);
   const held = milestones.filter((m) => ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status)).reduce((s, m) => s + Number(m.amount), 0);
   const released = milestones.filter((m) => m.status === 'released').reduce((s, m) => s + Number(m.payment.capturedAmount ?? m.amount), 0);
 

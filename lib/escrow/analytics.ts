@@ -110,7 +110,7 @@ const categoryOf = (description: string, title: string) => {
 };
 
 export function getEscrowDashboardData(): EscrowDashboardData {
-  const milestones = listMilestones();
+  const milestones = listMilestones().filter((m) => !m.demo);
   const mRows: MilestoneRow[] = [];
   const rRows: ReviewRow[] = [];
   const fRows: FindingRow[] = [];

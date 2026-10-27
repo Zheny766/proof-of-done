@@ -4,7 +4,7 @@ import { createMilestone } from '@/lib/escrow/service';
 import { listMilestones } from '@/lib/escrow/store';
 import { allowRequest } from '@/lib/rate-limit';
 
-export const GET = handle(async () => Response.json({ milestones: listMilestones().map(viewerMilestone) }));
+export const GET = handle(async () => Response.json({ milestones: listMilestones().filter((m) => !m.demo).map(viewerMilestone) }));
 
 // The creator is the client: they get their own key and the link to send to the freelancer.
 export const POST = handle(async (request: Request) => {

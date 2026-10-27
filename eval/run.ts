@@ -2,7 +2,10 @@
 // Anthropic API and writes eval/results/<model>.{json,md}. No PayPal: a release is recorded, not
 // captured. It stops before going over the budget.
 //
-//   node --conditions=react-server eval/run.ts [--only id,id] [--budget 0.50]
+//   node --conditions=react-server eval/run.ts [--only id,id] [--budget 0.50] [--replays dir]
+//
+// --replays writes each case's full review (log with timings, findings, second opinion) to
+// <dir>/<case>.json; the hosted demo plays those back instead of calling the API.
 //
 // POD_REVIEW_MODEL / POD_AUDIT_MODEL pick the models (defaults: claude-opus-5-5 / claude-haiku-5-5).
 
@@ -27,6 +30,7 @@ const { milestones, cases } = JSON.parse(fs.readFileSync(casesFile, 'utf8')) as 
 const arg = (name: string) => process.argv.find((a, i) => process.argv[i - 1] === name);
 const only = arg('--only')?.split(',');
 const budget = Number(arg('--budget') ?? 0.5);
+const replayDir = arg('--replays');
 
 // USD per million tokens, input / output (Haiku's rate for prompts up to 100k tokens).
 const PRICE: Record<string, [number, number]> = { 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.1, 0.5] };
@@ -66,18 +70,29 @@ for (const c of cases.filter((x) => !only || only.includes(x.id))) {
   const findings: CriterionFinding[] = [];
   let audit: Audit | undefined;
   let released = false;
+  let feedback: string | undefined;
   const started = Date.now();
+  const at = () => Date.now() - started;
+  const steps: { at: number; kind: string; text?: string; finding?: CriterionFinding }[] = [];
   const outcome = await runClaudeReview(m, s, {
-    log: () => {},
-    finding: (f) => void findings.push(f),
+    log: (e) => void steps.push({ at: at(), kind: e.kind, text: e.text }),
+    finding: (f) => {
+      findings.push(f);
+      steps.push({ at: at(), kind: 'finding', finding: f });
+    },
     audit: async (input) => (audit = await runClaudeAudit(m, s, input)),
     release: async () => {
       released = true;
       return {};
     },
-    requestChanges: async () => {},
-    escalate: async () => {},
+    requestChanges: async (fb) => void (feedback = fb),
+    escalate: async (reason) => void (feedback = reason),
   }).catch((error: Error) => ({ decision: 'error' as const, summary: error.message, usage: undefined }));
+  if (replayDir) {
+    fs.mkdirSync(replayDir, { recursive: true });
+    const replay = { recordedAt: new Date().toISOString(), model: REVIEW_MODEL, case: c.id, milestone: spec, notes: c.notes, files: c.files ?? [], steps, audit, decision: outcome.decision, summary: outcome.summary, feedback, released, ms: at(), usage: outcome.usage };
+    fs.writeFileSync(path.join(replayDir, `${c.id}.json`), JSON.stringify(replay, null, 2) + '\n');
+  }
 
   const caseCost = cost(REVIEW_MODEL, outcome.usage) + cost(AUDIT_MODEL, audit?.usage);
   spent += caseCost;

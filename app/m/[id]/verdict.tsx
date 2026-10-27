@@ -12,7 +12,14 @@ const seconds = (from: string, to: string) => Math.max(1, Math.round((+new Date(
 export function Verdict({ m }: { m: Milestone }) {
   const review = m.reviews.at(-1);
   const findings = review ? latestFindings(m.criteria, review.findings) : m.criteria.map(() => undefined);
-  const who = review?.engine === 'claude' ? modelName(review.model) : review ? 'Simulated reviewer' : null;
+  const who =
+    review?.engine === 'claude'
+      ? modelName(review.model)
+      : review?.engine === 'replay'
+        ? `Replay of a real ${modelName(review.model)} run`
+        : review
+          ? 'Simulated reviewer'
+          : null;
   return (
     <section className={card} aria-labelledby="verdict-title">
       <div className="flex flex-wrap items-baseline justify-between gap-2">

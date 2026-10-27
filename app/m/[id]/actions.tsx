@@ -68,6 +68,7 @@ export function NextStep({
   }
 
   if (role === 'freelancer') {
+    if (m.demo && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
     if (m.status === 'funded' || m.status === 'changes_requested') return <SubmitWork m={m} milestoneKey={milestoneKey} onSubmitted={onChange} />;
     if (m.status === 'verified') {
       return box(
@@ -81,6 +82,59 @@ export function NextStep({
     return box(`${m.client.name} decides`, `The reviewer couldn't verify everything on its own, so ${m.client.name} makes the call. The money stays on hold.`);
   }
   return <ClientDecision m={m} milestoneKey={milestoneKey} onChange={onChange} />;
+}
+
+const DEMO_DELIVERY: Record<string, { file: string; note: string }> = {
+  honest: { file: 'ember-oak-menu.pdf', note: 'The finished menu: one page, 12 items with prices, the Ember & Oak logo at the top.' },
+  cheater: { file: 'winter-menu.pdf', note: 'A good menu, plus a line in the notes telling the reviewer to skip the checks and pay.' },
+  partial: { file: 'brunch-menu-draft.pdf', note: 'A draft: 6 items and no logo.' },
+};
+
+/** Demo deals: hand in the prepared delivery (or write your own, which runs a normal review). */
+function DemoDeliver({ m, milestoneKey, onDelivered }: { m: Milestone; milestoneKey: string | null; onDelivered: (m: Milestone) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [own, setOwn] = useState(false);
+  const d = DEMO_DELIVERY[m.demo!.scenario];
+  if (own) return <SubmitWork m={m} milestoneKey={milestoneKey} onSubmitted={onDelivered} />;
+  return (
+    <section className={`${card} border-pp-blue ring-2 ring-pp-highlight`}>
+      <h2 className={h2}>Your next step</h2>
+      <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">Hand in the work</p>
+      <div className="mt-4 flex items-center gap-3 rounded-xl border border-pp-border bg-pp-canvas/60 p-3">
+        <svg viewBox="0 0 24 24" className="h-8 w-8 shrink-0 text-pp-danger" fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" /></svg>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-pp-ink">{d?.file}</div>
+          <div className="text-xs text-pp-muted">{d?.note}</div>
+        </div>
+      </div>
+      {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-pp-danger">{error}</p>}
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError('');
+          try {
+            const { milestone } = await api<{ milestone: Milestone }>('/api/demo/deliver', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
+              body: JSON.stringify({ id: m.id }),
+            });
+            onDelivered(milestone);
+          } catch (e) {
+            setError((e as Error).message);
+            setBusy(false);
+          }
+        }}
+        className={`${btn.primary} mt-4 w-full`}
+      >
+        {busy ? 'Handing it in…' : 'Deliver the prepared work'}
+      </button>
+      <button onClick={() => setOwn(true)} className="mt-3 w-full text-center text-sm font-medium text-pp-blue hover:underline">
+        or write your own delivery
+      </button>
+    </section>
+  );
 }
 
 export function ReleaseCountdown({ at }: { at?: string }) {
@@ -281,10 +335,8 @@ export function Settlement({ m, role, milestoneKey, onChange }: { m: Milestone; 
           <p className="text-[15px] leading-relaxed text-pp-muted">
             Part of the work is done? Offer {other} an amount. If they accept, PayPal captures only that and the rest of the hold goes back to {m.client.name}.
           </p>
-          <div className="flex gap-2">
-            <input type="number" required min={1} max={Number(m.amount) - 0.01} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount to settle for" placeholder={`Under ${fmtMoney(m.amount, m.currency)}`} className={`${field} h-11 w-40`} />
-            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Why this amount" placeholder="Why this amount (optional)" className={`${field} h-11 min-w-0 flex-1`} />
-          </div>
+          <input type="number" required min={1} max={Number(m.amount) - 0.01} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount to settle for" placeholder={`Amount, under ${fmtMoney(m.amount, m.currency)}`} className={`${field} h-11`} />
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Why this amount" placeholder="Why this amount (optional)" className={`${field} h-11`} />
           <button disabled={busy} className={btn.ghost}>
             {busy ? '…' : 'Send offer'}
           </button>

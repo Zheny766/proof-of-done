@@ -1,6 +1,7 @@
 import 'server-only';
 // Every milestone state change goes through here, so status, payment and timeline stay in sync.
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -11,6 +12,7 @@ import { sniffType } from './evidence.ts';
 import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
+import { demoFile, loadReplay, runReplayReview } from './replay.ts';
 import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
 import type { Attachment, Milestone, Review, Role } from './types.ts';
 
@@ -123,7 +125,8 @@ export interface IncomingFile {
   bytes: Buffer;
 }
 
-type SubmitInput = { notes: string; links: string[]; files: IncomingFile[]; payoutEmail?: string };
+// `replay` is set only by deliverDemo (never from a request): the review plays a recording back.
+type SubmitInput = { notes: string; links: string[]; files: IncomingFile[]; payoutEmail?: string; replay?: string };
 
 // Queued with the money operations, so a submission can't slip in while a cancel is waiting on PayPal.
 export const submitWork = (id: string, input: SubmitInput, key: string | null) => exclusive(id, async () => submitWorkNow(id, input, key));
@@ -149,6 +152,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
   });
 
   const reviewId = newId('rev');
+  const replay = input.replay ? loadReplay(input.replay) : null;
   const milestone = updateMilestone(id, (x) => {
     if (payoutEmail && payoutEmail !== x.freelancer.email) {
       x.freelancer.email = payoutEmail;
@@ -160,8 +164,9 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
       id: reviewId,
       submissionId,
       startedAt: nowIso(),
-      engine: isClaudeConfigured() ? 'claude' : 'simulated',
-      model: isClaudeConfigured() ? REVIEW_MODEL : undefined,
+      engine: replay ? 'replay' : isClaudeConfigured() ? 'claude' : 'simulated',
+      model: replay ? replay.model : isClaudeConfigured() ? REVIEW_MODEL : undefined,
+      recordedAt: replay?.recordedAt,
       findings: [],
       log: [],
     });
@@ -250,8 +255,12 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
   };
 
   try {
-    const outcome =
-      review.engine === 'claude' ? await runClaudeReview(m, submission, hooks) : await runSimulatedReview(m, submission, hooks);
+    const replay = review.engine === 'replay' && m.demo ? loadReplay(m.demo.scenario) : null;
+    const outcome = replay
+      ? await runReplayReview(replay, { ...hooks, setAudit: (a) => patchReview((r) => void (r.audit = a)) })
+      : review.engine === 'claude'
+        ? await runClaudeReview(m, submission, hooks)
+        : await runSimulatedReview(m, submission, hooks);
     patchReview((r) => {
       r.decision = outcome.decision;
       r.summary = outcome.summary;
@@ -438,6 +447,57 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
     );
     pushPayoutEvent(x, payment);
   });
+}
+
+// "Try it in 60 seconds": a ready deal per scenario, funded with a simulated hold, whose prepared
+// delivery is reviewed by playing back a recorded real Claude run.
+const DEMO_FREELANCERS: Record<string, [string, string]> = {
+  honest: ['Diego Alvarez', 'diego@studio.example'],
+  cheater: ['Sam Rivera', 'sam@studio.example'],
+  partial: ['Priya Nair', 'priya@studio.example'],
+};
+
+export function startDemo(scenario: string): Milestone {
+  const replay = loadReplay(scenario);
+  const freelancer = DEMO_FREELANCERS[scenario];
+  if (!replay || !freelancer) throw new EscrowError('Unknown demo scenario.', 404);
+  const m = createMilestone({
+    title: replay.milestone.title,
+    description: replay.milestone.description,
+    criteria: replay.milestone.criteria,
+    // The recorded reviews mention the amount, so the demo deals use the same one.
+    amount: 100,
+    clientName: 'Ember & Oak',
+    clientEmail: 'maya@ember-oak.example',
+    freelancerName: freelancer[0],
+    freelancerEmail: freelancer[1],
+  });
+  const tag = crypto.randomBytes(5).toString('hex').toUpperCase();
+  const at = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+  return updateMilestone(m.id, (x) => {
+    x.demo = { scenario };
+    x.payment = {
+      mode: 'simulated',
+      orderId: `ORDER-DEMO-${tag}`,
+      authorizationId: `AUTH-DEMO-${tag}`,
+      authorizationStatus: 'CREATED',
+      authorizedAt: nowIso(),
+      honorExpiresAt: at(3),
+      expiresAt: at(29),
+      payerEmail: 'buyer@sandbox.example',
+    };
+    x.status = 'funded';
+    pushEvent(x, 'paypal', 'authorized', `PayPal authorized ${money(100, x.currency)}: the money is on hold, nothing has been charged yet (demo: simulated hold)`);
+  });
+}
+
+/** The freelancer hands in the scenario's prepared delivery. */
+export function deliverDemo(id: string, key: string | null) {
+  const m = mustGet(id);
+  const replay = m.demo && loadReplay(m.demo.scenario);
+  if (!replay) throw new EscrowError('This is not a demo deal.');
+  const files = replay.files.map((name) => ({ name, type: 'application/pdf', bytes: demoFile(name) }));
+  return submitWork(id, { notes: replay.notes, links: [], files, replay: m.demo!.scenario }, key);
 }
 
 const DraftCriteria = z.object({

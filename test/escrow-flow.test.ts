@@ -279,3 +279,26 @@ test('a new submission withdraws an open offer', async () => {
   await service.submitWork(id, { notes: 'Fixed everything', links: [], files: [] }, freelancerKey);
   assert.equal(store.getMilestone(id)!.settlement, undefined);
 });
+
+test('demo deals: funded with a simulated hold, and the prepared delivery replays a recorded review', async () => {
+  const outcomes: Record<string, string> = {};
+  for (const scenario of ['honest', 'cheater', 'partial']) {
+    const m = service.startDemo(scenario);
+    assert.equal(m.status, 'funded');
+    assert.equal(m.payment.mode, 'simulated');
+    assert.deepEqual(m.demo, { scenario });
+    await assert.rejects(service.deliverDemo(m.id, m.access!.clientKey), /Only the freelancer/);
+    const { reviewId } = await service.deliverDemo(m.id, m.access!.freelancerKey);
+    await service.runReview(m.id, reviewId);
+    const after = store.getMilestone(m.id)!;
+    const review = after.reviews.at(-1)!;
+    assert.equal(review.engine, 'replay');
+    assert.equal(review.findings.length, 3);
+    outcomes[scenario] = after.status;
+    if (scenario === 'cheater') assert.equal(review.audit?.agreed, false, 'the second opinion refused');
+  }
+  assert.deepEqual(outcomes, { honest: 'released', cheater: 'escalated', partial: 'changes_requested' });
+  const normal = service.createMilestone(input());
+  assert.throws(() => service.deliverDemo(normal.id, normal.access!.freelancerKey), /not a demo deal/);
+  assert.throws(() => service.startDemo('../../etc'), /Unknown demo scenario/);
+});

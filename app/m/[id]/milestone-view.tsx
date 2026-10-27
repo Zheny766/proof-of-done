@@ -156,6 +156,8 @@ export function MilestoneView({
         </div>
       </div>
 
+      {m.demo && <DemoGuide m={m} role={role} />}
+
       <MoneyJourney m={m} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
@@ -208,5 +210,44 @@ function Person({ name, tone }: { name: string; tone: string }) {
       <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold ${tone}`}>{initials(name)}</span>
       {name}
     </span>
+  );
+}
+
+const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay' };
+
+/** What to click next in a demo deal. */
+function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
+  const s = m.demo!.scenario;
+  const other = role === 'client' ? 'freelancer' : 'client';
+  const tip =
+    m.status === 'funded'
+      ? role === 'freelancer'
+        ? 'You are the freelancer. Hand in the prepared work below and watch the AI review it.'
+        : 'Switch to the freelancer (left column) and hand in the work.'
+      : m.status === 'reviewing'
+        ? 'The AI is reviewing it now. This is a replay of a real Claude Opus run: the findings fill in on the right, the audit log shows every step.'
+        : m.status === 'escalated'
+          ? role === 'client'
+            ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
+            : 'The second model refused to confirm the release. Switch to the client to make the call.'
+          : m.status === 'changes_requested'
+            ? `The AI asked for changes and the money stays on hold. Offer a settlement (say $60), then switch to the ${other} to accept it.`
+            : m.status === 'verified'
+              ? 'Verified. Switch to the client to pay now or object.'
+              : m.status === 'released'
+                ? m.payment.capturedAmount
+                  ? 'Settled: PayPal captured only the agreed amount, and the rest of the hold went back to the client.'
+                  : 'Done: PayPal captured the hold and paid the freelancer, and nobody clicked approve.'
+                : 'Cancelled: the hold was voided, nothing was charged.';
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white">
+      <div className="min-w-0">
+        <div className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Demo · {DEMO_TITLE[s] ?? s}</div>
+        <div className="mt-1 text-[15px]">{tip}</div>
+      </div>
+      <a href="/demo" className="shrink-0 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">
+        All scenarios
+      </a>
+    </div>
   );
 }
