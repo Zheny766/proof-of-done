@@ -1,0 +1,108 @@
+'use client';
+
+import type { Milestone } from '@/lib/escrow/types';
+import { latestFindings } from '@/lib/escrow/policy';
+import { fmtMoney } from '@/app/components/status';
+import { card } from './ui';
+
+const ICONS = {
+  fund: <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zm13 5h.01" />,
+  hold: <path d="M6 11V8a6 6 0 0 1 12 0v3M5 11h14v9H5zM12 15v2" />,
+  check: <path d="M9 12a5 5 0 1 0 0-.01M15 12a5 5 0 1 0 0-.01M7.5 12.2l1.2 1.2 2.3-2.4" />,
+  paid: <path d="M3 7h18v10H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 10v4M18 10v4" />,
+};
+
+/** Where the money is, as one picture: client -> PayPal hold -> two AIs check -> freelancer paid. */
+export function MoneyJourney({ m }: { m: Milestone }) {
+  // Index of the step in progress; 4 means every step is done.
+  const stage = { awaiting_funding: 0, funded: 1, reviewing: 2, changes_requested: 2, escalated: 2, verified: 3, released: 4, cancelled: -1 }[m.status];
+  const amount = fmtMoney(m.amount, m.currency);
+  const settled = m.payment.capturedAmount;
+  const review = m.reviews.at(-1);
+  const findings = review ? latestFindings(m.criteria, review.findings) : [];
+  const met = findings.filter((f) => f?.status === 'met' && f.confidence >= m.releaseThreshold).length;
+  // A client can approve (or both sides settle) without the AI verifying; say so instead of a tick.
+  const aiSkipped = m.status === 'released' && !m.timeline.some((e) => e.type === 'verified');
+  const checkSub =
+    m.status === 'reviewing'
+      ? 'checking right now'
+      : m.status === 'changes_requested'
+        ? `${met} of ${m.criteria.length} met · changes requested`
+        : m.status === 'escalated'
+          ? 'waiting for the client'
+          : aiSkipped
+            ? settled
+              ? 'settled by agreement'
+              : 'the client approved'
+            : stage >= 3
+              ? `${m.criteria.length} of ${m.criteria.length} criteria met`
+              : `${m.criteria.length} criteria agreed`;
+  const steps = [
+    { icon: ICONS.fund, title: 'Client funds', sub: m.client.name },
+    {
+      icon: ICONS.hold,
+      title: stage >= 1 ? `PayPal holds ${amount}` : 'PayPal holds the money',
+      sub: stage === 4 ? 'captured once the work checked out' : stage >= 1 ? 'on hold, nothing charged yet' : 'authorized, not charged',
+    },
+    { icon: ICONS.check, title: 'Two AIs check the work', sub: checkSub },
+    {
+      icon: ICONS.paid,
+      title: settled ? `Freelancer paid ${fmtMoney(settled, m.currency)}` : stage === 4 ? `Freelancer paid ${amount}` : 'Freelancer paid',
+      sub: settled
+        ? `${fmtMoney(Number(m.amount) - Number(settled), m.currency)} went back to the client`
+        : stage === 4
+          ? `to ${m.freelancer.name} via PayPal`
+          : m.status === 'verified'
+            ? 'when the objection window closes'
+            : m.freelancer.name,
+    },
+  ];
+
+  if (m.status === 'cancelled') {
+    return (
+      <div className={`${card} mt-6 flex items-center gap-4 border-rose-200 bg-rose-50/50`}>
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-rose-100 text-pp-danger">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </span>
+        <div>
+          <div className="text-base font-semibold text-rose-900">Cancelled</div>
+          <div className="text-sm text-rose-800">{m.payment.authorizationId ? 'The client cancelled and PayPal voided the hold. Nothing was charged.' : 'Cancelled before any money was put on hold.'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ol className={`${card} mt-6 grid gap-5 sm:grid-cols-4 sm:gap-0`} aria-label="Where the money is">
+      {steps.map((s, i) => {
+        const done = stage > i && !(aiSkipped && i === 2);
+        const active = stage === i;
+        return (
+          <li key={s.title} className="relative flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
+            {i > 0 && (
+              <span aria-hidden className="absolute top-6 right-1/2 hidden h-0.5 w-full sm:block">
+                <span className={`block h-full rounded-full ${stage >= i ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+              </span>
+            )}
+            <span
+              className={`relative z-10 grid h-12 w-12 shrink-0 place-items-center rounded-full ring-4 ring-white ${
+                done ? 'bg-emerald-500 text-white' : active ? 'pod-pulse bg-pp-blue text-white' : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              {done ? (
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{s.icon}</svg>
+              )}
+            </span>
+            <div className="min-w-0 sm:mt-3 sm:px-3">
+              <div className={`text-[15px] font-semibold ${done || active ? 'text-pp-ink' : 'text-pp-muted'}`}>{s.title}</div>
+              <div className="mt-0.5 text-[13px] leading-snug text-pp-muted">{s.sub}</div>
+            </div>
+            <span className="sr-only">{done ? '(done)' : active ? '(in progress)' : '(not yet)'}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

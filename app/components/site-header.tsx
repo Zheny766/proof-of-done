@@ -12,7 +12,8 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
         <Logo />
         <nav className="flex items-center gap-3 text-sm font-semibold text-pp-muted sm:gap-5">
-          <Link href="/" className="hover:text-pp-blue">Milestones</Link>
+          <Link href="/demo" className="hover:text-pp-blue">Demo</Link>
+          <Link href="/#create" className="hover:text-pp-blue">Deals</Link>
           <Link href="/dashboard" className="hover:text-pp-blue">
             <span className="sm:hidden">Analytics</span>
             <span className="hidden sm:inline">Escrow analytics</span>

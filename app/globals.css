@@ -2,6 +2,7 @@
 
 @theme inline {
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-instrument), Georgia, serif;
 }
 
 body {
@@ -21,7 +22,7 @@ body {
   --pp-blue-dark: #003087;
   --pp-sky: #009cde;
   --pp-highlight: #e6f0fc;
-  --pp-canvas: #f5f7fa;
+  --pp-canvas: #f4f6f9;
   --pp-surface: #ffffff;
   --pp-border: #dbe1e8;
   --pp-gridline: #e9edf2;
@@ -30,7 +31,7 @@ body {
   --pp-success: #00875a;
   --pp-warning: #b45309;
   --pp-danger: #c4122f;
-  --pp-font: "PayPal Open", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --pp-font: var(--font-inter), "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   /* Chart series, PayPal blue and navy first. */
   --pp-chart-1: #0070e0;
@@ -60,4 +61,14 @@ body {
   --color-pp-warning: var(--pp-warning);
   --color-pp-danger: var(--pp-danger);
   --font-paypal: var(--pp-font);
+}
+
+/* The coin on the money journey and the "live" dot pulse; nothing moves for people who'd rather it didn't. */
+@keyframes pod-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 112, 224, 0.35); }
+  50% { box-shadow: 0 0 0 10px rgba(0, 112, 224, 0); }
+}
+.pod-pulse { animation: pod-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pod-pulse { animation: none; }
 }
