@@ -44,12 +44,17 @@ export function seedDemo(count = 30): number {
     const job = JOBS[i % JOBS.length];
     const [fName, fHandle] = pick(FREELANCERS);
     const [cName, cEmail] = pick(CLIENTS);
-    const created = now - Math.floor(rand() * 30 * 86_400_000) - 3_600_000;
-    const at = (offsetMin: number) => new Date(created + offsetMin * 60_000).toISOString();
     const amount = (job.amount * (0.8 + rand() * 0.5)).toFixed(2);
     const roll = rand();
     const status: MilestoneStatus =
       roll < 0.52 ? 'released' : roll < 0.66 ? 'changes_requested' : roll < 0.76 ? 'escalated' : roll < 0.88 ? 'funded' : roll < 0.95 ? 'awaiting_funding' : 'cancelled';
+    // A PayPal authorization can only be captured for 29 days, so money still on hold is younger.
+    const onHold = ['funded', 'changes_requested', 'escalated'].includes(status);
+    const ageMin = 60 + Math.floor(rand() * (onHold ? 20 : 30) * 1440);
+    const created = now - ageMin * 60_000;
+    // Nothing happens after "now": later steps are squeezed into the milestone's age.
+    const at = (offsetMin: number) => new Date(created + Math.min(offsetMin, ageMin - 5) * 60_000).toISOString();
+    const later = (offsetMin: number) => new Date(created + offsetMin * 60_000).toISOString(); // deadlines may be ahead
     const criteria = job.criteria.map((text, k) => ({ id: `c${k + 1}`, text }));
     const m: Milestone = {
       id: newId('ms'),
@@ -73,12 +78,12 @@ export function seedDemo(count = 30): number {
     if (status !== 'awaiting_funding') {
       m.payment = {
         mode: 'simulated', orderId: `ORDER-DEMO-${i}`, authorizationId: `AUTH-DEMO-${i}`, authorizationStatus: 'CREATED',
-        authorizedAt: at(12), honorExpiresAt: at(12 + 3 * 1440), expiresAt: at(12 + 29 * 1440), payerEmail: cEmail,
+        authorizedAt: at(12), honorExpiresAt: later(12 + 3 * 1440), expiresAt: later(12 + 29 * 1440), payerEmail: cEmail,
       };
       m.timeline.push({ at: at(12), actor: 'paypal', type: 'authorized', text: `PayPal authorized ${amount} USD (demo)` });
     }
     if (['released', 'changes_requested', 'escalated'].includes(status)) {
-      const deliveredMin = 60 * (6 + Math.floor(rand() * 90));
+      const deliveredMin = Math.min(60 * (6 + Math.floor(rand() * 90)), ageMin - 10);
       const subId = newId('sub');
       m.submissions.push({ id: subId, at: at(deliveredMin), notes: '[Demo submission]', links: ['https://example.com/delivery'], attachments: [] });
       const decision: ReviewDecision = status === 'released' ? 'release' : status === 'changes_requested' ? 'request_changes' : 'escalate';

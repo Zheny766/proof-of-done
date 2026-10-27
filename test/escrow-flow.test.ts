@@ -192,3 +192,18 @@ test('a corrupt data file is an error, never an empty store', () => {
     fs.writeFileSync(file, good);
   }
 });
+
+test('demo data never happens in the future and keeps holds inside the 29-day window', async () => {
+  const { seedDemo } = await import('../lib/escrow/demo.ts');
+  store.deleteAll();
+  seedDemo(30);
+  const now = Date.now();
+  for (const m of store.listMilestones()) {
+    const times = [m.createdAt, m.updatedAt, m.payment.authorizedAt, m.payment.capturedAt, m.payment.voidedAt, ...m.timeline.map((e) => e.at)];
+    for (const t of times) if (t) assert.ok(Date.parse(t) <= now, `${m.title}: ${t} is in the future`);
+    if (['funded', 'changes_requested', 'escalated'].includes(m.status)) {
+      assert.ok(Date.parse(m.payment.expiresAt!) > now, `${m.title}: the hold would have expired`);
+    }
+  }
+  store.deleteAll();
+});

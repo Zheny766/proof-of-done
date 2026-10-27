@@ -42,6 +42,25 @@ test('encodeConversation replays cached raw content (thinking blocks) for a tool
   assert.equal((messages[1].content as any[])[0].type, 'thinking');
 });
 
+test('parallel tool calls that Studio lists one by one with their results go back as one turn', () => {
+  const raw = [
+    { type: 'thinking', thinking: 'plan', signature: 'sig' },
+    { type: 'tool_use', id: 'toolu_a', name: 'rename_thread', input: {} },
+    { type: 'tool_use', id: 'toolu_b', name: 'delegate_to', input: {} },
+  ];
+  const { messages } = encodeConversation([
+    { id: '1', kind: 'input', type: 'message', role: 'user', status: 'completed', content: [{ type: 'text', text: 'where is my money?' }] },
+    { id: '2', kind: 'output', type: 'reasoning', summary: [{ type: 'summary', text: 'plan' }] },
+    { id: '3', kind: 'output', type: 'function_call', callId: 'toolu_a', name: 'rename_thread', arguments: '{}', status: 'completed' },
+    { type: 'function_call_output', callId: 'toolu_a', output: 'ok', status: 'completed' },
+    { id: '4', kind: 'output', type: 'function_call', callId: 'toolu_b', name: 'delegate_to', arguments: '{}', status: 'completed' },
+    { type: 'function_call_output', callId: 'toolu_b', output: 'done', status: 'completed' },
+  ] as any, { get: (id) => (id === 'toolu_a' || id === 'toolu_b' ? (raw as any) : undefined) });
+  assert.deepEqual(messages.map((m) => m.role), ['user', 'assistant', 'user']);
+  assert.deepEqual((messages[1].content as any[]).map((b) => b.id ?? b.type), ['thinking', 'toolu_a', 'toolu_b']);
+  assert.deepEqual((messages[2].content as any[]).map((b) => b.tool_use_id), ['toolu_a', 'toolu_b']);
+});
+
 test('steering replaces forced tool choice and JSON mode with instructions', () => {
   const s = steeringInstructions({ toolChoice: { name: 'add_widget' }, responseFormat: { type: 'json', name: 'plan', schema: { type: 'object' } } as any });
   assert.match(s[0], /add_widget/);

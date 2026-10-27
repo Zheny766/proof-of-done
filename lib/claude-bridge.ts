@@ -82,12 +82,18 @@ export function encodeConversation(input: AgAiConversationItem[], cache?: RawCon
   // Tool calls whose original content is gone (e.g. the server restarted mid-conversation). Claude
   // rejects a tool turn without its thinking blocks, so those calls and results go in as plain text.
   const flattened = new Map<string, string>();
+  // Studio lists parallel tool calls one at a time, each followed by its result (call A, result A,
+  // call B, result B). The cached turn already holds all of them, so it goes in once and the later
+  // calls are skipped; their results then join the same user turn.
+  const replayed = new Set<string>();
   const flushAssistant = () => {
     if (!pendingAssistant) return;
     const { blocks, callIds } = pendingAssistant;
     const cached = callIds.map((id) => cache?.get(id)).find(Boolean);
-    if (cached) push('assistant', cached);
-    else if (cache && callIds.length) {
+    if (cached) {
+      push('assistant', cached);
+      for (const b of cached) if (b.type === 'tool_use') replayed.add(b.id);
+    } else if (cache && callIds.length) {
       const calls = blocks.filter((b): b is Anthropic.Beta.BetaToolUseBlockParam => b.type === 'tool_use');
       for (const c of calls) flattened.set(c.id, c.name);
       const said = blocks.filter((b) => b.type === 'text');
@@ -103,6 +109,7 @@ export function encodeConversation(input: AgAiConversationItem[], cache?: RawCon
       continue;
     }
     if (item.kind === 'output' && item.type === 'function_call') {
+      if (replayed.has(item.callId)) continue;
       pendingAssistant ??= { blocks: [], callIds: [] };
       let parsed: unknown = {};
       try {
