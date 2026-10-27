@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/logo';
 import { AgStudioLogo } from './ui/logo';
@@ -72,6 +72,12 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
   return (
     <div className="flex h-dvh flex-col bg-pp-canvas font-paypal text-pp-ink">
       <TopBar menuOpen={open} onMenu={() => setOpen(!open)} />
