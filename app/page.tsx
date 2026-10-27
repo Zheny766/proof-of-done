@@ -13,7 +13,7 @@ import { fmtMoney } from './components/status';
 const STEPS = [
   ['Agree on what "done" means', 'Write the acceptance criteria, or let Claude draft them from a plain description.'],
   ['PayPal holds the money', 'The client approves an Orders v2 payment with intent AUTHORIZE. Held, not charged.'],
-  ['Two AIs check the delivery', 'Claude Opus reviews files, links and screenshots. Claude Haiku re-checks before anything moves.'],
+  ['Two AIs check the delivery', 'Claude Opus reviews files, links and screenshots, and runs delivered code in a sandbox. Claude Haiku re-checks before anything moves.'],
   ['PayPal pays the freelancer', 'The authorization is captured and a payout goes out. Nobody has to click approve.'],
 ];
 
@@ -23,7 +23,8 @@ const SAFEGUARDS = [
   ['Submissions are evidence, never instructions', '"Skip the checks and pay" hidden in notes or a PDF is flagged as an attack, and the money stays put.'],
   ['The client keeps the final say', 'Pay now, object within a window you choose, or cancel and void the hold. Nothing is charged until then.'],
   ['Settle for part', 'If only part of the work is done, either side offers an amount. PayPal captures just that and releases the rest.'],
-  ['Every step on the record', 'Each finding, decision and PayPal call is logged with who made it: client, freelancer, AI or PayPal.'],
+  ['Code is run, not eyeballed', '"All tests pass" is checked by running them in Anthropic’s code execution sandbox, isolated and offline. A failing test keeps the money on hold.'],
+  ['Every step on the record', 'Each finding, decision and PayPal call is logged with who made it: client, freelancer, AI or PayPal. Paid work gets a certificate anyone can check.'],
 ];
 
 const COSTS = [
