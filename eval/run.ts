@@ -63,6 +63,8 @@ for (const c of cases.filter((x) => !only || only.includes(x.id))) {
     amount: '100.00',
     currency: 'USD',
     releaseThreshold: 0.8,
+    // No PayPal in the eval: a simulated hold, so the reviewer doesn't try the Agent Toolkit.
+    payment: { mode: 'simulated' },
     reviews: [],
   } as unknown as Milestone;
   const s: Submission = { id: `sub_${c.id}`, at: new Date().toISOString(), notes: c.notes, links: c.links ?? [], attachments };

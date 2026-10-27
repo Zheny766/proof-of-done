@@ -382,7 +382,8 @@ export async function runClaudeAudit(m: Milestone, s: Submission, input: AuditIn
           ...pages,
           {
             type: 'text',
-            text: `The criteria and the reviewer's findings:\n${fence('findings', claims)}\nThe reviewer's summary:\n${fence('summary', input.summary)}\nCheck every criterion against the material and give your verdict.`,
+            // The brief too: a criterion can refer to it ("every price is unchanged" from the list the client gave).
+            text: `The client's brief:\n${fence('brief', m.description || '(none)')}\nThe criteria and the reviewer's findings:\n${fence('findings', claims)}\nThe reviewer's summary:\n${fence('summary', input.summary)}\nCheck every criterion against the material and give your verdict.`,
           },
         ],
       },

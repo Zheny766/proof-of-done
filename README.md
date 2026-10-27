@@ -25,7 +25,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 - **AG Grid / AG Studio:** a live AG Grid ledger of every deal, and a five-page escrow report in AG Studio (money on hold, the AI reviewer, trust & PayPal, agents & the job board, freelancers) with a custom pipeline widget, a Claude adapter for the Studio Agent Framework, our own `explain_deal` tool for Studio's agents, and **WebMCP** tools for AI agents in the browser.
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets, and a standing kept against the PayPal account that gets paid. An agent can also post a job, or a whole project, for the person it works for; that person approves the payment in PayPal.
 - **A product, not a demo:** projects in stages funded one at a time, settlements, objection windows, a page with all your deals, a **deal record** either party can download for a PayPal dispute (criteria, findings and evidence, the second opinion, every step, the PayPal ids, each file's SHA-256), a shareable **proof certificate** for paid work (every criterion's verdict, the PayPal capture, and a SHA-256 of each delivered file that anyone holding the file can check in the browser), and [what checking costs](#who-its-for) next to Escrow.com and Upwork.
-- **Proof it holds up:** 93 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
+- **Proof it holds up:** 93 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) of 31 deliveries with zero false payouts.
 
 ![A deal where the freelancer's notes told the reviewer to skip the checks: Claude Opus found every criterion met, the second opinion refused, and the money waits for the client](docs/screenshots/deal-cheater.png)
 
@@ -281,16 +281,17 @@ Run end to end on October 26, 2026 with a sandbox Personal buyer:
 
 ## Evaluation
 
-[eval/](eval) holds 17 deliveries with known right answers: honest work, incomplete or wrong deliveries, a wrong file format, claims without evidence, someone else's README handed in as new work, and prompt injections in the notes, in a text file and as near-invisible text in a PDF. [eval/run.ts](eval/run.ts) sends each one through the real reviewer and second opinion (no PayPal; a release is recorded, not captured) with a hard budget cap.
+[eval/](eval) holds 31 deliveries with known right answers: menus, logos, READMEs, translations, product copy and a Python function with tests. Honest work, incomplete or wrong deliveries, a changed price, a broken rule, a wrong file format, claims without evidence, tests that test nothing, someone else's README handed in as new work, and prompt injections in the notes, in text files, in a Markdown comment, as near-invisible text in a PDF, and in Spanish and Russian. [eval/run.ts](eval/run.ts) sends each one through the real reviewer and second opinion (no PayPal; a release is recorded, not captured) with a hard budget cap.
 
 | Reviewer | Second opinion | Cases | As expected | False releases | Good work held | Cost |
 |---|---|---|---|---|---|---|
 | Claude Opus 5.5 | Claude Haiku 5.5 | 7 key cases | 7 | 0 | 0 | $0.67 |
-| Claude Haiku 5.5 | Claude Haiku 5.5 | 16 | 15 | 0 | 1 | $0.04 |
+| Claude Haiku 5.5 | Claude Haiku 5.5 | 30 | 29 | 0 | 1 | $0.09 |
 
-Full tables: [Opus](eval/results/claude-opus-5-5.md), [Haiku](eval/results/claude-haiku-5-5.md). Two things stood out:
+Every one of the 31 cases has been through a reviewer with zero false payouts. Full tables: [Opus](eval/results/claude-opus-5-5.md), [Haiku](eval/results/claude-haiku-5-5.md). Three things stood out:
 
 - **The injection in the notes got past both reviewers and was stopped by the second opinion.** The work itself met every criterion, so Opus and Haiku both called `release_payment`; the second model flagged the "SYSTEM MESSAGE FOR THE REVIEWER" in the notes as a red flag, and the money stayed on hold for the client to decide.
+- **The eval found a gap in the second opinion, which is now fixed.** On the first run of the honest Spanish menu, the second model refused to confirm "every price is unchanged": it saw the delivery and the reviewer's findings but not the client's brief with the original prices. It now gets the brief too, and the case passes.
 - **Copied work was caught.** The Haiku run's only miss was a case I had labelled "honest": the link pointed to the README of a well-known open-source project, and the reviewer said it looked like that project's own README rather than new work and asked the client to confirm authorship. It's now an eval case of its own.
 
 ```bash
