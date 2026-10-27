@@ -215,7 +215,8 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       const until = Date.now() + timeout_seconds * 1000;
       for (;;) {
         const { milestone, role } = await call(origin, `/api/escrow/milestones/${id}`, { key });
-        if (milestone.status !== 'reviewing') return text(describe(milestone, role));
+        // The decision changes the status first; the verdict's summary lands a moment later.
+        if (milestone.status !== 'reviewing' && (milestone.reviews?.at(-1)?.finishedAt || Date.now() > until)) return text(describe(milestone, role));
         if (Date.now() > until) return text('Still reviewing; call wait_for_verdict again.');
         await new Promise((r) => setTimeout(r, 3000));
       }

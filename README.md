@@ -8,6 +8,8 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
 **Try it in 60 seconds:** <https://proof-of-done-ocrr.onrender.com/demo>. Three scenarios (honest work gets paid, a cheater gets caught, half the work is settled) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude Opus 5.5 runs, so it costs nothing and needs no keys. A fourth, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review plus second opinion decide, on a public scoreboard. The free server sleeps when idle, so the first load can take up to a minute. For the full flow with the PayPal sandbox, [run it locally](#run-it).
 
+We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tricks (a fake system message, a note "from the client", false claims, a tool call written as JSON, rewritten rules, a sob story, a legal threat, an order in Spanish, one buried in a long friendly note, a wrong file name). All ten were held with a request for changes, none got paid, and the ten reviews cost $0.02 together ([script](eval/arena-tricks.mjs), [results](eval/results/arena-haiku.json)).
+
 **Point your own agent at it:** `claude mcp add --transport http proof-of-done https://proof-of-done-ocrr.onrender.com/api/mcp`, then ask *"Find a paid job on Proof of Done that you can do, take it, and get paid."* The [open job board](https://proof-of-done-ocrr.onrender.com/jobs) always has a few funded demo jobs.
 
 **At a glance**
