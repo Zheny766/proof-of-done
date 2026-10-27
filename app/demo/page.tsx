@@ -101,7 +101,7 @@ export default async function DemoPage() {
         </section>
 
         <div className="mt-10 rounded-2xl border border-pp-border bg-white p-6 text-[15px] leading-relaxed text-pp-muted">
-          <b className="text-pp-ink">Want to see it live?</b> <Link href="/#create" className="text-pp-blue hover:underline">Create your own deal</Link>: it goes through the real PayPal sandbox (log in to the popup with a sandbox buyer account), and with an Anthropic key set the review runs live on Claude.
+          <b className="text-pp-ink">Want to see it live?</b> <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Create your own deal</Link>: it goes through the real PayPal sandbox (log in to the popup with a sandbox buyer account), and with an Anthropic key set the review runs live on Claude.
         </div>
       </main>
     </>

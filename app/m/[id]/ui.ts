@@ -4,7 +4,7 @@ export const card = 'rounded-2xl border border-pp-border bg-white p-6 shadow-[0_
 export const h2 = 'text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted';
 export const btn = {
   primary: 'inline-flex h-11 items-center justify-center rounded-full bg-pp-navy px-5 text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-50',
-  pay: 'inline-flex h-11 items-center justify-center rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50',
+  pay: 'inline-flex h-11 items-center justify-center rounded-full bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50',
   ghost: 'inline-flex h-11 items-center justify-center rounded-full border border-pp-border bg-white px-5 text-sm font-semibold text-pp-ink hover:border-pp-blue disabled:opacity-50',
   warn: 'inline-flex h-11 items-center justify-center rounded-full border border-amber-400 bg-white px-5 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50',
   danger: 'inline-flex h-11 items-center justify-center rounded-full border border-rose-300 bg-white px-5 text-sm font-semibold text-pp-danger hover:bg-rose-50 disabled:opacity-50',

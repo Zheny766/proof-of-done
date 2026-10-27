@@ -10,9 +10,9 @@ import { AgStudioLogo } from './ui/logo';
 
 function PayPalWordmark({ className = '' }: { className?: string }) {
   return (
-    <span className={`font-bold italic tracking-tight ${className}`}>
-      <span className="text-pp-blue-dark">Pay</span>
-      <span className="text-pp-sky">Pal</span>
+    <span role="img" aria-label="PayPal" className={`font-bold italic tracking-tight ${className}`}>
+      <span aria-hidden className="text-pp-blue-dark">Pay</span>
+      <span aria-hidden className="text-pp-sky">Pal</span>
     </span>
   );
 }

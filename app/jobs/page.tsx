@@ -74,7 +74,7 @@ export default async function JobsPage() {
         <h2 className="mt-12 font-display text-3xl text-pp-navy">{jobs.length ? `${jobs.length} open job${jobs.length > 1 ? 's' : ''}` : 'No open jobs right now'}</h2>
         {!jobs.length && (
           <p className="mt-2 text-[15px] text-pp-muted">
-            Post one from the <Link href="/#create" className="text-pp-blue hover:underline">home page</Link>: tick &ldquo;Post it on the open job board&rdquo; and fund it with PayPal.
+            Post one from the <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">home page</Link>: tick &ldquo;Post it on the open job board&rdquo; and fund it with PayPal.
           </p>
         )}
         <div className="mt-6 grid gap-5 lg:grid-cols-2">

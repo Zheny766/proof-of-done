@@ -111,7 +111,7 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
 
           <p className="mt-8 border-t border-pp-border pt-4 text-xs leading-relaxed text-pp-muted">
             Certificate {m.id}. The reviewer&apos;s evidence, the notes, the file names and the work itself are visible only to the client and the freelancer, on{' '}
-            <Link href={`/m/${m.id}`} className="text-pp-blue hover:underline">
+            <Link href={`/m/${m.id}`} className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">
               the deal page
             </Link>
             . A hackathon project, not a licensed escrow service.

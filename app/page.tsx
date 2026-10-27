@@ -132,7 +132,7 @@ export default async function Home() {
                 <p className="mt-2 text-sm leading-relaxed text-pp-muted">
                   {note}{' '}
                   {href && (
-                    <a href={href} className="text-pp-blue hover:underline" target="_blank" rel="noreferrer">
+                    <a href={href} className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue" target="_blank" rel="noreferrer">
                       source
                     </a>
                   )}
@@ -164,7 +164,7 @@ export default async function Home() {
             <div>
               <h2 className="font-display text-3xl text-pp-navy">All deals</h2>
               <p className="mt-1 text-sm text-pp-muted">
-                Click a row to open it. <Link href="/dashboard" className="text-pp-blue hover:underline">Analyse everything in AG Studio →</Link>
+                Click a row to open it. <Link href="/dashboard" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Analyse everything in AG Studio →</Link>
               </p>
             </div>
             <DemoDataButton />

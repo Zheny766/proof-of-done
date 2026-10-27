@@ -44,9 +44,9 @@ export function MyDeals() {
   if (!rows.length) {
     return (
       <div className="mt-10 rounded-2xl border border-pp-border bg-white p-8 text-[15px] text-pp-muted">
-        Nothing here yet. <Link href="/#create" className="font-semibold text-pp-blue hover:underline">Create a deal</Link>, take one from the{' '}
-        <Link href="/jobs" className="font-semibold text-pp-blue hover:underline">job board</Link>, or{' '}
-        <Link href="/demo" className="font-semibold text-pp-blue hover:underline">try the demo</Link>.
+        Nothing here yet. <Link href="/#create" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Create a deal</Link>, take one from the{' '}
+        <Link href="/jobs" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">job board</Link>, or{' '}
+        <Link href="/demo" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">try the demo</Link>.
       </div>
     );
   }
