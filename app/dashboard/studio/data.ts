@@ -95,6 +95,9 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
           ['lowestConfidence', 'Lowest AI Confidence', 'percentageFormat'],
           ['paymentMode', 'Payment Mode', 'textFormat'],
           ['isDemo', 'Demo Data', 'booleanFormat'],
+          ['project', 'Project', 'textFormat'],
+          ['projectStage', 'Project Stage', 'integerFormat'],
+          ['freelancerStanding', 'Freelancer Standing', 'textFormat'],
         ]),
       },
       {
@@ -178,6 +181,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
           ['isPaid', 'Is Paid', 'integerFormat', true],
           ['isDecided', 'Is Decided', 'integerFormat', true],
           ['hoursToPaid', 'Hours From Taken To Paid', 'decimalFormat'],
+          ['takerStanding', 'Taker Standing', 'textFormat'],
         ]),
       },
       {

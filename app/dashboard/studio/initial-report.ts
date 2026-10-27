@@ -237,6 +237,15 @@ const agents: AgPageState = {
       dataMapping: { categoryKey: [{ id: 'boardJobs.outcome' }], valueKey: [countd('boardJobs.id')] },
       format: { ...title('How board jobs ended'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } } } },
     },
+    'standing-pivot': {
+      type: 'pivot-grid',
+      dataMapping: {
+        rows: [{ id: 'boardJobs.takerStanding' }],
+        columns: [{ id: 'boardJobs.outcome' }],
+        values: [countd('boardJobs.id')],
+      },
+      format: { ...title('Outcomes by the taker’s standing'), style: { totalColumns: true, totalColumnsPlacement: 'before', grandTotalRow: { enabled: true } } },
+    },
     'board-log': {
       type: 'grid',
       dataMapping: {
@@ -244,6 +253,7 @@ const agents: AgPageState = {
           { id: 'boardJobs.postedAt' },
           { id: 'boardJobs.title' },
           { id: 'boardJobs.takenBy' },
+          { id: 'boardJobs.takerStanding' },
           { id: 'boardJobs.outcome' },
           { id: 'boardJobs.amount', aggregation: 'sum' },
           { id: 'boardJobs.earned', aggregation: 'sum' },
@@ -260,7 +270,8 @@ const agents: AgPageState = {
     'kpi-board-earned': at(18, 0, 6, 7),
     'earned-by-taker': at(0, 7, 15, 18),
     'board-outcomes': at(15, 7, 9, 18),
-    'board-log': at(0, 25, 24, 20),
+    'standing-pivot': at(0, 25, 24, 17),
+    'board-log': at(0, 42, 24, 20),
   },
 };
 

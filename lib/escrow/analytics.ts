@@ -5,6 +5,7 @@ import { redactEmails } from './access.ts';
 import { paymentMode } from './payments.ts';
 import { latestFindings } from './policy.ts';
 import { listMilestones } from './store.ts';
+import { trustFor } from './trust.ts';
 
 export type MilestoneRow = {
   id: string;
@@ -36,6 +37,11 @@ export type MilestoneRow = {
   lowestConfidence: number | null;
   paymentMode: string;
   isDemo: boolean;
+  /** The project this milestone is a stage of ('' for a single job), and which stage. */
+  project: string;
+  projectStage: number | null;
+  /** The standing of whoever gets paid (by payout email), as of now. */
+  freelancerStanding: string;
 };
 
 export type ReviewRow = {
@@ -110,6 +116,7 @@ export type BoardJobRow = {
   isPaid: number;
   isDecided: number;
   hoursToPaid: number | null;
+  takerStanding: string;
 };
 
 export type EscrowDashboardData = {
@@ -157,6 +164,14 @@ export function getEscrowDashboardData(): EscrowDashboardData {
   const pRows: PayPalCallRow[] = [];
   const bRows: BoardJobRow[] = [];
 
+  // Standings are counted from everything in the store, once per payout address.
+  const all = listMilestones();
+  const standings = new Map<string, string>();
+  const standing = (email: string) => {
+    if (!standings.has(email)) standings.set(email, email ? trustFor(email, undefined, all).tier : 'none');
+    return standings.get(email)!;
+  };
+
   for (const m of milestones) {
     const amount = Number(m.amount);
     const captured = Number(m.payment.capturedAmount ?? m.amount);
@@ -197,6 +212,9 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       lowestConfidence: latest.length ? Math.min(...latest.map((f) => f!.confidence)) : null,
       paymentMode: m.payment.mode,
       isDemo: m.description.startsWith('[Demo data]'),
+      project: m.project?.title ?? '',
+      projectStage: m.project?.stage ?? null,
+      freelancerStanding: standing(m.freelancer.email),
     });
 
     if (m.board) {
@@ -217,6 +235,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
         isPaid: m.status === 'released' ? 1 : 0,
         isDecided: decided ? 1 : 0,
         hoursToPaid: takenAt && releasedAt ? Math.max(0, Math.round((+new Date(releasedAt) - +new Date(takenAt)) / 3_600_000)) : null,
+        takerStanding: takenAt ? standing(m.freelancer.email) : 'not taken',
       });
     }
 
