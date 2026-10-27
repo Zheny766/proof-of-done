@@ -45,6 +45,10 @@ Here the hold stays with PayPal and the approval step becomes a check against th
 
 ## How it works
 
+![How it fits together: PayPal holds the money, the freelancer or an agent delivers, Claude Opus reviews, Claude Haiku and a rule in code must agree, then PayPal captures and pays out](docs/gallery/7-how-it-fits.jpg)
+
+The same flow, step by step:
+
 ```mermaid
 sequenceDiagram
     participant C as Client
