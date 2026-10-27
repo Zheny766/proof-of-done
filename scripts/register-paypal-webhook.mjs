@@ -23,6 +23,9 @@ const events = [
   'PAYMENT.PAYOUTS-ITEM.UNCLAIMED',
   'PAYMENT.PAYOUTS-ITEM.RETURNED',
   'PAYMENT.PAYOUTS-ITEM.BLOCKED',
+  'CUSTOMER.DISPUTE.CREATED',
+  'CUSTOMER.DISPUTE.UPDATED',
+  'CUSTOMER.DISPUTE.RESOLVED',
 ];
 const res = await fetch(`${API}/v1/notifications/webhooks`, {
   method: 'POST',

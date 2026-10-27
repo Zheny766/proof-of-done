@@ -790,6 +790,12 @@ type WebhookResource = {
   batch_header?: { payout_batch_id?: string };
   payout_item?: { sender_item_id?: string };
   supplementary_data?: { related_ids?: { authorization_id?: string } };
+  // Disputes (CUSTOMER.DISPUTE.*): the capture they are about is the seller transaction.
+  dispute_id?: string;
+  reason?: string;
+  status?: string;
+  dispute_amount?: { value?: string; currency_code?: string };
+  disputed_transactions?: { seller_transaction_id?: string }[];
 };
 export type WebhookEvent = { id: string; event_type: string; resource?: WebhookResource };
 
@@ -801,7 +807,7 @@ function milestoneForEvent(e: WebhookEvent): Milestone | undefined {
     (m) =>
       (r.custom_id && r.custom_id === m.id) ||
       (payoutItem.sender_item_id && payoutItem.sender_item_id === m.id) ||
-      (m.payment.captureId && r.id === m.payment.captureId) ||
+      (m.payment.captureId && (r.id === m.payment.captureId || r.disputed_transactions?.some((t) => t.seller_transaction_id === m.payment.captureId))) ||
       (m.payment.authorizationId && (r.id === m.payment.authorizationId || related.authorization_id === m.payment.authorizationId)) ||
       (m.payment.previousAuthorizationId && (r.id === m.payment.previousAuthorizationId || related.authorization_id === m.payment.previousAuthorizationId)) ||
       (m.payment.payoutBatchId && (r.payout_batch_id === m.payment.payoutBatchId || r.batch_header?.payout_batch_id === m.payment.payoutBatchId)),
@@ -844,6 +850,26 @@ export async function applyWebhook(e: WebhookEvent): Promise<'applied' | 'duplic
         if (x.payment.payoutStatus === 'SUCCESS') return;
         x.payment.payoutStatus = 'SUCCESS';
         pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email} ${via}`);
+      };
+    } else if (/^CUSTOMER\.DISPUTE\.(CREATED|UPDATED|RESOLVED)$/.test(type) && e.resource?.dispute_id) {
+      // A buyer disputed the payment with PayPal: keep it on the deal, so both sides see it and can
+      // answer with the deal's record.
+      const r = e.resource;
+      const reason = (r.reason ?? 'OTHER').toLowerCase().replace(/_/g, ' ');
+      const status = r.status ?? (type.endsWith('RESOLVED') ? 'RESOLVED' : 'OPEN');
+      const amount = r.dispute_amount?.value && `${r.dispute_amount.value} ${r.dispute_amount.currency_code ?? ''}`.trim();
+      effect = (x) => {
+        const list = x.disputes ?? [];
+        const known = list.find((d) => d.id === r.dispute_id);
+        if (known) Object.assign(known, { status, updatedAt: nowIso() });
+        else list.push({ id: r.dispute_id!, reason, status, ...(amount && { amount }), openedAt: nowIso(), updatedAt: nowIso() });
+        x.disputes = list;
+        pushEvent(
+          x,
+          'paypal',
+          `dispute_${type.split('.').pop()!.toLowerCase()}`,
+          known ? `PayPal dispute ${r.dispute_id} is now ${status.toLowerCase().replace(/_/g, ' ')} ${via}` : `The buyer opened PayPal dispute ${r.dispute_id} (${reason}${amount ? `, ${amount}` : ''}) ${via}`,
+        );
       };
     } else if (/^PAYMENT\.PAYOUTS-ITEM\.(FAILED|RETURNED|UNCLAIMED|BLOCKED|DENIED|REFUNDED)$/.test(type)) {
       const outcome = type.split('.').pop()!;

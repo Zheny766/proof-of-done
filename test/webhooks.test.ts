@@ -87,3 +87,14 @@ test('only a signature PayPal confirms is trusted, checked with our webhook id',
   verification = 'FAILURE';
   assert.equal(await paypal.verifyWebhookSignature(headers, event, 'WEBHOOK-1'), false);
 });
+
+test('a PayPal dispute on the capture is kept on the deal, opened once and then updated', async () => {
+  const m = milestone({ captureId: 'CAP-D1', authorizationStatus: 'CAPTURED' });
+  const resource = { dispute_id: 'PP-D-1', reason: 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED', status: 'OPEN', dispute_amount: { value: '100.00', currency_code: 'USD' }, disputed_transactions: [{ seller_transaction_id: 'CAP-D1' }] };
+  assert.equal(await service.applyWebhook({ id: 'WH-D1', event_type: 'CUSTOMER.DISPUTE.CREATED', resource }), 'applied');
+  assert.equal(await service.applyWebhook({ id: 'WH-D1', event_type: 'CUSTOMER.DISPUTE.CREATED', resource }), 'duplicate');
+  assert.equal(await service.applyWebhook({ id: 'WH-D2', event_type: 'CUSTOMER.DISPUTE.RESOLVED', resource: { ...resource, status: 'RESOLVED' } }), 'applied');
+  const x = store.getMilestone(m.id)!;
+  assert.deepEqual(x.disputes?.map((d) => [d.id, d.reason, d.status, d.amount]), [['PP-D-1', 'merchandise or service not as described', 'RESOLVED', '100.00 USD']]);
+  assert.equal(x.timeline.filter((e) => e.type.startsWith('dispute_')).length, 2);
+});

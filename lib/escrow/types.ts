@@ -176,6 +176,8 @@ export interface Milestone {
   postedBy?: string;
   /** One stage of a project: stages are funded and paid one by one, in order, with the same two links. */
   project?: ProjectStage;
+  /** PayPal disputes the buyer opened on this deal's capture, as PayPal's webhooks reported them. */
+  disputes?: { id: string; reason: string; status: string; amount?: string; openedAt: string; updatedAt: string }[];
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

@@ -193,6 +193,20 @@ export function MilestoneView({
 
       {m.project && stages && <ProjectStages m={m} stages={stages} />}
 
+      {!!m.disputes?.length && (
+        <div role="alert" className="mt-6 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-4 text-[15px] text-rose-950">
+          {m.disputes.map((d) => (
+            <p key={d.id}>
+              <b>PayPal dispute {d.id}</b> · {d.reason}
+              {d.amount && ` · ${d.amount}`} · {d.status.toLowerCase().replace(/_/g, ' ')}
+            </p>
+          ))}
+          <p className="mt-1 text-sm text-rose-900">
+            The buyer disputed this payment with PayPal. {role === 'viewer' ? 'Both parties can answer it with the deal’s record.' : 'Download the full record below (PayPal panel) and attach it to your answer in PayPal.'}
+          </p>
+        </div>
+      )}
+
       <MoneyJourney m={m} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
