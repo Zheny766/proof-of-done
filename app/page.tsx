@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { viewerMilestone } from '@/lib/escrow/access';
 import { seedDemoIfEmpty } from '@/lib/escrow/demo';
 import { listMilestones } from '@/lib/escrow/store';
+import { paymentMode } from '@/lib/escrow/payments';
 import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
 import { MilestonesGrid } from './components/milestones-grid';
@@ -61,7 +62,7 @@ export default async function Home() {
               </Link>
             </div>
             <p className="mt-6 text-sm text-pp-muted">
-              Real PayPal sandbox calls · Claude Opus 5.5 reviews, Claude Haiku 5.5 double-checks · 0 false payouts across 17 test deliveries
+              {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} · Claude Opus 5.5 reviews, Claude Haiku 5.5 double-checks · 0 false payouts across 17 test deliveries and 10 live tricks
             </p>
           </div>
           <PreviewCard />
