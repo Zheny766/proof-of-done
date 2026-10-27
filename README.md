@@ -189,7 +189,7 @@ Run on October 27, 2026 against the Anthropic API (`claude-opus-5-5`), with simu
 - **Criteria drafting:** "Logo for a neighborhood bakery" came back as six checkable criteria (SVG and PNG files, a one-color version, the exact name, the wheat mark, warm colors).
 - **Dashboard assistant:** "How much is on hold, how much was released this month, which milestones are stuck?" went through the Claude adapter to Studio's Data agent, which ran its queries and answered with real and demo money kept apart. This run caught a bug: Studio lists parallel tool calls one at a time, each with its result, and the adapter replayed the whole Claude turn for each of them. It is fixed and covered by a test.
 
-A review costs about 18k input and 1-1.3k output tokens, roughly $0.10.
+A review costs about 18k input and 1-1.3k output tokens, roughly $0.10. The dashboard assistant makes a dozen or so model calls per question, each carrying Studio's tool schemas, so it runs best on a cheaper model: with `CLAUDE_MODELS=claude-haiku-5-5,claude-opus-5-5`, Haiku 5.5 answered *"How much money is on hold right now, and which 3 milestones have waited longest?"* correctly for a few cents.
 
 ## Known limitations
 
