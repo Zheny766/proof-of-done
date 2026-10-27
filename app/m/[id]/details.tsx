@@ -11,6 +11,7 @@ export function PaymentDetails({ m }: { m: Milestone }) {
   const rows: [string, string | undefined][] = [
     ['Order', p.orderId],
     ['Authorization', p.authorizationId && `${p.authorizationId} · ${p.authorizationStatus ?? ''}`],
+    ['Reauthorized', p.reauthorizedAt && `${fmtDate(p.reauthorizedAt)} · was ${p.previousAuthorizationId}`],
     ['Honor period ends', p.honorExpiresAt && fmtDate(p.honorExpiresAt)],
     ['Authorization expires', p.expiresAt && fmtDate(p.expiresAt)],
     ['Releases', m.status === 'verified' && m.releaseAt ? fmtDate(m.releaseAt) : undefined],
@@ -31,7 +32,7 @@ export function PaymentDetails({ m }: { m: Milestone }) {
       </div>
       {honorPassed && (
         <p suppressHydrationWarning className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          The 3-day honor period ended on {fmtDate(p.honorExpiresAt!)}. PayPal may decline the capture; if it does, the hold stays and the client can fund again.
+          {p.reauthorizedAt ? 'The renewed' : 'The'} 3-day honor period ended on {fmtDate(p.honorExpiresAt!)}. PayPal may decline the capture; if it does, the hold stays and the client can fund again.
         </p>
       )}
       <dl className="mt-3 space-y-2 text-sm">

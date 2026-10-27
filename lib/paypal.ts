@@ -175,6 +175,14 @@ export function captureAuthorization(authorizationId: string, note: string, amou
   );
 }
 
+/**
+ * A fresh 3-day honor period for a hold whose first one has passed. PayPal allows this once, from
+ * day 4 up to day 29 of the authorization; the answer is a new authorization with a new id.
+ */
+export function reauthorizeAuthorization(authorizationId: string, amount: Money): Promise<Authorization> {
+  return post<Authorization>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/reauthorize`, { amount }, `reauth-${authorizationId}`);
+}
+
 /** Release the hold without charging anything. */
 export function voidAuthorization(authorizationId: string): Promise<unknown> {
   return post<unknown>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/void`, undefined, `void-${authorizationId}`);

@@ -302,3 +302,15 @@ test('demo deals: funded with a simulated hold, and the prepared delivery replay
   assert.throws(() => service.deliverDemo(normal.id, normal.access!.freelancerKey), /not a demo deal/);
   assert.throws(() => service.startDemo('../../etc'), /Unknown demo scenario/);
 });
+
+test('a job that outlasts the 3-day honor period gets its hold renewed once, on the record', async () => {
+  const { id } = await funded();
+  store.updateMilestone(id, (x) => void (x.payment.honorExpiresAt = new Date(Date.now() - 3_600_000).toISOString()));
+  const before = store.getMilestone(id)!.payment.authorizationId;
+  const m = (await service.readMilestone(id))!;
+  assert.notEqual(m.payment.authorizationId, before);
+  assert.equal(m.payment.previousAuthorizationId, before);
+  assert.ok(Date.parse(m.payment.honorExpiresAt!) > Date.now());
+  await service.readMilestone(id);
+  assert.equal(count(id, 'reauthorized'), 1);
+});

@@ -76,3 +76,53 @@ test('cancelling an authorization PayPal already voided still cancels; other err
   respond = () => ({ status: 400, json: { name: 'INVALID_REQUEST' } });
   await assert.rejects(payments.cancelFunding(milestone), /PayPal 400/);
 });
+
+const old = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+const ahead = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+const aged = { ...milestone, payment: { ...milestone.payment, honorExpiresAt: old(1), expiresAt: ahead(25) } } as Milestone;
+
+test('a hold past its 3-day honor period is reauthorized once, under a new authorization id', async () => {
+  respond = (p) => (p.endsWith('/reauthorize') ? { json: { id: 'AUTH2', status: 'CREATED', amount: { value: '100.00', currency_code: 'USD' }, expiration_time: ahead(25) } } : { status: 500, json: {} });
+  const renewed = await payments.renewHold(aged);
+  assert.equal(renewed?.authorizationId, 'AUTH2');
+  assert.equal(renewed?.previousAuthorizationId, 'AUTH1');
+  assert.ok(Date.parse(renewed!.honorExpiresAt!) > Date.now() + 2 * 86_400_000, 'a fresh 3-day guarantee');
+  const call = posted('/v2/payments/authorizations/AUTH1/reauthorize')[0];
+  assert.deepEqual(call.body.amount, { currency_code: 'USD', value: '100.00' });
+  assert.equal(call.headers['PayPal-Request-Id'], 'reauth-AUTH1');
+  // Nothing to do inside the honor period, after a renewal, after a capture, or once the hold expired.
+  for (const p of [{ honorExpiresAt: ahead(1) }, { reauthorizedAt: old(0) }, { captureId: 'CAP' }, { expiresAt: old(1) }]) {
+    assert.equal(await payments.renewHold({ ...aged, payment: { ...aged.payment, ...p } } as Milestone), null);
+  }
+  assert.equal(posted('/v2/payments/authorizations/AUTH1/reauthorize').length, 1);
+});
+
+test('capturing an aged hold renews it first and captures the new authorization', async () => {
+  respond = (p) =>
+    p.endsWith('/reauthorize')
+      ? { json: { id: 'AUTH2', status: 'CREATED', amount: { value: '100.00', currency_code: 'USD' } } }
+      : p.endsWith('/capture')
+        ? { json: { id: 'CAP2', status: 'COMPLETED', amount: { value: '100.00', currency_code: 'USD' } } }
+        : p === '/v1/payments/payouts'
+          ? { json: { batch_header: { payout_batch_id: 'B2', batch_status: 'PENDING' } } }
+          : { status: 500, json: {} };
+  const result = await payments.releaseFunds(aged, 'Work accepted');
+  assert.equal(posted('/v2/payments/authorizations/AUTH2/capture').length, 1);
+  assert.equal(posted('/v2/payments/authorizations/AUTH1/capture').length, 0);
+  assert.equal(result.authorizationStatus, 'CAPTURED');
+  assert.equal(result.previousAuthorizationId, 'AUTH1');
+});
+
+test('if PayPal refuses the renewal, the capture still tries the original hold', async () => {
+  respond = (p) =>
+    p.endsWith('/reauthorize')
+      ? { status: 422, json: { name: 'UNPROCESSABLE_ENTITY', details: [{ issue: 'REAUTHORIZATION_NOT_ALLOWED' }] } }
+      : p.endsWith('/capture')
+        ? { json: { id: 'CAP1', status: 'COMPLETED', amount: { value: '100.00', currency_code: 'USD' } } }
+        : p === '/v1/payments/payouts'
+          ? { json: { batch_header: { payout_batch_id: 'B1', batch_status: 'PENDING' } } }
+          : { status: 500, json: {} };
+  const result = await payments.releaseFunds(aged, 'Work accepted');
+  assert.equal(posted('/v2/payments/authorizations/AUTH1/capture').length, 1);
+  assert.equal(result.reauthorizedAt, undefined);
+});

@@ -11,6 +11,7 @@ import {
   getPayoutBatch,
   isPayPalConfigured,
   PayPalApiError,
+  reauthorizeAuthorization,
   voidAuthorization,
 } from '../paypal.ts';
 import type { Milestone, PaymentState } from './types.ts';
@@ -67,33 +68,67 @@ export async function completeFunding(orderId: string, expected?: { amount: stri
   };
 }
 
+/** Has the hold outlived PayPal's 3-day guarantee without being renewed yet? */
+export function holdNeedsRenewal(p: PaymentState, now = Date.now()): boolean {
+  if (!p.authorizationId || p.captureId || p.voidedAt || p.reauthorizedAt || !p.honorExpiresAt) return false;
+  if (p.expiresAt && Date.parse(p.expiresAt) <= now) return false;
+  return Date.parse(p.honorExpiresAt) <= now;
+}
+
+/**
+ * PayPal guarantees held funds for 3 days, and a job often takes longer. Once that honor period has
+ * passed, reauthorize the hold (PayPal allows it once, up to day 29): the money is guaranteed for 3
+ * more days under a new authorization id. Null when the hold doesn't need it.
+ */
+export async function renewHold(m: Milestone): Promise<Partial<PaymentState> | null> {
+  const p = m.payment;
+  if (!holdNeedsRenewal(p)) return null;
+  const reauthorizedAt = new Date().toISOString();
+  if (p.mode === 'simulated') {
+    return { authorizationId: fakeId('AUTH'), authorizationStatus: 'CREATED', previousAuthorizationId: p.authorizationId, reauthorizedAt, honorExpiresAt: days(3) };
+  }
+  const auth = await reauthorizeAuthorization(p.authorizationId!, { currency_code: m.currency, value: m.amount });
+  if (auth.status === 'DENIED' || auth.status === 'VOIDED') throw new Error(`PayPal ${auth.status.toLowerCase()} the reauthorization (${auth.id}).`);
+  return {
+    authorizationId: auth.id,
+    authorizationStatus: auth.status,
+    previousAuthorizationId: p.authorizationId,
+    reauthorizedAt,
+    honorExpiresAt: days(3),
+    expiresAt: auth.expiration_time ?? p.expiresAt,
+  };
+}
+
 /** Capture the hold and pay the freelancer. `amount` (less than the full amount) settles for part of it. */
 export async function releaseFunds(m: Milestone, note: string, amount = m.amount): Promise<Partial<PaymentState>> {
-  const authId = m.payment.authorizationId;
+  // A hold past its honor period may no longer be guaranteed: renew it first, then capture the new one.
+  const renewed = await renewHold(m).catch(() => null);
+  const authId = renewed?.authorizationId ?? m.payment.authorizationId;
   if (!authId) throw new Error('No PayPal authorization to capture');
-  const partial = amount !== m.amount ? { capturedAmount: amount } : {};
+  // What the result carries besides the capture: the renewal, and the amount when it's a settlement.
+  const extra: Partial<PaymentState> = { ...renewed, ...(amount !== m.amount && { capturedAmount: amount }) };
 
   if (m.payment.mode === 'simulated') {
     return {
+      ...extra,
       captureId: fakeId('CAPTURE'),
       capturedAt: new Date().toISOString(),
       authorizationStatus: 'CAPTURED',
       payoutBatchId: fakeId('PAYOUT'),
       payoutStatus: 'SUCCESS',
-      ...partial,
     };
   }
 
-  const capture = await captureAuthorization(authId, note, partial.capturedAmount ? { currency_code: m.currency, value: amount } : undefined);
+  const capture = await captureAuthorization(authId, note, extra.capturedAmount ? { currency_code: m.currency, value: amount } : undefined);
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);
   }
   const result: Partial<PaymentState> = {
+    ...extra,
     captureId: capture.id,
     capturedAt: capture.create_time ?? new Date().toISOString(),
     authorizationStatus: 'CAPTURED',
-    ...partial,
   };
 
   // Pay out only money that has actually arrived. A pending capture (e.g. an eCheck) would mean

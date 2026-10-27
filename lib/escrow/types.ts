@@ -102,6 +102,11 @@ export interface PaymentState {
   payerEmail?: string;
   /** Set when less than the full amount was captured (a settlement); PayPal released the rest of the hold. */
   capturedAmount?: string;
+  /** The hold outlived PayPal's 3-day honor period and was reauthorized (once); the old authorization id. */
+  reauthorizedAt?: string;
+  previousAuthorizationId?: string;
+  /** Last failed reauthorization attempt, so a poll doesn't retry it every few seconds. */
+  reauthTriedAt?: string;
 }
 
 /** An open offer to close the milestone for part of the money. The other party accepts or declines. */

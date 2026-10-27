@@ -10,7 +10,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
 import { sniffType } from './evidence.ts';
-import { cancelFunding, completeFunding, paymentMode, payOutHeld, refreshPayoutStatus, releaseFunds, startFunding } from './payments.ts';
+import { cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { onPayPalCall } from '../paypal.ts';
 import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
@@ -240,7 +240,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
           }
           const payment = await releaseFunds(latest, `Work accepted: ${summary}`);
           updateMilestone(id, (x) => {
-            x.payment = { ...x.payment, ...payment };
+            mergeRelease(x, payment);
             x.status = 'released';
             pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
             pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
@@ -318,6 +318,7 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
     });
   }
   if (m.status === 'verified' && m.releaseAt && Date.parse(m.releaseAt) <= Date.now()) return releaseWhenDue(id);
+  if (HOLDING.includes(m.status) && holdNeedsRenewal(m.payment) && retryDue(m.payment.reauthTriedAt)) return renewHoldNow(id);
   if (!['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? '')) return m;
   return exclusive(id, async () => {
     const latest = mustGet(id);
@@ -330,6 +331,30 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
   });
 }
 
+const HOLDING = ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'];
+const retryDue = (triedAt?: string) => !triedAt || Date.now() - Date.parse(triedAt) > 6 * 3_600_000;
+
+// The job is outlasting PayPal's 3-day guarantee on the held money: reauthorize, once.
+function renewHoldNow(id: string): Promise<Milestone> {
+  return exclusive(id, async () => {
+    const m = mustGet(id);
+    if (!HOLDING.includes(m.status)) return m;
+    try {
+      const renewed = await renewHold(m);
+      if (!renewed) return m;
+      return updateMilestone(id, (x) => {
+        x.payment = { ...x.payment, ...renewed, reauthTriedAt: undefined };
+        pushEvent(x, 'paypal', 'reauthorized', `PayPal reauthorized the hold after its 3-day honor period: ${money(Number(x.amount), x.currency)} is guaranteed again (authorization ${renewed.authorizationId})`);
+      });
+    } catch (error) {
+      return updateMilestone(id, (x) => {
+        x.payment.reauthTriedAt = nowIso();
+        pushEvent(x, 'system', 'reauth_failed', `PayPal did not renew the hold (${(error as Error).message.slice(0, 160)}). It is still in place but no longer guaranteed; a capture may fail.`);
+      });
+    }
+  });
+}
+
 // The objection window closed without an objection: release the money. Runs on a timer, and again
 // whenever the milestone is read, in case the server restarted in between.
 function releaseWhenDue(id: string): Promise<Milestone> {
@@ -339,7 +364,7 @@ function releaseWhenDue(id: string): Promise<Milestone> {
     try {
       const payment = await releaseFunds(m, 'Work accepted: verified, and the objection window closed');
       return updateMilestone(id, (x) => {
-        x.payment = { ...x.payment, ...payment };
+        mergeRelease(x, payment);
         x.status = 'released';
         x.releaseAt = undefined;
         pushEvent(x, 'system', 'window_closed', `${x.client.name} did not object within ${x.objectionHours} h, so the payment goes out`);
@@ -371,7 +396,7 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
     if (!['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status)) throw new EscrowError(`Cannot release while ${m.status}.`);
     const payment = await releaseFunds(m, note || 'Released by the client');
     return updateMilestone(id, (x) => {
-      x.payment = { ...x.payment, ...payment };
+      mergeRelease(x, payment);
       x.status = 'released';
       x.releaseAt = undefined;
       x.settlement = undefined;
@@ -450,7 +475,7 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
   if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`Cannot settle while ${m.status}.`);
   const payment = await releaseFunds(m, `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount);
   return updateMilestone(id, (x) => {
-    x.payment = { ...x.payment, ...payment };
+    mergeRelease(x, payment);
     x.status = 'released';
     x.settlement = undefined;
     const rest = Number(x.amount) - Number(offer.amount);
@@ -661,6 +686,7 @@ function milestoneForEvent(e: WebhookEvent): Milestone | undefined {
       (payoutItem.sender_item_id && payoutItem.sender_item_id === m.id) ||
       (m.payment.captureId && r.id === m.payment.captureId) ||
       (m.payment.authorizationId && (r.id === m.payment.authorizationId || related.authorization_id === m.payment.authorizationId)) ||
+      (m.payment.previousAuthorizationId && (r.id === m.payment.previousAuthorizationId || related.authorization_id === m.payment.previousAuthorizationId)) ||
       (m.payment.payoutBatchId && (r.payout_batch_id === m.payment.payoutBatchId || r.batch_header?.payout_batch_id === m.payment.payoutBatchId)),
   );
 }
@@ -747,6 +773,14 @@ Description: ${description || '(none)'}`,
     ],
   });
   return response.parsed_output?.criteria.slice(0, 6) ?? [];
+}
+
+// Merges a capture's result. A hold renewed on the way (it was past its honor period) goes on the record.
+function mergeRelease(x: Milestone, payment: Partial<Milestone['payment']>) {
+  if (payment.reauthorizedAt && !x.payment.reauthorizedAt) {
+    pushEvent(x, 'paypal', 'reauthorized', `PayPal reauthorized the hold after its 3-day honor period (authorization ${payment.authorizationId}), then captured it`);
+  }
+  x.payment = { ...x.payment, ...payment };
 }
 
 function pushPayoutEvent(m: Milestone, payment: Partial<Milestone['payment']>) {
