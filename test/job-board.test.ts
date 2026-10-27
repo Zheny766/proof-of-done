@@ -179,3 +179,19 @@ test('how many open jobs one taker can hold depends on their standing', async ()
   await service.claimJob(b.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' });
   await assert.rejects(service.claimJob(c.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' }), /hold 2 at a time/);
 });
+
+test('the hosted board re-posts its demo jobs as they are taken, but at most 30 a day', async () => {
+  store.deleteAll();
+  process.env.POD_SEED_BOARD = '1';
+  try {
+    assert.equal(service.openJobs().length, 3);
+    for (let i = 0; i < 12; i++) {
+      for (const j of service.openJobs()) await service.claimJob(j.id, { name: 'Bot', payoutEmail: `bot${i}-${j.id}@example.com` });
+    }
+    const posted = store.listMilestones().filter((m) => m.demo?.scenario === 'board').length;
+    assert.equal(posted, 30);
+    assert.deepEqual(service.openJobs(), []);
+  } finally {
+    delete process.env.POD_SEED_BOARD;
+  }
+});

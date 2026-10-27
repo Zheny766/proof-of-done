@@ -684,7 +684,11 @@ const BOARD_DEMO_JOBS = [
 
 function ensureBoardDemoJobs() {
   if (!process.env.POD_SEED_BOARD) return;
-  const open = listMilestones().filter((m) => m.demo?.scenario === 'board' && isOpenJob(m));
+  const all = listMilestones();
+  // Re-posted as they're taken, but not without end: a bot claiming in a loop would grow the store.
+  const since = Date.now() - 86_400_000;
+  if (all.filter((m) => m.demo?.scenario === 'board' && Date.parse(m.createdAt) > since).length >= 30) return;
+  const open = all.filter((m) => m.demo?.scenario === 'board' && isOpenJob(m));
   for (const job of BOARD_DEMO_JOBS) {
     if (open.some((m) => m.title === job.title)) continue;
     const m = createMilestone({ ...job, clientName: 'Ember & Oak', clientEmail: 'maya@ember-oak.example', postToBoard: true });
