@@ -124,6 +124,14 @@ export interface MilestoneAccess {
 
 export type Role = 'client' | 'freelancer' | 'viewer';
 
+export interface ProjectStage {
+  id: string;
+  title: string;
+  /** 1-based position, and every stage's milestone id in order. */
+  stage: number;
+  stageIds: string[];
+}
+
 export interface JobBoardState {
   postedAt: string;
   /** Who took the job and when. They got a fresh freelancer key; a claim with no delivery lapses. */
@@ -164,6 +172,8 @@ export interface Milestone {
   board?: JobBoardState;
   /** The AI agent that wrote and posted the job for the client (through MCP). The client still approves the payment. */
   postedBy?: string;
+  /** One stage of a project: stages are funded and paid one by one, in order, with the same two links. */
+  project?: ProjectStage;
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

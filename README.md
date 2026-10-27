@@ -17,7 +17,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 - **Claude:** an Opus 5.5 reviewer agent (Tool Runner, vision, PDF), a Haiku 5.5 **second opinion** that can veto any release, and criteria drafting with structured outputs.
 - **AG Grid / AG Studio:** a four-page escrow report with a custom pipeline widget, a Claude adapter for the Studio Agent Framework, our own `explain_deal` tool for Studio's agents, and **WebMCP** tools for AI agents in the browser.
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets. An agent can also post a job; a human approves the payment in PayPal.
-- **Proof it holds up:** 85 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
+- **Proof it holds up:** 88 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
 
 ![Milestone page: PayPal hold, AI verdicts per criterion, audit log](docs/screenshots/milestone.png)
 
@@ -111,6 +111,7 @@ Every attack I could think of, and the test that proves each defence, is in [SEC
 ### PayPal (sandbox)
 - **JavaScript SDK v6** (`web-sdk/v6/core`, `createPayPalOneTimePaymentSession`, `<paypal-button>`) for the buyer approval - [app/components/paypal-fund-button.tsx](app/components/paypal-fund-button.tsx)
 - **Orders v2** `POST /v2/checkout/orders` with `intent: AUTHORIZE`, then `POST /v2/checkout/orders/{id}/authorize`
+- **Projects in stages**: a bigger job splits into up to six stages, each with its own amount, criteria and authorization, sharing the two links. A stage is funded when it starts, after the one before it is paid, so PayPal's 3-day guarantee covers the work actually in progress and the client never has more on hold than the current stage ([createProject](lib/escrow/service.ts))
 - **Payments v2** `POST /v2/payments/authorizations/{id}/capture` (final capture with a note to the payer; a partial `amount` for settlements, so the rest of the hold is released), `/void`, and `/reauthorize`: PayPal guarantees authorized funds for 3 days, so a hold that outlasts that is renewed once (allowed up to day 29), when the deal is read and right before a capture
 - **Payouts** `POST /v1/payments/payouts` to pay the freelancer from the captured funds (an optional platform fee is supported)
 - **Webhooks** `POST /v1/notifications/verify-webhook-signature` before any event is trusted; capture, authorization and payout events update the deal once each - [app/api/paypal/webhook/route.ts](app/api/paypal/webhook/route.ts), [scripts/register-paypal-webhook.mjs](scripts/register-paypal-webhook.mjs)
@@ -194,7 +195,7 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # 85 tests: escrow state machine (simulated, throwaway data dir) incl. objection
+npm test        # 88 tests: escrow state machine (simulated, throwaway data dir) incl. objection
                 # windows, settlements, hold renewal and demo replays; the open job board and the
                 # live challenge's limits; PayPal money calls and webhooks against a
                 # fake PayPal; the reviewer's tools without the API (policy gate, second opinion,

@@ -112,11 +112,67 @@ export function createMilestone(raw: unknown): Milestone {
   return insertMilestone(m);
 }
 
+// A project: several stages, each its own milestone with its own criteria and its own PayPal
+// authorization, sharing the client's and the freelancer's links. A stage is funded when it starts,
+// after the one before it is paid, so PayPal's 3-day guarantee covers the work actually in progress
+// and the client never has more on hold than the current stage.
+export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, amount: true, postToBoard: true }).extend({
+  stages: z
+    .array(
+      z.object({
+        title: z.string().trim().min(3).max(120),
+        amount: z.coerce.number().min(1).max(10_000),
+        criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
+      }),
+    )
+    .min(2)
+    .max(6),
+});
+
+export function createProject(raw: unknown): Milestone[] {
+  const input = CreateProjectInput.parse(raw);
+  if (!input.freelancerName || !input.freelancerEmail) throw new EscrowError('A project needs the freelancer: projects are not posted on the open board.');
+  const projectId = newId('prj');
+  const access = newAccess();
+  const stages = input.stages.map((st) =>
+    createMilestone({ ...input, title: `${input.title}: ${st.title}`, amount: st.amount, criteria: st.criteria, postToBoard: false }),
+  );
+  const stageIds = stages.map((m) => m.id);
+  return stages.map((m, i) =>
+    updateMilestone(m.id, (x) => {
+      x.access = { ...access };
+      x.project = { id: projectId, title: input.title, stage: i + 1, stageIds };
+      x.timeline = [];
+      pushEvent(x, 'client', 'created', `${x.client.name} created stage ${i + 1} of ${stageIds.length} of "${input.title}" for ${money(Number(x.amount), x.currency)}`);
+    }),
+  );
+}
+
+export type StageSummary = { id: string; stage: number; title: string; amount: string; currency: string; status: Milestone['status'] };
+
+/** Every stage of the project this milestone belongs to, in order (what anyone with the page sees). */
+export function projectStages(m: Milestone): StageSummary[] | null {
+  if (!m.project) return null;
+  return m.project.stageIds.flatMap((sid, i) => {
+    const x = getMilestone(sid);
+    return x ? [{ id: x.id, stage: i + 1, title: x.title.replace(`${m.project!.title}: `, ''), amount: x.amount, currency: x.currency, status: x.status }] : [];
+  });
+}
+
+/** The stage before this one, if it hasn't been paid (or cancelled) yet. */
+function unfinishedEarlierStage(m: Milestone): Milestone | undefined {
+  if (!m.project || m.project.stage === 1) return undefined;
+  const prev = getMilestone(m.project.stageIds[m.project.stage - 2]);
+  return prev && !['released', 'cancelled'].includes(prev.status) ? prev : undefined;
+}
+
 export const beginFunding = (id: string, key: string | null) => exclusive(id, () => beginFundingNow(id, key));
 async function beginFundingNow(id: string, key: string | null): Promise<{ orderId: string }> {
   const m = mustGet(id);
   requireRole(m, key, 'client');
   if (m.status !== 'awaiting_funding') throw new EscrowError('This milestone is already funded.');
+  const earlier = unfinishedEarlierStage(m);
+  if (earlier) throw new EscrowError(`Stage ${earlier.project!.stage} isn't paid yet. Each stage is funded when it starts, so fund this one after that.`, 409);
   const { orderId } = await startFunding(m);
   updateMilestone(id, (x) => {
     x.payment.orderId = orderId;

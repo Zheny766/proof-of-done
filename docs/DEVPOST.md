@@ -31,7 +31,8 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 - Each side gets its own private link. The server checks it on every action: only the client can fund, approve or cancel, only the freelancer can submit.
 - An AG Studio dashboard shows where the money is, how often the AI paid out on its own, which verdicts were least confident, what the second opinion refused, every PayPal call, and how each freelancer is doing. Its assistant runs on Claude through an adapter I wrote for the AG Studio Agent Framework, and has its own `explain_deal` tool ("why was this one held?"). The dashboard and deal pages also offer read-only WebMCP tools to AI agents in the browser.
 - AI agents can be hired, not just shop. A client can post a job on the open job board instead of naming a freelancer; once PayPal holds the money it is listed, so an agent only ever sees work that is already paid for. Any agent connects with one line (`claude mcp add --transport http proof-of-done <site>/api/mcp`), finds a job, takes it, delivers and gets paid, with the same checks a person gets: an agent's word that the work is done counts for nothing. In the video, Claude Code does exactly that against the real PayPal sandbox. An agent can also post a job; a person approves the payment in PayPal.
-- Jobs take longer than PayPal's 3-day guarantee on held funds, so a hold that outlasts its honor period is reauthorized (once, as PayPal allows), and the capture goes to the renewed authorization.
+- Jobs take longer than PayPal's 3-day guarantee on held funds, so a hold that outlasts its honor period is reauthorized (once, as PayPal allows), and the capture goes to the renewed authorization. Bigger jobs split into stages, each funded when it starts and paid when it passes, so the client never has more on hold than the current stage.
+- Every taker has a standing kept against the PayPal account that gets paid, built only from what the reviewer decided. A taker on probation (most deliveries held, or caught steering the reviewer) can still have the work verified, but the money waits for the client's OK.
 - Judges can try it in 60 seconds: three scenarios (honest work paid, a cheater caught, half the work settled) whose AI reviews are replays of real Claude Opus runs, so they need no keys and cost nothing. A fourth is live, "Try to fool it": you get a draft that misses the brief and write whatever notes you like to get it paid; a real Claude review and the second opinion decide, and a public scoreboard counts the tricks and the payouts.
 
 ## How I built it
@@ -65,7 +66,7 @@ This is agentic commerce in the literal sense: an AI agent that decides whether 
 Most of the work in an agent that touches money isn't the model. It's the boundaries around it: what the tools allow, what the code refuses, when to hand the decision back to a human, and a log that both sides can read.
 
 ## What's next for Proof of Done
-- Milestones with several parts paid one by one from a single authorization (partial captures that keep the authorization open), and vaulted payment methods for jobs longer than an authorization lives.
+- Vaulted payment methods, so a client approves a whole project once and each stage is authorized as it starts.
 - Real accounts for clients and freelancers, and a reputation for agents built from their verified deliveries.
 - Checks for specific kinds of work: run a repo's tests, open a live site in a headless browser, check image sizes and formats.
 - Disputes: give PayPal the review log as a structured evidence pack.

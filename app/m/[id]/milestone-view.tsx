@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
+import type { StageSummary } from '@/lib/escrow/service';
 import { api, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
 import { NextStep, Settlement, ShareLink } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
@@ -66,13 +67,16 @@ export function MilestoneView({
   link,
   freelancerKey,
   paypalClientId,
+  initialStages,
 }: {
   initial: Milestone;
   link: { role: Party; key: string } | null;
   freelancerKey: string | null;
   paypalClientId: string | null;
+  initialStages: StageSummary[] | null;
 }) {
   const [m, setM] = useState(initial);
+  const [stages, setStages] = useState(initialStages);
   const [chosen, setChosen] = useState<Party | null>(null);
 
   const stored = useSyncExternalStore(subscribeKeys, () => readStored(initial.id), () => null);
@@ -82,21 +86,25 @@ export function MilestoneView({
   );
   const keys = useMemo<SavedKeys>(() => ({ ...parseKeys(stored), ...fromLink }), [stored, fromLink]);
 
+  const stageIds = initial.project?.stageIds;
   useEffect(() => {
     if (!link) return;
     saveKeys(initial.id, fromLink);
+    // A project's stages share the two links, so the same keys open every stage.
+    for (const sid of stageIds ?? []) if (sid !== initial.id) saveKeys(sid, fromLink);
     // Keep the key out of the address bar (and out of screenshots and recordings).
     window.history.replaceState(null, '', `/m/${initial.id}`);
-  }, [initial.id, link, fromLink]);
+  }, [initial.id, link, fromLink, stageIds]);
 
   const role: Role = chosen ?? link?.role ?? (keys.client ? 'client' : keys.freelancer ? 'freelancer' : 'viewer');
   const key = role === 'viewer' ? null : (keys[role] ?? null);
 
   const refresh = useCallback(async () => {
-    const res = await api<{ milestone: Milestone; role: Role }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) });
+    const res = await api<{ milestone: Milestone; role: Role; stages: StageSummary[] | null }>(`/api/escrow/milestones/${initial.id}`, { headers: keyHeader(key) });
     // A saved key the server no longer accepts (e.g. the data was reset): drop it.
     if (key && res.role === 'viewer' && role !== 'viewer') forgetKey(initial.id, role);
     setM(res.milestone);
+    setStages(res.stages);
   }, [initial.id, key, role]);
 
   // Opened without a key in the link (e.g. from the list) but this browser has one: the server
@@ -135,6 +143,9 @@ export function MilestoneView({
 
   const review = m.reviews.at(-1);
   const both = !!(keys.client && keys.freelancer);
+  // A later stage is funded only once the one before it is paid (or cancelled).
+  const before = m.project && m.project.stage > 1 ? stages?.[m.project.stage - 2] : undefined;
+  const waitForStage = before && !['released', 'cancelled'].includes(before.status) ? before.stage : null;
   // For AI agents in the browser (WebMCP): what this page shows, read-only.
   const latest = useRef(m);
   useEffect(() => {
@@ -178,6 +189,8 @@ export function MilestoneView({
 
       {m.demo && m.demo.scenario !== 'board' && <DemoGuide m={m} role={role} />}
 
+      {m.project && stages && <ProjectStages m={m} stages={stages} />}
+
       <MoneyJourney m={m} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
@@ -204,7 +217,7 @@ export function MilestoneView({
             </div>
           )}
 
-          <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={setM} />
+          <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={setM} waitForStage={waitForStage} />
 
           {role !== 'viewer' && ['changes_requested', 'escalated'].includes(m.status) && <Settlement m={m} role={role} milestoneKey={key} onChange={setM} />}
 
@@ -310,4 +323,40 @@ function BoardStatus({ m }: { m: Milestone }) {
 function ago(iso: string) {
   const min = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60_000));
   return min < 60 ? `${min} min ago` : min < 48 * 60 ? `${Math.round(min / 60)} h ago` : `${Math.round(min / 1440)} days ago`;
+}
+
+/** The project this stage belongs to: every stage, what it pays and where it stands. */
+function ProjectStages({ m, stages }: { m: Milestone; stages: StageSummary[] }) {
+  const total = stages.reduce((sum, x) => sum + Number(x.amount), 0);
+  const paid = stages.filter((x) => x.status === 'released').reduce((sum, x) => sum + Number(x.amount), 0);
+  return (
+    <section className={`${card} mt-6`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className={h2}>
+          Project · {m.project!.title} · stage {m.project!.stage} of {stages.length}
+        </h2>
+        <span className="text-sm text-pp-muted">
+          {fmtMoney(paid, m.currency)} of {fmtMoney(total, m.currency)} paid
+        </span>
+      </div>
+      <ol className="mt-4 grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+        {stages.map((x) => (
+          <li key={x.id}>
+            <a
+              href={`/m/${x.id}`}
+              aria-current={x.id === m.id ? 'step' : undefined}
+              className={`flex h-full flex-col gap-2 rounded-xl border p-3 text-sm hover:border-pp-blue ${x.id === m.id ? 'border-pp-blue bg-pp-highlight/50' : 'border-pp-border'}`}
+            >
+              <span className="text-xs font-semibold text-pp-muted">Stage {x.stage}</span>
+              <span className="font-semibold leading-snug text-pp-ink">{x.title}</span>
+              <span className="mt-auto flex items-center justify-between gap-2">
+                <StatusBadge status={x.status} />
+                <span className="tabular-nums text-pp-muted">{fmtMoney(x.amount, x.currency)}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }

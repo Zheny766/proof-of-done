@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { publicMilestone, roleFor, viewerMilestone } from '@/lib/escrow/access';
 import { getMilestone } from '@/lib/escrow/store';
 import { paymentMode } from '@/lib/escrow/payments';
-import { readMilestone } from '@/lib/escrow/service';
+import { projectStages, readMilestone } from '@/lib/escrow/service';
 import { SiteHeader } from '@/app/components/site-header';
 import { MilestoneView } from './milestone-view';
 
@@ -32,6 +32,7 @@ export default async function MilestonePage(props: PageProps<'/m/[id]'>) {
         // (not for a job on the open board: whoever takes it gets their own key).
         freelancerKey={role === 'client' && !milestone.board ? milestone.access!.freelancerKey : null}
         paypalClientId={paymentMode() === 'sandbox' ? (process.env.PAYPAL_CLIENT_ID ?? null) : null}
+        initialStages={projectStages(milestone)}
       />
     </>
   );

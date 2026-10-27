@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { api } from './status';
 import type { Milestone } from '@/lib/escrow/types';
 
+type Stage = { title: string; amount: string; criteria: string };
+
 const field = 'h-10 w-full rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue focus:ring-2 focus:ring-pp-highlight';
 
 export function NewMilestoneForm() {
@@ -20,6 +22,31 @@ export function NewMilestoneForm() {
   const [threshold, setThreshold] = useState(0.8);
   const [objectionHours, setObjectionHours] = useState(0);
   const [toBoard, setToBoard] = useState(false);
+  // A project in stages, each with its own amount and criteria, funded and paid one by one.
+  const [staged, setStaged] = useState(false);
+  const [stages, setStages] = useState<Stage[]>([
+    { title: 'First draft', amount: '100', criteria: '' },
+    { title: 'Final files', amount: '150', criteria: '' },
+  ]);
+  const [draftingStage, setDraftingStage] = useState<number | null>(null);
+  const setStage = (i: number, patch: Partial<Stage>) => setStages(stages.map((st, j) => (j === i ? { ...st, ...patch } : st)));
+
+  async function draftStage(i: number) {
+    setError('');
+    setDraftingStage(i);
+    try {
+      const { criteria: drafted } = await api<{ criteria: string[] }>('/api/escrow/criteria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `${title}: ${stages[i].title}`.slice(0, 120), description }),
+      });
+      if (drafted.length) setStage(i, { criteria: drafted.join('\n') });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDraftingStage(null);
+    }
+  }
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -46,6 +73,18 @@ export function NewMilestoneForm() {
     setError('');
     setSaving(true);
     try {
+      if (staged) {
+        const { milestones, clientKey } = await api<{ milestones: Milestone[]; clientKey: string }>('/api/escrow/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title, description, currency: 'USD', clientName, clientEmail, freelancerName, freelancerEmail, releaseThreshold: threshold, objectionHours,
+            stages: stages.map((st) => ({ title: st.title, amount: st.amount, criteria: st.criteria.split('\n').map((c) => c.trim()).filter(Boolean) })),
+          }),
+        });
+        router.push(`/m/${milestones[0].id}?key=${clientKey}`);
+        return;
+      }
       const { milestone, clientKey } = await api<{ milestone: Milestone; clientKey: string }>('/api/escrow/milestones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,16 +109,53 @@ export function NewMilestoneForm() {
           What needs to be done?
           <input className={`${field} mt-1`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Landing page for a yoga studio" required minLength={3} />
         </label>
-        <label className="block text-sm font-medium">
-          Amount (USD)
-          <input className={`${field} mt-1`} type="number" min="1" max="10000" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-        </label>
+        {staged ? (
+          <div className="text-sm font-medium">
+            Total (USD)
+            <div className="mt-1 flex h-10 items-center rounded-md bg-pp-canvas px-3 tabular-nums">{stages.reduce((sum, st) => sum + (Number(st.amount) || 0), 0).toFixed(2)}</div>
+          </div>
+        ) : (
+          <label className="block text-sm font-medium">
+            Amount (USD)
+            <input className={`${field} mt-1`} type="number" min="1" max="10000" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          </label>
+        )}
       </div>
       <label className="block text-sm font-medium">
         Details
         <textarea className={`${field} mt-1 h-24 py-2`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="One page, class schedule, contact form to hello@lotusflow.example, must look good on phones…" />
       </label>
 
+      {staged ? (
+        <div>
+          <span className="text-sm font-medium">Stages <span className="font-normal text-pp-muted">· each is funded when it starts and paid when the AI verifies its criteria</span></span>
+          <ol className="mt-2 space-y-3">
+            {stages.map((st, i) => (
+              <li key={i} className="rounded-lg border border-pp-border p-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-14 shrink-0 text-xs font-semibold text-pp-muted">Stage {i + 1}</span>
+                  <input className={`${field} min-w-0 flex-1`} value={st.title} onChange={(e) => setStage(i, { title: e.target.value })} aria-label={`Stage ${i + 1} name`} required minLength={3} />
+                  <span className="w-28 shrink-0">
+                    <input className={field} type="number" min="1" max="10000" step="0.01" value={st.amount} onChange={(e) => setStage(i, { amount: e.target.value })} aria-label={`Stage ${i + 1} amount`} required />
+                  </span>
+                  {stages.length > 2 && (
+                    <button type="button" aria-label={`Remove stage ${i + 1}`} onClick={() => setStages(stages.filter((_, j) => j !== i))} className="px-1 text-pp-muted hover:text-pp-danger">×</button>
+                  )}
+                </div>
+                <textarea className={`${field} mt-2 h-20 py-2`} value={st.criteria} onChange={(e) => setStage(i, { criteria: e.target.value })} aria-label={`Stage ${i + 1} criteria`} placeholder="Acceptance criteria, one per line" required />
+                <button type="button" onClick={() => draftStage(i)} disabled={draftingStage !== null || title.trim().length < 3} className="mt-1 text-xs font-semibold text-violet-700 hover:underline disabled:opacity-50">
+                  {draftingStage === i ? 'Drafting…' : 'Draft criteria with AI'}
+                </button>
+              </li>
+            ))}
+          </ol>
+          {stages.length < 6 && (
+            <button type="button" onClick={() => setStages([...stages, { title: `Stage ${stages.length + 1}`, amount: '100', criteria: '' }])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">
+              + Add stage
+            </button>
+          )}
+        </div>
+      ) : (
       <div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Acceptance criteria <span className="font-normal text-pp-muted">· the AI releases the money only when all are verified</span></span>
@@ -98,9 +174,18 @@ export function NewMilestoneForm() {
         </ol>
         <button type="button" onClick={() => setCriteria([...criteria, ''])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">+ Add criterion</button>
       </div>
+      )}
 
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-pp-border p-3 text-sm">
-        <input type="checkbox" checked={toBoard} onChange={(e) => setToBoard(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--pp-blue)]" aria-label="Post on the open job board" />
+        <input type="checkbox" checked={staged} onChange={(e) => { setStaged(e.target.checked); if (e.target.checked) setToBoard(false); }} className="mt-0.5 h-4 w-4 accent-[var(--pp-blue)]" aria-label="Split it into stages" />
+        <span>
+          <span className="font-medium">Split it into stages, paid one by one</span>
+          <span className="block text-pp-muted">For bigger jobs: each stage has its own amount and criteria, is funded when it starts and paid when it passes. You never have more on hold than the current stage.</span>
+        </span>
+      </label>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-pp-border p-3 text-sm">
+        <input type="checkbox" checked={toBoard} onChange={(e) => { setToBoard(e.target.checked); if (e.target.checked) setStaged(false); }} className="mt-0.5 h-4 w-4 accent-[var(--pp-blue)]" aria-label="Post on the open job board" />
         <span>
           <span className="font-medium">Post it on the open job board</span>
           <span className="block text-pp-muted">No freelancer yet: once PayPal holds the money, any AI agent or person can take the job. Whoever delivers work that passes gets paid.</span>
@@ -140,7 +225,7 @@ export function NewMilestoneForm() {
 
       {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-pp-danger">{error}</p>}
       <button disabled={saving} className="h-11 w-full rounded-full bg-pp-blue text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-60">
-        {saving ? 'Creating…' : 'Create milestone → fund it with PayPal'}
+        {saving ? 'Creating…' : staged ? 'Create the project → fund stage 1 with PayPal' : 'Create milestone → fund it with PayPal'}
       </button>
     </form>
   );

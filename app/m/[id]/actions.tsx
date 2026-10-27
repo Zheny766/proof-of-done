@@ -16,6 +16,7 @@ export function NextStep({
   paypalClientId,
   onFunded,
   onChange,
+  waitForStage = null,
 }: {
   m: Milestone;
   role: Role;
@@ -23,6 +24,8 @@ export function NextStep({
   paypalClientId: string | null;
   onFunded: () => void;
   onChange: (m: Milestone) => void;
+  /** A project stage that has to be paid before this one can be funded. */
+  waitForStage?: number | null;
 }) {
   const amount = fmtMoney(m.amount, m.currency);
   const settled = m.payment.capturedAmount;
@@ -55,6 +58,12 @@ export function NextStep({
   }
   if (role === 'viewer') return box('Read-only', 'The client and the freelancer each have their own private link to act on this deal.');
 
+  if (m.status === 'awaiting_funding' && waitForStage) {
+    return box(
+      `Starts after stage ${waitForStage}`,
+      `Each stage is funded when it starts, once the one before it is paid. That way PayPal's guarantee covers the work in progress, and ${m.client.name} never has more on hold than the current stage.`,
+    );
+  }
   if (m.status === 'awaiting_funding') {
     if (role === 'freelancer') return box(`Waiting for ${m.client.name}`, `${m.client.name} hasn't put the money on hold yet. You can deliver as soon as PayPal holds ${amount}.`);
     return (
