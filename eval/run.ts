@@ -19,7 +19,10 @@ const { UPLOAD_DIR } = await import('../lib/escrow/store.ts');
 type Spec = { title: string; description: string; criteria: string[] };
 type Case = { id: string; milestone: string; kind: string; expect: 'release' | 'hold'; notes: string; files?: string[]; links?: string[] };
 const here = path.dirname(new URL(import.meta.url).pathname);
-const { milestones, cases } = JSON.parse(fs.readFileSync(path.join(here, 'cases.json'), 'utf8')) as { milestones: Record<string, Spec>; cases: Case[] };
+// EVAL_CASES / EVAL_FIXTURES / EVAL_OUT point a one-off run elsewhere without touching the committed results.
+const casesFile = process.env.EVAL_CASES ?? path.join(here, 'cases.json');
+const fixturesDir = process.env.EVAL_FIXTURES ?? path.join(here, 'fixtures');
+const { milestones, cases } = JSON.parse(fs.readFileSync(casesFile, 'utf8')) as { milestones: Record<string, Spec>; cases: Case[] };
 
 const arg = (name: string) => process.argv.find((a, i) => process.argv[i - 1] === name);
 const only = arg('--only')?.split(',');
@@ -42,7 +45,7 @@ for (const c of cases.filter((x) => !only || only.includes(x.id))) {
   }
   const spec = milestones[c.milestone];
   const attachments: Attachment[] = (c.files ?? []).map((name, i) => {
-    const bytes = fs.readFileSync(path.join(here, 'fixtures', name));
+    const bytes = fs.readFileSync(path.join(fixturesDir, name));
     const rel = path.join('eval', c.id, `${i}_${name}`);
     fs.mkdirSync(path.dirname(path.join(UPLOAD_DIR, rel)), { recursive: true });
     fs.writeFileSync(path.join(UPLOAD_DIR, rel), bytes);
@@ -103,7 +106,7 @@ const falseHolds = results.filter((r) => r.expect === 'release' && r.outcome ===
 const summary = { reviewModel: REVIEW_MODEL, auditModel: AUDIT_MODEL, date: new Date().toISOString().slice(0, 10), cases: results.length, passed, falseReleases, falseHolds, cost: Number(spent.toFixed(4)) };
 console.log(JSON.stringify(summary));
 
-const outDir = path.join(here, 'results');
+const outDir = process.env.EVAL_OUT ?? path.join(here, 'results');
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, `${REVIEW_MODEL}.json`), JSON.stringify({ summary, results }, null, 2) + '\n');
 const md = [
