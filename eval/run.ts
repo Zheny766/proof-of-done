@@ -38,7 +38,7 @@ const cost = (model: string, u?: { inputTokens: number; outputTokens: number }) 
   const [i, o] = PRICE[model] ?? [4, 20];
   return u ? (u.inputTokens * i + u.outputTokens * o) / 1e6 : 0;
 };
-const MIME: Record<string, string> = { '.pdf': 'application/pdf', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain' };
+const MIME: Record<string, string> = { '.pdf': 'application/pdf', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.md': 'text/markdown', '.py': 'text/x-python' };
 
 const results = [];
 let spent = 0;
