@@ -770,7 +770,7 @@ const arenaDaily = () => Number(process.env.POD_ARENA_DAILY ?? 30);
 const arenaDeals = () => listMilestones().filter((m) => m.demo?.scenario === 'arena');
 
 function arenaCheck() {
-  if (!isClaudeConfigured()) throw new EscrowError('The live challenge needs Claude on the server. The three replayed scenarios work without it.', 503);
+  if (!isClaudeConfigured()) throw new EscrowError('The live challenge needs Claude on the server. The four replayed scenarios work without it.', 503);
   const since = Date.now() - 86_400_000;
   const today = arenaDeals().filter((m) => m.submissions.some((x) => Date.parse(x.at) > since)).length;
   if (today >= arenaDaily() || !demoReviewsLeft()) throw new EscrowError(`Today's live attempts are used up. Come back tomorrow, or try the replayed scenarios.`, 429);
