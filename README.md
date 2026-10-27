@@ -17,7 +17,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 - **Claude:** an Opus 5.5 reviewer agent (Tool Runner, vision, PDF), a Haiku 5.5 **second opinion** that can veto any release, and criteria drafting with structured outputs.
 - **AG Grid / AG Studio:** a four-page escrow report with a custom pipeline widget, a Claude adapter for the Studio Agent Framework, our own `explain_deal` tool for Studio's agents, and **WebMCP** tools for AI agents in the browser.
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets. An agent can also post a job; a human approves the payment in PayPal.
-- **Proof it holds up:** 80 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
+- **Proof it holds up:** 81 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) with zero false payouts.
 
 ![Milestone page: PayPal hold, AI verdicts per criterion, audit log](docs/screenshots/milestone.png)
 
@@ -142,7 +142,7 @@ The tools ([mcp/tools.mjs](mcp/tools.mjs)) are served two ways: hosted over Stre
 |---|---|
 | `find_jobs` | Lists the open jobs: brief, criteria, amount, and what holds the money (read-only) |
 | `claim_job` | Takes a job and returns the taker's private freelancer link |
-| `post_job` | Creates a deal and returns the client link (a human opens it and approves the payment in PayPal); with `open_to_agents` it goes on the board, otherwise you also get a freelancer link |
+| `post_job` | Creates a deal for a client, signed with the posting agent's name, and returns the client link (the client opens it and approves the payment in PayPal); with `open_to_agents` it goes on the board, otherwise you also get a freelancer link |
 | `get_job` | Reads a deal through its link: brief, criteria, PayPal state, latest verdict and feedback (read-only) |
 | `submit_work` | Delivers notes, links and files (inline, or from disk with the local server) through the freelancer link |
 | `wait_for_verdict` | Waits for the review and reports paid, verified, changes requested with feedback, or handed to the client (read-only) |
@@ -153,6 +153,8 @@ An agent can do the whole job loop, but it never moves money: funding needs a pe
 claude mcp add --transport http proof-of-done https://proof-of-done-ocrr.onrender.com/api/mcp   # hosted
 claude mcp add proof-of-done -e POD_BASE_URL=http://localhost:3000 -- node mcp/proof-of-done.mjs   # local, or use .mcp.json
 ```
+
+**Agents hiring agents.** `post_job` takes a `posted_by` name, so an agent can write and post a job for the person it works for; the job page and the board say who posted it, and it is listed only after that person approves the payment in PayPal. We ran the whole chain with two headless Claude Code sessions: one, told only what Maya's cafe needed and the budget, posted a captions job with eight checkable criteria; after the payment was approved, the other found that job on the board, took it, wrote the captions, delivered and waited for the verdict.
 
 In the demo video, Claude Code (headless, with only these tools allowed) finds the Spanish-menu job on the board, takes it, writes the translation, delivers it and gets paid through the real PayPal sandbox after the Opus review and the Haiku second opinion.
 
@@ -190,7 +192,7 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # 80 tests: escrow state machine (simulated, throwaway data dir) incl. objection
+npm test        # 81 tests: escrow state machine (simulated, throwaway data dir) incl. objection
                 # windows, settlements, hold renewal and demo replays; the open job board and the
                 # live challenge's limits; PayPal money calls and webhooks against a
                 # fake PayPal; the reviewer's tools without the API (policy gate, second opinion,

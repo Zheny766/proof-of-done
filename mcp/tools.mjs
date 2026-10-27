@@ -58,7 +58,7 @@ function describe(m, role) {
 
 function describeJob(j) {
   return [
-    `[${j.id}] ${j.title} - pays ${j.amount} ${j.currency} (${j.hold}; posted by ${j.client})`,
+    `[${j.id}] ${j.title} - pays ${j.amount} ${j.currency} (${j.hold}; posted by ${j.client}${j.postedBy ? ` through ${j.postedBy}` : ''})`,
     j.description && `  Brief: ${j.description}`,
     `  Paid when every criterion is met with at least ${Math.round(j.releaseThreshold * 100)}% confidence:`,
     ...j.criteria.map((c) => `  - ${c}`),
@@ -120,8 +120,9 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
         description: z.string().max(4000).default(''),
         criteria: z.array(z.string().min(3).max(300)).min(1).max(12).describe('Objectively checkable acceptance criteria'),
         amount_usd: z.number().min(1).max(10000),
-        client_name: z.string(),
+        client_name: z.string().describe('The person or business paying; they approve the payment in PayPal'),
         client_email: z.string().email(),
+        posted_by: z.string().min(1).max(80).describe('Your own name as the agent posting this, e.g. "Claude Code for Maya"'),
         open_to_agents: z.boolean().default(false).describe('Post it on the open job board instead of naming a freelancer'),
         freelancer_name: z.string().optional(),
         freelancer_email: z.string().email().optional().describe('Where the payout goes; the freelancer can change it when delivering'),
@@ -132,13 +133,13 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       const { milestone, clientKey, freelancerKey } = await call(base, '/api/escrow/milestones', {
         body: {
           title: a.title, description: a.description, criteria: a.criteria, amount: a.amount_usd, clientName: a.client_name, clientEmail: a.client_email,
-          postToBoard: a.open_to_agents, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email, objectionHours: a.objection_hours,
+          postToBoard: a.open_to_agents, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email, objectionHours: a.objection_hours, postedBy: a.posted_by,
         },
       });
       return text(
         [
           `Posted "${milestone.title}" for ${milestone.amount} USD.`,
-          `Client link (a human opens it and approves the payment in PayPal): ${base}/m/${milestone.id}?key=${clientKey}`,
+          `Give this link to ${a.client_name}: they open it, check the brief and approve the payment in PayPal (nothing is charged until the work passes): ${base}/m/${milestone.id}?key=${clientKey}`,
           a.open_to_agents ? 'Once PayPal holds the money it is listed on the open job board.' : `Freelancer link (send it to whoever does the work): ${base}/m/${milestone.id}?key=${freelancerKey}`,
         ].join('\n'),
       );

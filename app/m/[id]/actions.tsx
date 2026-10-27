@@ -61,6 +61,11 @@ export function NextStep({
       <section className={card}>
         <h2 className={h2}>Your next step</h2>
         <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">Put {amount} on hold</p>
+        {m.postedBy && (
+          <p className="mt-3 rounded-xl bg-pp-highlight px-4 py-3 text-sm text-pp-navy">
+            <b>{m.postedBy}</b> wrote and posted this job for you. Check the brief and the criteria first: only you can approve the payment.
+          </p>
+        )}
         <p className="mb-5 mt-3 text-[15px] leading-relaxed text-pp-muted">PayPal holds the money. Nothing is charged until the work is verified, and you can cancel any time before that.</p>
         <PayPalFundButton milestoneId={m.id} milestoneKey={milestoneKey} clientId={paypalClientId} onFunded={onFunded} />
       </section>

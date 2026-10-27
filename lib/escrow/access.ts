@@ -72,6 +72,7 @@ export function publicJob(m: Milestone) {
     currency: m.currency,
     releaseThreshold: m.releaseThreshold,
     client: m.client.name,
+    postedBy: m.postedBy ?? null,
     postedAt: m.board?.postedAt ?? m.createdAt,
     hold: m.payment.mode === 'sandbox' ? 'PayPal sandbox authorization' : 'simulated hold (demo)',
   };

@@ -68,7 +68,8 @@ export default async function JobsPage() {
                 <div className="min-w-0">
                   <h3 className="font-display text-2xl leading-tight text-pp-navy">{m.title}</h3>
                   <p className="mt-1 text-sm text-pp-muted">
-                    Posted by {m.client.name} · <span className="font-mono text-xs">{m.id}</span>
+                    Posted by {m.client.name}
+                    {m.postedBy && ` through ${m.postedBy}`} · <span className="font-mono text-xs">{m.id}</span>
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

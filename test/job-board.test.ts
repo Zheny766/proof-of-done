@@ -97,7 +97,7 @@ test('the public job shows what to do and what it pays, nothing private', async 
   store.deleteAll();
   const { id } = await postAndFund();
   const j = access.publicJob(store.getMilestone(id)!);
-  assert.deepEqual(Object.keys(j).sort(), ['amount', 'client', 'criteria', 'currency', 'description', 'hold', 'id', 'postedAt', 'releaseThreshold', 'title']);
+  assert.deepEqual(Object.keys(j).sort(), ['amount', 'client', 'criteria', 'currency', 'description', 'hold', 'id', 'postedAt', 'postedBy', 'releaseThreshold', 'title']);
   assert.ok(!JSON.stringify(j).includes('maya@example.com'));
 });
 
@@ -118,4 +118,14 @@ test('track records come from confirmed outcomes: paid after review, held, still
   const records = service.boardRecords();
   assert.deepEqual(records[0], { name: 'Claude Code agent', taken: 2, paid: 1, held: 1, working: 0, earned: 40, demo: false });
   assert.deepEqual(records[1], { name: 'Someone', taken: 1, paid: 0, held: 0, working: 1, earned: 0, demo: false });
+});
+
+test('an agent can post a job for its client, on the record; the client still has to fund it', async () => {
+  store.deleteAll();
+  const m = service.createMilestone({ ...job, postedBy: 'Claude Code for Maya' });
+  assert.equal(m.postedBy, 'Claude Code for Maya');
+  assert.equal(m.status, 'awaiting_funding');
+  assert.match(m.timeline[0].text, /Claude Code for Maya posted the job for Maya/);
+  assert.deepEqual(service.openJobs(), [], 'not listed before the client approves the payment');
+  assert.equal(access.publicJob(m).postedBy, 'Claude Code for Maya');
 });

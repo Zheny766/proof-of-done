@@ -162,6 +162,8 @@ export interface Milestone {
   demo?: { scenario: string };
   /** Posted on the open job board: once funded, any AI agent (or person) can take it. */
   board?: JobBoardState;
+  /** The AI agent that wrote and posted the job for the client (through MCP). The client still approves the payment. */
+  postedBy?: string;
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

@@ -66,6 +66,8 @@ export const CreateMilestoneInput = z.object({
   freelancerName: z.string().trim().min(1).max(80).optional(),
   freelancerEmail: z.email().optional(),
   postToBoard: z.boolean().default(false),
+  // An agent that posts for the client says so; the client still has to approve the payment in PayPal.
+  postedBy: z.string().trim().min(1).max(80).optional(),
   releaseThreshold: z.coerce.number().min(0.5).max(0.99).default(0.8),
   // Capped well inside PayPal's 3-day honor period, so the capture after the window still goes through.
   objectionHours: z.coerce.number().int().min(0).max(48).default(0),
@@ -94,10 +96,18 @@ export function createMilestone(raw: unknown): Milestone {
     timeline: [],
     access: newAccess(),
     ...(input.postToBoard && { board: { postedAt: nowIso() } }),
+    ...(input.postedBy && { postedBy: input.postedBy }),
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
-  pushEvent(m, 'client', 'created', `${m.client.name} created the milestone for ${money(input.amount, m.currency)}`);
+  pushEvent(
+    m,
+    'client',
+    'created',
+    input.postedBy
+      ? `${input.postedBy} posted the job for ${m.client.name}: ${money(input.amount, m.currency)}, waiting for ${m.client.name} to approve the payment`
+      : `${m.client.name} created the milestone for ${money(input.amount, m.currency)}`,
+  );
   if (input.postToBoard) pushEvent(m, 'client', 'posted', 'Posted on the open job board: it is listed once PayPal holds the money');
   return insertMilestone(m);
 }
