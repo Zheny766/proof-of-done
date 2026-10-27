@@ -1,12 +1,12 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import type { Milestone } from '@/lib/escrow/types';
 import { fmtDate, fmtMoney } from '@/app/components/status';
 import { card, currentMinute, h2, noSubscribe } from './ui';
 
 /** The PayPal side of the deal, with the real ids. */
-export function PaymentDetails({ m }: { m: Milestone }) {
+export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey?: string | null }) {
   const p = m.payment;
   const rows: [string, string | undefined][] = [
     ['Order', p.orderId],
@@ -44,6 +44,7 @@ export function PaymentDetails({ m }: { m: Milestone }) {
         ))}
         {!p.orderId && <p className="text-sm text-pp-muted">No PayPal order yet.</p>}
       </dl>
+      {milestoneKey && m.payment.authorizationId && <DownloadRecord id={m.id} milestoneKey={milestoneKey} />}
       {!!m.paypalCalls?.length && (
         <details className="group mt-4 border-t border-pp-border pt-3">
           <summary className="cursor-pointer list-none text-xs font-semibold text-pp-blue">
@@ -68,6 +69,33 @@ export function PaymentDetails({ m }: { m: Milestone }) {
         </details>
       )}
     </section>
+  );
+}
+
+/** The deal's whole record as a JSON file, for a PayPal dispute or anyone else who needs to see it. */
+function DownloadRecord({ id, milestoneKey }: { id: string; milestoneKey: string }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res = await fetch(`/api/escrow/milestones/${id}/record`, { headers: { 'x-milestone-key': milestoneKey } });
+          if (!res.ok) return;
+          const url = URL.createObjectURL(await res.blob());
+          const a = Object.assign(document.createElement('a'), { href: url, download: `proof-of-done-${id}.json` });
+          a.click();
+          URL.revokeObjectURL(url);
+        } finally {
+          setBusy(false);
+        }
+      }}
+      className="mt-4 w-full rounded-xl border border-pp-border px-3 py-2 text-left text-xs font-semibold text-pp-blue hover:border-pp-blue disabled:opacity-60"
+    >
+      {busy ? 'Preparing…' : 'Download the full record (for a PayPal dispute)'}
+      <span className="block font-normal text-pp-muted">Criteria, findings and evidence, the second opinion, every step, the PayPal ids and each file’s SHA-256</span>
+    </button>
   );
 }
 

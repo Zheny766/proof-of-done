@@ -317,3 +317,17 @@ test('a job that outlasts the 3-day honor period gets its hold renewed once, on 
   await service.readMilestone(id);
   assert.equal(count(id, 'reauthorized'), 1);
 });
+
+test('the deal record for a dispute: evidence, every step, the PayPal ids and the certificate', async () => {
+  const { id, freelancerKey } = await funded();
+  await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  const { dealRecord } = await import('../lib/escrow/record.ts');
+  const record = dealRecord(store.getMilestone(id)!, 'client', 'https://pod.example');
+  assert.equal(record.requestedBy, 'client');
+  assert.equal(record.criteria.length, 2);
+  assert.ok(record.criteria.every((c) => c.finding));
+  assert.match(record.paypal.captureId ?? '', /^CAPTURE-SIM-/);
+  assert.ok(record.reviews[0].steps.length > 0);
+  assert.equal(record.certificate, `https://pod.example/m/${id}/proof`);
+  assert.ok(!JSON.stringify(record).includes('clientKey'), 'no access keys');
+});

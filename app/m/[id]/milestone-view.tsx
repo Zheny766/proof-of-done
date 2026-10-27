@@ -230,7 +230,7 @@ export function MilestoneView({
 
           {role === 'client' && !m.board && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
 
-          <PaymentDetails m={m} />
+          <PaymentDetails m={m} milestoneKey={key} />
           <Timeline m={m} />
         </div>
 
