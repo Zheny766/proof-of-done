@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { arenaStats } from '@/lib/escrow/service';
+import { sandboxRuns } from '@/lib/escrow/sandbox-runs';
 import { SiteHeader } from '@/app/components/site-header';
 import { AutoRefresh } from '@/app/components/auto-refresh';
 import { StartDemo } from './start-button';
@@ -102,6 +103,15 @@ export default async function DemoPage() {
 
         <div className="mt-10 rounded-2xl border border-pp-border bg-white p-6 text-[15px] leading-relaxed text-pp-muted">
           <b className="text-pp-ink">Want to see it live?</b> <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Create your own deal</Link>: it goes through the real PayPal sandbox (log in to the popup with a sandbox buyer account), and with an Anthropic key set the review runs live on Claude.
+          {sandboxRuns().length > 0 && (
+            <>
+              {' '}Or look at{' '}
+              <Link href="/sandbox" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">
+                deals that ran on the real PayPal sandbox
+              </Link>
+              , with every id PayPal returned.
+            </>
+          )}
         </div>
       </main>
     </>
