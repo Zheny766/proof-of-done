@@ -1,5 +1,5 @@
 import 'server-only';
-// Milestones flattened into four tables (milestones, reviews, findings, events) for AG Studio.
+// Milestones flattened into five tables (milestones, reviews, findings, events, PayPal calls) for AG Studio.
 
 import { redactEmails } from './access.ts';
 import { paymentMode } from './payments.ts';
@@ -53,6 +53,25 @@ export type ReviewRow = {
   avgConfidence: number | null;
   inputTokens: number;
   outputTokens: number;
+  /** confirmed / refused / not asked (the release was never attempted). */
+  secondOpinion: string;
+  secondOpinionAsked: number;
+  isVeto: number;
+  redFlags: number;
+};
+
+export type PayPalCallRow = {
+  id: string;
+  milestoneId: string;
+  at: string;
+  date: string;
+  method: string;
+  /** The path with ids replaced, so calls group by endpoint. */
+  endpoint: string;
+  status: number;
+  ok: boolean;
+  isError: number;
+  ms: number;
 };
 
 export type FindingRow = {
@@ -83,6 +102,7 @@ export type EscrowDashboardData = {
   reviews: ReviewRow[];
   findings: FindingRow[];
   events: EventRow[];
+  paypalCalls: PayPalCallRow[];
 };
 
 const STAGE: Record<string, string> = {
@@ -115,6 +135,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
   const rRows: ReviewRow[] = [];
   const fRows: FindingRow[] = [];
   const eRows: EventRow[] = [];
+  const pRows: PayPalCallRow[] = [];
 
   for (const m of milestones) {
     const amount = Number(m.amount);
@@ -176,6 +197,10 @@ export function getEscrowDashboardData(): EscrowDashboardData {
         avgConfidence: r.findings.length ? r.findings.reduce((s, f) => s + f.confidence, 0) / r.findings.length : null,
         inputTokens: r.usage?.inputTokens ?? 0,
         outputTokens: r.usage?.outputTokens ?? 0,
+        secondOpinion: !r.audit ? 'not asked' : r.audit.agreed ? 'confirmed' : r.audit.redFlags.length ? 'refused: red flag' : 'refused: evidence',
+        secondOpinionAsked: r.audit ? 1 : 0,
+        isVeto: r.audit && !r.audit.agreed ? 1 : 0,
+        redFlags: r.audit?.redFlags.length ?? 0,
       });
       r.findings.forEach((f, i) =>
         fRows.push({
@@ -191,11 +216,26 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       );
     }
 
+    (m.paypalCalls ?? []).forEach((c, i) =>
+      pRows.push({
+        id: `${m.id}-pp${i}`,
+        milestoneId: m.id,
+        at: c.at,
+        date: c.at.slice(0, 10),
+        method: c.method,
+        endpoint: c.path.replace(/\/[A-Z0-9-]{10,}(?=\/|$)/g, '/{id}'),
+        status: c.status,
+        ok: c.status < 400,
+        isError: c.status < 400 ? 0 : 1,
+        ms: c.ms,
+      }),
+    );
+
     m.timeline.forEach((e, i) =>
       // The dashboard has no login, so no addresses in it.
       eRows.push({ id: `${m.id}-${i}`, milestoneId: m.id, at: e.at, date: e.at.slice(0, 10), actor: e.actor, type: e.type, text: redactEmails(e.text) }),
     );
   }
 
-  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows };
+  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows, paypalCalls: pRows };
 }

@@ -117,6 +117,10 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
           ['avgConfidence', 'Avg Confidence', 'percentageFormat'],
           ['inputTokens', 'Input Tokens', 'integerFormat'],
           ['outputTokens', 'Output Tokens', 'integerFormat'],
+          ['secondOpinion', 'Second Opinion', 'textFormat'],
+          ['secondOpinionAsked', 'Second Opinion Asked', 'integerFormat', true],
+          ['isVeto', 'Vetoed by Second Opinion', 'integerFormat'],
+          ['redFlags', 'Red Flags', 'integerFormat'],
         ]),
       },
       {
@@ -136,6 +140,24 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
         ]),
       },
       {
+        id: 'paypalCalls',
+        name: 'PayPal API Calls',
+        description: 'Every PayPal REST call made for a milestone: method, endpoint (ids replaced), HTTP status and duration. Every POST carries a PayPal-Request-Id so a retry cannot charge twice.',
+        data: data.paypalCalls,
+        fields: fields([
+          ['id', 'Call ID', 'textFormat', true],
+          ['milestoneId', 'Milestone ID', 'textFormat', true],
+          ['at', 'Call Time', 'dateTimeFormat'],
+          ['date', 'Call Date', 'dateFormat'],
+          ['method', 'Method', 'textFormat'],
+          ['endpoint', 'Endpoint', 'textFormat'],
+          ['status', 'HTTP Status', 'integerFormat'],
+          ['ok', 'Succeeded', 'booleanFormat'],
+          ['isError', 'Is Error', 'integerFormat', true],
+          ['ms', 'Duration (ms)', 'integerFormat'],
+        ]),
+      },
+      {
         id: 'events',
         name: 'Timeline Events',
         description: 'Audit trail: every action by the client, freelancer, AI agent, PayPal or the system.',
@@ -152,6 +174,8 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       },
     ],
     relationships: [
+      manyToOne('paypal-call-milestone', 'paypalCalls.milestoneId', 'milestones.id'),
+      onCalendar('paypalCalls', 'date'),
       manyToOne('review-milestone', 'reviews.milestoneId', 'milestones.id'),
       manyToOne('finding-milestone', 'findings.milestoneId', 'milestones.id'),
       manyToOne('finding-review', 'findings.reviewId', 'reviews.id'),
@@ -177,6 +201,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       ratio('releaseRate', 'Release Rate', 'Released value / total milestone value.', 'milestones.released', 'milestones.amount'),
       ratio('autoReleaseRate', 'AI Auto-release Rate', 'Share of paid milestones where the AI released the money without the client stepping in.', 'milestones.isAutoReleased', 'milestones.isReleased'),
       ratio('holdShare', 'Share On Hold', 'Value currently held on PayPal / total milestone value.', 'milestones.onHold', 'milestones.amount'),
+      ratio('vetoRate', 'Second-opinion Veto Rate', 'Share of attempted releases the second model refused.', 'reviews.isVeto', 'reviews.secondOpinionAsked'),
     ],
   };
 }

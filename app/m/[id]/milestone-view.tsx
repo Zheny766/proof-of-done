@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
 import { api, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
 import { NextStep, Settlement, ShareLink } from './actions';
@@ -8,6 +8,8 @@ import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
 import { initials } from './ui';
 import { AgentLog, Verdict } from './verdict';
+import { describeDeal } from '@/app/components/deal-facts';
+import { WebMcpTools, type WebMcpTool } from '@/app/components/webmcp';
 
 type Party = Exclude<Role, 'viewer'>;
 type SavedKeys = { client?: string; freelancer?: string; share?: string };
@@ -133,9 +135,26 @@ export function MilestoneView({
 
   const review = m.reviews.at(-1);
   const both = !!(keys.client && keys.freelancer);
+  // For AI agents in the browser (WebMCP): what this page shows, read-only.
+  const latest = useRef(m);
+  useEffect(() => {
+    latest.current = m;
+  }, [m]);
+  const agentTools = useMemo<WebMcpTool[]>(
+    () => [
+      {
+        name: 'deal_status',
+        description: 'Where this escrow deal stands: amount, status, the AI verdict on each criterion, the second opinion, the PayPal state and the latest events.',
+        inputSchema: { type: 'object', properties: {} },
+        execute: async () => describeDeal(latest.current),
+      },
+    ],
+    [],
+  );
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 pb-16 pt-8">
+      <WebMcpTools tools={agentTools} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">

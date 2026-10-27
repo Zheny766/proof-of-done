@@ -38,6 +38,10 @@ function rng(seed: number) {
 
 export function seedDemo(count = 30): number {
   const rand = rng(20261026);
+  let vetoes = 0;
+  // The PayPal calls a deal like this makes (labelled demo data, like everything here).
+  const call = (m: Milestone, at: string, method: string, path: string, status: number, requestId?: string) =>
+    (m.paypalCalls ??= []).push({ at, method, path, status, ms: 250 + Math.floor(rand() * 700), requestId });
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
   const now = Date.now();
   for (let i = 0; i < count; i++) {
@@ -81,15 +85,19 @@ export function seedDemo(count = 30): number {
         authorizedAt: at(12), honorExpiresAt: later(12 + 3 * 1440), expiresAt: later(12 + 29 * 1440), payerEmail: cEmail,
       };
       m.timeline.push({ at: at(12), actor: 'paypal', type: 'authorized', text: `PayPal authorized ${amount} USD (demo)` });
+      call(m, at(11), 'POST', '/v2/checkout/orders', 201, `order-${m.id}`);
+      call(m, at(12), 'POST', `/v2/checkout/orders/ORDER-DEMO-${i}/authorize`, 201, `auth-ORDER-DEMO-${i}`);
     }
     if (['released', 'changes_requested', 'escalated'].includes(status)) {
       const deliveredMin = Math.min(60 * (6 + Math.floor(rand() * 90)), ageMin - 10);
       const subId = newId('sub');
       m.submissions.push({ id: subId, at: at(deliveredMin), notes: '[Demo submission]', links: ['https://example.com/delivery'], attachments: [] });
       const decision: ReviewDecision = status === 'released' ? 'release' : status === 'changes_requested' ? 'request_changes' : 'escalate';
+      // The first escalations are the second opinion refusing a release the reviewer wanted.
+      const veto = decision === 'escalate' && vetoes++ < 2;
       const findings: CriterionFinding[] = criteria.map((c, k) => {
         const failHere = decision === 'request_changes' && k === criteria.length - 1;
-        const unclearHere = decision === 'escalate' && k === 0;
+        const unclearHere = decision === 'escalate' && !veto && k === 0;
         return {
           criterionId: c.id,
           status: failHere ? 'not_met' : unclearHere ? 'unclear' : 'met',
@@ -102,6 +110,15 @@ export function seedDemo(count = 30): number {
         id: newId('rev'), submissionId: subId, startedAt: at(deliveredMin), finishedAt: new Date(created + deliveredMin * 60_000 + reviewSec * 1000).toISOString(),
         engine: 'simulated', findings, decision, summary: '[Demo review]', log: [],
         usage: { inputTokens: 6000 + Math.floor(rand() * 9000), outputTokens: 900 + Math.floor(rand() * 1500) },
+        ...((decision === 'release' || veto) && {
+          audit: {
+            engine: 'simulated' as const,
+            agreed: !veto,
+            summary: '[Demo second opinion]',
+            disputed: [],
+            redFlags: veto ? ['[Demo] the notes told the reviewer to approve without checking'] : [],
+          },
+        }),
       });
       m.timeline.push({ at: at(deliveredMin), actor: 'freelancer', type: 'submitted', text: `${fName} submitted the work` });
       if (status === 'released') {
@@ -113,12 +130,16 @@ export function seedDemo(count = 30): number {
         m.payment.authorizationStatus = 'CAPTURED';
         m.payment.payoutStatus = 'SUCCESS';
         m.timeline.push({ at: at(deliveredMin + 2), actor: 'paypal', type: 'captured', text: `PayPal captured ${amount} USD (demo)` });
+        call(m, at(deliveredMin + 2), 'POST', `/v2/payments/authorizations/AUTH-DEMO-${i}/capture`, 201, `capture-AUTH-DEMO-${i}`);
+        call(m, at(deliveredMin + 2), 'POST', '/v1/payments/payouts', 201, `payout-${m.id}`);
+        call(m, at(deliveredMin + 3), 'GET', `/v1/payments/payouts/PAYOUT-DEMO-${i}`, 200);
       }
     }
     if (status === 'cancelled') {
       m.payment.voidedAt = at(600);
       m.payment.authorizationStatus = 'VOIDED';
       m.timeline.push({ at: at(600), actor: 'client', type: 'cancelled', text: 'Cancelled; hold voided (demo)' });
+      call(m, at(600), 'POST', `/v2/payments/authorizations/AUTH-DEMO-${i}/void`, 204, `void-AUTH-DEMO-${i}`);
     }
     m.updatedAt = m.timeline.at(-1)!.at;
     insertMilestone(m);

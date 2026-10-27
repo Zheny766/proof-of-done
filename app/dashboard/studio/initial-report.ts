@@ -1,4 +1,4 @@
-// The built-in "Escrow overview" report: pages for the money on hold, the AI reviewer and freelancers,
+// The built-in "Escrow overview" report: pages for the money on hold, the AI reviewer, trust & PayPal and freelancers,
 // as AG Studio report state. Field ids ('milestones.released') refer to the data sources in ./data.ts.
 
 import type { AgPageState, AgReportState, AgWidgetLayoutState } from 'ag-studio';
@@ -215,8 +215,57 @@ const freelancers: AgPageState = {
   },
 };
 
+// Why it is safe to let the AI pay: what the second opinion refused, and every PayPal call made.
+const trust: AgPageState = {
+  id: 'trust',
+  widgets: {
+    'kpi-vetoes': kpi('Releases the second opinion refused', sum('reviews.isVeto')),
+    'kpi-veto-rate': kpi('Veto rate', { id: 'vetoRate' }),
+    'kpi-calls': kpi('PayPal API calls', countd('paypalCalls.id'), 'calendar::week'),
+    'kpi-latency': kpi('Avg PayPal call (ms)', avg('paypalCalls.ms')),
+    'second-opinion': {
+      type: 'donut-chart',
+      dataMapping: { categoryKey: [{ id: 'reviews.secondOpinion' }], valueKey: [countd('reviews.id')] },
+      format: { ...title('What the second opinion said'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } } } },
+    },
+    'calls-by-endpoint': {
+      type: 'bar-chart-stacked',
+      dataMapping: {
+        categoryKey: [{ id: 'paypalCalls.endpoint' }],
+        valueKey: [countd('paypalCalls.id')],
+        legendKey: [{ id: 'paypalCalls.method' }],
+      },
+      format: { ...title('PayPal calls by endpoint'), style: legend },
+    },
+    'call-log': {
+      type: 'grid',
+      dataMapping: {
+        cols: [
+          { id: 'paypalCalls.at' },
+          { id: 'milestones.title' },
+          { id: 'paypalCalls.method' },
+          { id: 'paypalCalls.endpoint' },
+          { id: 'paypalCalls.status', aggregation: 'max' },
+          { id: 'paypalCalls.ms', aggregation: 'max' },
+        ],
+      },
+      sort: [{ field: { id: 'paypalCalls.at' }, direction: 'desc' }],
+      format: title('Every PayPal call, newest first'),
+    },
+  },
+  widgetLayout: {
+    'kpi-vetoes': at(0, 0, 6, 7),
+    'kpi-veto-rate': at(6, 0, 6, 7),
+    'kpi-calls': at(12, 0, 6, 7),
+    'kpi-latency': at(18, 0, 6, 7),
+    'second-opinion': at(0, 7, 9, 18),
+    'calls-by-endpoint': at(9, 7, 15, 18),
+    'call-log': at(0, 25, 24, 20),
+  },
+};
+
 // The report opens on its first page.
 export const dashboardReport: AgReportState = {
   selectedPageId: overview.id,
-  pages: [overview, reviewer, freelancers],
+  pages: [overview, reviewer, trust, freelancers],
 };

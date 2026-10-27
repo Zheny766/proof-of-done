@@ -50,6 +50,8 @@ import { buildStudioData, hasData } from './studio/data';
 import { agStudioPayPalTheme } from './studio/theme';
 import { escrowPipelineWidget } from './studio/pipeline-widget';
 import { useReports } from './use-reports';
+import { dealFacts } from '@/app/components/deal-facts';
+import { WebMcpTools, type WebMcpTool } from '@/app/components/webmcp';
 
 if (process.env.NODE_ENV !== 'production') {
   enableStudioDevValidations();
@@ -102,6 +104,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   const widgets = useMemo(() => createWidgets({ additionalTypes: [escrowPipelineWidget] } as any), []);
   // `ai` is read once, when Studio is created.
   const ai = useMemo(() => (aiModels?.length ? buildAi(aiModels) : undefined), [aiModels]);
+  const agentTools = useMemo(() => webMcpTools(data), [data]);
 
   const load = (
     report: SavedReport,
@@ -256,6 +259,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
         }
       />
 
+      <WebMcpTools tools={agentTools} />
       <div className="min-h-0 flex-1">
         {hasData(data) ? (
           <AgStudioProvider licenseKey={licenseKey} modules={ai ? [AgStudioAiModule] : undefined}>
@@ -331,4 +335,51 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
       />
     </AppShell>
   );
+}
+
+// Read-only tools for AI agents in the browser (WebMCP): the same numbers the dashboard shows.
+function webMcpTools(data: EscrowDashboardData): WebMcpTool[] {
+  const usd = (n: number) => `$${n.toFixed(2)}`;
+  return [
+    {
+      name: 'escrow_summary',
+      description: 'Totals for the Proof of Done escrow: money on hold at PayPal, money paid out, deals per stage, and how often the AI paid out without the client stepping in.',
+      inputSchema: { type: 'object', properties: {} },
+      execute: async () => {
+        const rows = data.milestones;
+        const byStage = new Map<string, number>();
+        rows.forEach((r) => byStage.set(r.stage, (byStage.get(r.stage) ?? 0) + 1));
+        const released = rows.filter((r) => r.isReleased);
+        return [
+          `On hold at PayPal: ${usd(rows.reduce((s, r) => s + r.onHold, 0))} across ${rows.filter((r) => r.onHold > 0).length} deals.`,
+          `Paid out: ${usd(rows.reduce((s, r) => s + r.released, 0))} across ${released.length} deals; ${released.filter((r) => r.autoReleased).length} of them paid by the AI without the client stepping in.`,
+          `Deals per stage: ${[...byStage].map(([k, v]) => `${k}: ${v}`).join(', ')}.`,
+          `Payments: ${data.paymentMode === 'sandbox' ? 'PayPal sandbox' : 'simulated'}; ${rows.filter((r) => r.isDemo).length} of ${rows.length} deals are labelled demo data.`,
+        ].join('\n');
+      },
+    },
+    {
+      name: 'stuck_deals',
+      description: 'Deals whose money has been on hold longer than a number of hours, longest first.',
+      inputSchema: { type: 'object', properties: { minHours: { type: 'number', description: 'Only deals on hold at least this long (default 72)' } } },
+      execute: async (args) => {
+        const min = typeof args.minHours === 'number' ? args.minHours : 72;
+        const now = Date.parse(data.asOf);
+        const stuck = data.milestones
+          .filter((r) => r.onHold > 0 && r.fundedAt)
+          .map((r) => ({ r, hours: Math.round((now - Date.parse(r.fundedAt!)) / 3_600_000) }))
+          .filter((x) => x.hours >= min)
+          .sort((a, b) => b.hours - a.hours);
+        return stuck.length
+          ? stuck.map(({ r, hours }) => `${r.id} · ${r.title} · ${r.stage} · ${usd(r.amount)} · on hold ${hours} h`).join('\n')
+          : `No deal has been on hold for ${min} hours or more.`;
+      },
+    },
+    {
+      name: 'explain_deal',
+      description: 'Why one deal was paid, held, escalated or sent back: the AI verdict on each criterion, the second opinion, the PayPal state and the latest events.',
+      inputSchema: { type: 'object', properties: { id: { type: 'string', description: 'Milestone id, like ms_1a2b3c4d5e6f' } }, required: ['id'] },
+      execute: async (args) => dealFacts(String(args.id ?? '')),
+    },
+  ];
 }
