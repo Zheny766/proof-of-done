@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "node --conditions=react-server --test test/",
     "smoke": "node scripts/smoke.mjs"
   },

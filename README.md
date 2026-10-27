@@ -237,6 +237,7 @@ npm test        # 96 tests: escrow state machine (simulated, throwaway data dir)
                 # one decision per review, link allowlist); roles and redaction, link guard,
                 # evidence handling, rate limits, Claude <-> AG Studio bridge
 npm run lint
+npm run typecheck   # generates Next's route types first, so it works on a fresh clone
 npm run build
 npm run smoke -- https://proof-of-done.onrender.com
                 # the judge's path against a running copy: pages, the agent endpoint, and the four
