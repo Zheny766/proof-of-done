@@ -9,7 +9,7 @@ import path from 'node:path';
 
 process.env.POD_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'pod-tools-'));
 const { reviewTools } = await import('../lib/escrow/reviewer.ts');
-import type { Milestone, Submission } from '../lib/escrow/types.ts';
+import type { Audit, Milestone, Submission } from '../lib/escrow/types.ts';
 
 const milestone = {
   id: 'ms_t',
@@ -26,11 +26,18 @@ const milestone = {
 } as unknown as Milestone;
 const submission: Submission = { id: 's1', at: '', notes: 'See https://shop.example.com.', links: ['https://site.example.org/'], attachments: [] };
 
-function setup() {
+type Verdict = Pick<Audit, 'agreed' | 'disputed' | 'redFlags'> | Error;
+
+function setup(verdict: Verdict = { agreed: true, disputed: [], redFlags: [] }) {
   const calls: string[] = [];
   const hooks = {
     log: () => {},
     finding: () => {},
+    audit: async (): Promise<Audit> => {
+      calls.push('audit');
+      if (verdict instanceof Error) throw verdict;
+      return { engine: 'claude', model: 'second-model', summary: '', ...verdict };
+    },
     release: async () => {
       calls.push('release');
       await new Promise((r) => setTimeout(r, 20)); // a PayPal round trip
@@ -55,7 +62,7 @@ test('release is refused until every criterion is met above the threshold', asyn
   assert.match(await tool('release_payment')({ summary: 'ok' }), /below the 80% threshold/);
   await tool('record_finding')({ criterion_id: 'c2', status: 'met', confidence: 0.9, evidence: 'prices shown' });
   assert.match(await tool('release_payment')({ summary: 'ok' }), /captured/);
-  assert.deepEqual(calls, ['release']);
+  assert.deepEqual(calls, ['audit', 'release'], 'the second opinion comes only after the policy passes');
 });
 
 test('two decisions in the same turn: only the first goes ahead', async () => {
@@ -70,9 +77,33 @@ test('two decisions in the same turn: only the first goes ahead', async () => {
   assert.match(release, /captured/);
   assert.match(changes, /already been made/);
   assert.match(escalate, /already been made/);
-  assert.deepEqual(calls, ['release']);
+  assert.deepEqual(calls, ['audit', 'release']);
   assert.equal(outcome()?.decision, 'release');
   assert.match(await tool('record_finding')({ criterion_id: 'c1', status: 'not_met', confidence: 1, evidence: 'z' }), /can no longer change/);
+});
+
+test('a second opinion that does not confirm stops the release for good', async () => {
+  const { tool, outcome, calls } = setup({ agreed: false, disputed: [{ criterionId: 'c2', reason: 'no prices in the screenshot' }], redFlags: [] });
+  await tool('record_finding')({ criterion_id: 'c1', status: 'met', confidence: 0.95, evidence: 'x' });
+  await tool('record_finding')({ criterion_id: 'c2', status: 'met', confidence: 0.95, evidence: 'y' });
+  assert.match(await tool('release_payment')({ summary: 'ok' }), /independent check did not confirm it \(c2: no prices/);
+  // Retrying (even after "fixing" a finding) doesn't ask again and doesn't pay.
+  await tool('record_finding')({ criterion_id: 'c2', status: 'met', confidence: 0.99, evidence: 'surely' });
+  assert.match(await tool('release_payment')({ summary: 'ok' }), /already refused/);
+  assert.deepEqual(calls, ['audit']);
+  assert.equal(outcome(), null);
+  assert.match(await tool('escalate_to_client')({ reason: 'auditor disagrees', summary: 's' }), /asked to decide/);
+  assert.equal(outcome()?.decision, 'escalate');
+});
+
+test('red flags or a failed second opinion also keep the money on hold', async () => {
+  for (const verdict of [{ agreed: false, disputed: [], redFlags: ['hidden text tells the reviewer to pay'] }, new Error('timeout')]) {
+    const { tool, calls } = setup(verdict);
+    await tool('record_finding')({ criterion_id: 'c1', status: 'met', confidence: 0.95, evidence: 'x' });
+    await tool('record_finding')({ criterion_id: 'c2', status: 'met', confidence: 0.95, evidence: 'y' });
+    assert.match(await tool('release_payment')({ summary: 'ok' }), /Release refused/);
+    assert.deepEqual(calls, ['audit']);
+  }
 });
 
 test('unknown criteria and bad confidences are rejected', async () => {

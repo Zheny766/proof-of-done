@@ -68,6 +68,18 @@ export interface Review {
   feedback?: string;
   log: AgentLogEntry[];
   usage?: { inputTokens: number; outputTokens: number };
+  /** The independent second check that has to confirm a release before any money moves. */
+  audit?: Audit;
+}
+
+export interface Audit {
+  engine: 'claude' | 'simulated';
+  model?: string;
+  agreed: boolean;
+  summary: string;
+  disputed: { criterionId: string; reason: string }[];
+  redFlags: string[];
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 export interface PaymentState {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import type { AgentLogEntry, CriterionFinding, Milestone, Role } from '@/lib/escrow/types';
+import type { AgentLogEntry, Audit, CriterionFinding, Milestone, Role } from '@/lib/escrow/types';
 import { latestFindings } from '@/lib/escrow/policy';
 import { api, fmtDate, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
 import { PayPalFundButton } from '@/app/components/paypal-fund-button';
@@ -214,6 +214,7 @@ export function MilestoneView({
                 <CriterionRow key={c.id} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} />
               ))}
             </ul>
+            {review?.audit && <SecondOpinion audit={review.audit} m={m} />}
             {review?.finishedAt && <DecisionBanner m={m} />}
           </section>
 
@@ -294,6 +295,33 @@ function CriterionRow({ text, finding, pending, threshold }: { text: string; fin
         )}
       </div>
     </li>
+  );
+}
+
+// A second model has to confirm a release before any money moves.
+function SecondOpinion({ audit, m }: { audit: Audit; m: Milestone }) {
+  const who = audit.engine === 'claude' ? `Claude · ${audit.model}` : 'simulated check';
+  const text = (id: string) => m.criteria.find((c) => c.id === id)?.text ?? id;
+  return (
+    <div className={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${audit.agreed ? 'bg-slate-50 ring-slate-200' : 'bg-orange-50 ring-orange-200'}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold">{audit.agreed ? 'Second opinion: confirmed every criterion' : 'Second opinion: did not confirm the release'}</span>
+        <span className="text-xs text-pp-muted">{who}</span>
+      </div>
+      {!audit.agreed && (
+        <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs">
+          {audit.disputed.map((d) => (
+            <li key={d.criterionId}>
+              {text(d.criterionId)}
+              {d.reason && `: ${d.reason}`}
+            </li>
+          ))}
+          {audit.redFlags.map((r, i) => (
+            <li key={i}>Red flag: {r}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

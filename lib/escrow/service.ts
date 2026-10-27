@@ -10,7 +10,7 @@ import { roleFor, newAccess } from './access.ts';
 import { sniffType } from './evidence.ts';
 import { cancelFunding, completeFunding, paymentMode, refreshPayoutStatus, releaseFunds, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
-import { REVIEW_MODEL, runClaudeReview, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
+import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
 import { getMilestone, insertMilestone, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
 import type { Attachment, Milestone, Review, Role } from './types.ts';
 
@@ -192,6 +192,13 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
         r.findings = r.findings.filter((x) => x.criterionId !== f.criterionId);
         r.findings.push(f);
       }),
+    audit: async (input) => {
+      const audit = review.engine === 'claude' ? await runClaudeAudit(m, submission, input) : runSimulatedAudit();
+      patchReview((r) => {
+        r.audit = audit;
+      });
+      return audit;
+    },
     release: (summary) =>
       exclusive(id, async () => {
         try {
