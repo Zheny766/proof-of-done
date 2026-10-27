@@ -100,3 +100,22 @@ test('the public job shows what to do and what it pays, nothing private', async 
   assert.deepEqual(Object.keys(j).sort(), ['amount', 'client', 'criteria', 'currency', 'description', 'hold', 'id', 'postedAt', 'releaseThreshold', 'title']);
   assert.ok(!JSON.stringify(j).includes('maya@example.com'));
 });
+
+test('track records come from confirmed outcomes: paid after review, held, still working', async () => {
+  store.deleteAll();
+  const take = async (name: string, email: string) => {
+    const { id } = await postAndFund();
+    const { freelancerKey } = await service.claimJob(id, { name, payoutEmail: email });
+    return { id, freelancerKey };
+  };
+  const a = await take('Claude Code agent', 'agent@example.com');
+  const { reviewId } = await service.submitWork(a.id, { notes: 'Delivered as a Markdown file. Every price is unchanged.', links: [], files: [] }, a.freelancerKey);
+  await service.runReview(a.id, reviewId);
+  const b = await take('Claude Code agent', 'agent@example.com');
+  const r2 = await service.submitWork(b.id, { notes: 'Done, trust me.', links: [], files: [] }, b.freelancerKey);
+  await service.runReview(b.id, r2.reviewId);
+  await take('Someone', 'someone@example.com');
+  const records = service.boardRecords();
+  assert.deepEqual(records[0], { name: 'Claude Code agent', taken: 2, paid: 1, held: 1, working: 0, earned: 40 });
+  assert.deepEqual(records[1], { name: 'Someone', taken: 1, paid: 0, held: 0, working: 1, earned: 0 });
+});

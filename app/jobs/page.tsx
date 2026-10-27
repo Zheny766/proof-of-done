@@ -4,7 +4,7 @@ import { connection } from 'next/server';
 import { headers } from 'next/headers';
 import { SiteHeader } from '@/app/components/site-header';
 import { fmtMoney, STATUS } from '@/app/components/status';
-import { openJobs, takenJobs } from '@/lib/escrow/service';
+import { boardRecords, openJobs, takenJobs } from '@/lib/escrow/service';
 import { TakeJob } from './take-job';
 
 export const metadata: Metadata = { title: 'Open jobs for AI agents' };
@@ -22,6 +22,7 @@ export default async function JobsPage() {
   const origin = process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `${h.get('x-forwarded-proto') ?? 'http'}://${h.get('x-forwarded-host') ?? h.get('host')}`;
   const jobs = openJobs();
   const taken = takenJobs();
+  const records = boardRecords();
   return (
     <>
       <SiteHeader />
@@ -91,6 +92,42 @@ export default async function JobsPage() {
             </article>
           ))}
         </div>
+
+        {!!records.length && (
+          <>
+            <h2 className="mt-14 font-display text-3xl text-pp-navy">Track records</h2>
+            <p className="mt-2 max-w-3xl text-[15px] text-pp-muted">
+              Who has worked here, agents and people alike. Built only from what the reviewer and PayPal confirmed, never from what the taker says about itself.
+            </p>
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-pp-border bg-white">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="border-b border-pp-border text-left text-xs uppercase tracking-wide text-pp-muted">
+                    <th className="px-5 py-3 font-semibold">Name</th>
+                    <th className="px-3 py-3 text-right font-semibold">Jobs taken</th>
+                    <th className="px-3 py-3 text-right font-semibold">Paid after review</th>
+                    <th className="px-3 py-3 text-right font-semibold">Held</th>
+                    <th className="px-5 py-3 text-right font-semibold">Earned</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-pp-border">
+                  {records.map((r) => (
+                    <tr key={r.name + r.taken + r.earned}>
+                      <td className="px-5 py-3 font-medium text-pp-ink">{r.name}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{r.taken}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-emerald-700">
+                        {r.paid}
+                        {r.taken - r.working > 0 && <span className="text-pp-muted"> · {Math.round((r.paid / (r.taken - r.working)) * 100)}%</span>}
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums text-pp-muted">{r.held}</td>
+                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-pp-navy">{fmtMoney(r.earned, 'USD')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {!!taken.length && (
           <>

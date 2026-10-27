@@ -512,6 +512,27 @@ export const takenJobs = (limit = 6): Milestone[] =>
     .sort((a, b) => b.board!.claimedAt!.localeCompare(a.board!.claimedAt!))
     .slice(0, limit);
 
+/**
+ * The track record of whoever took jobs from the board: what the reviewer and PayPal confirmed, never
+ * what the taker claims. Grouped by name and payout address (shown by name only).
+ */
+export function boardRecords() {
+  const rows = new Map<string, { name: string; taken: number; paid: number; held: number; working: number; earned: number }>();
+  for (const m of listMilestones()) {
+    if (!m.board?.claimedAt) continue;
+    const key = `${m.board.claimedBy}\u0000${m.freelancer.email}`;
+    const r = rows.get(key) ?? { name: m.board.claimedBy!, taken: 0, paid: 0, held: 0, working: 0, earned: 0 };
+    r.taken++;
+    if (m.status === 'released') {
+      r.paid++;
+      r.earned += Number(m.payment.capturedAmount ?? m.amount);
+    } else if (['funded', 'reviewing', 'verified'].includes(m.status)) r.working++;
+    else r.held++;
+    rows.set(key, r);
+  }
+  return [...rows.values()].sort((a, b) => b.earned - a.earned || b.paid - a.paid);
+}
+
 export const ClaimJobInput = z.object({
   name: z.string().trim().min(1).max(80),
   payoutEmail: z.email(),
