@@ -35,9 +35,6 @@ export async function POST(request: Request) {
   if (!isClaudeConfigured()) {
     return Response.json({ error: { message: 'The AI assistant is not configured: set ANTHROPIC_API_KEY in .env.local.' } }, { status: 503 });
   }
-  if (!withinDailyBudget('claude')) {
-    return Response.json({ error: { message: "The assistant has used today's budget on this demo server. It's back tomorrow (UTC); the rest of the dashboard works as before." } }, { status: 429 });
-  }
   let body: AgLlmRequest;
   try {
     body = (await request.json()) as AgLlmRequest;
@@ -47,6 +44,10 @@ export async function POST(request: Request) {
 
   if (!body || typeof body !== 'object' || !Array.isArray(body.input) || (body.tools !== undefined && !Array.isArray(body.tools))) {
     return Response.json({ error: { message: 'Expected an AG Studio LLM request with an `input` array.' } }, { status: 400 });
+  }
+  // Counted only for requests that will reach Claude, so junk can't use up the day.
+  if (!withinDailyBudget('claude')) {
+    return Response.json({ error: { message: "The assistant has used today's budget on this demo server. It's back tomorrow (UTC); the rest of the dashboard works as before." } }, { status: 429 });
   }
 
   const models = aiModels();
