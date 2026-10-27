@@ -155,6 +155,21 @@ function DecisionBanner({ m }: { m: Milestone }) {
   );
 }
 
+// The reviewer's closing note is Markdown (tables, bold, lists); the log shows it as plain lines.
+const plain = (text: string) =>
+  text
+    .split('\n')
+    .filter((line) => !/^\s*\|?\s*:?-{3,}/.test(line))
+    .map((line) =>
+      (/^\s*\|/.test(line) ? line.split('|').map((c) => c.trim()).filter(Boolean).join(' · ') : line)
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/^#+\s*/, ''),
+    )
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
 const LOG_TAG: Record<AgentLogEntry['kind'], string> = { thinking: 'note', tool: 'tool', result: 'finding', decision: 'decision', error: 'error', info: 'info' };
 
 /** Every step the reviewer took. Open while it works, folded once it's done. */
@@ -187,7 +202,9 @@ export function AgentLog({ entries, live, role, reviewed }: { entries: AgentLogE
           {entries.map((e, i) => (
             <div key={i} className="flex gap-3 text-sm">
               <span className="w-16 shrink-0 pt-0.5 font-mono text-[10px] uppercase tracking-wide text-pp-muted">{LOG_TAG[e.kind]}</span>
-              <span className={e.kind === 'decision' ? 'font-semibold' : e.kind === 'error' ? 'text-pp-danger' : 'text-pp-ink'}>{e.text}</span>
+              <span className={e.kind === 'decision' ? 'font-semibold' : e.kind === 'error' ? 'text-pp-danger' : e.kind === 'thinking' ? 'whitespace-pre-line text-pp-ink' : 'text-pp-ink'}>
+                {e.kind === 'thinking' ? plain(e.text) : e.text}
+              </span>
             </div>
           ))}
         </div>

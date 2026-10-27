@@ -146,6 +146,8 @@ export function MilestoneView({
   // A later stage is funded only once the one before it is paid (or cancelled).
   const before = m.project && m.project.stage > 1 ? stages?.[m.project.stage - 2] : undefined;
   const waitForStage = before && !['released', 'cancelled'].includes(before.status) ? before.stage : null;
+  const canSettle = role !== 'viewer' && ['changes_requested', 'escalated'].includes(m.status);
+  const settleFirst = canSettle && m.demo?.scenario === 'partial';
   // For AI agents in the browser (WebMCP): what this page shows, read-only.
   const latest = useRef(m);
   useEffect(() => {
@@ -217,9 +219,12 @@ export function MilestoneView({
             </div>
           )}
 
+          {/* The half-done demo is about settling, so its offer comes first; elsewhere fixing the work does. */}
+          {settleFirst && <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />}
+
           <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={setM} waitForStage={waitForStage} />
 
-          {role !== 'viewer' && ['changes_requested', 'escalated'].includes(m.status) && <Settlement m={m} role={role} milestoneKey={key} onChange={setM} />}
+          {canSettle && !settleFirst && <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />}
 
           {m.board && <BoardStatus m={m} />}
 
