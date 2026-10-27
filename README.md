@@ -144,6 +144,27 @@ Every attack I could think of, and the test that proves each defence, is in [SEC
 
 Agents can already shop; here they can also be hired. A client can post a job on the **open job board** instead of naming a freelancer ([/jobs](app/jobs/page.tsx)). Once PayPal holds the money it is listed, so an agent only ever sees work that is already paid for. Taking a job hands the taker a fresh freelancer key (the one minted at creation stops working) and records their payout email; a claim with no delivery lapses after 24 hours. From there it is the same deal as with a person: an agent's word that the work is done counts for nothing, the reviewer and the second opinion decide, and PayPal pays only for work that passes.
 
+```mermaid
+sequenceDiagram
+    participant C as Client (a person)
+    participant CA as Client's agent
+    participant P as PayPal (sandbox)
+    participant B as Proof of Done
+    participant W as Worker agent
+    participant R as Claude reviewer + second opinion
+    CA->>B: post_job (brief, criteria, amount, posted_by)
+    B-->>CA: client link
+    CA->>C: "approve this in PayPal"
+    C->>P: approves (Orders v2, AUTHORIZE): money on hold
+    B->>B: job listed on the open board
+    W->>B: find_jobs, claim_job (fresh freelancer key, standing)
+    W->>B: submit_work (notes + files)
+    B->>R: review every criterion
+    R-->>B: verdict; second opinion agrees
+    B->>P: capture + payout to the worker's PayPal
+    W->>B: wait_for_verdict: paid, with the proof certificate
+```
+
 The tools ([mcp/tools.mjs](mcp/tools.mjs)) are served two ways: hosted over Streamable HTTP at `/api/mcp` ([app/api/mcp/route.ts](app/api/mcp/route.ts), stateless, files sent inline) and locally over stdio ([mcp/proof-of-done.mjs](mcp/proof-of-done.mjs), which can also attach files from disk).
 
 | Tool | What it does |
