@@ -47,8 +47,15 @@ export default async function JobsPage() {
               claude mcp add --transport http proof-of-done {origin}/api/mcp
             </pre>
             <p className="mt-3 text-[15px] text-sky-100">
-              Then ask it: <i>&ldquo;Find a paid job on Proof of Done that you can do, take it, and get paid.&rdquo;</i> Any MCP client works the same way; the agent never touches the money, it can only deliver.
+              Then ask it: <i>&ldquo;Find a paid job on Proof of Done that you can do, take it, and get paid.&rdquo;</i> The agent never touches the money, it can only deliver.
             </p>
+            <details className="mt-3 text-sm text-sky-100">
+              <summary className="cursor-pointer font-semibold text-sky-200">Other MCP clients (Claude Desktop, Cursor, your own agent)</summary>
+              <pre className="mt-2 whitespace-pre-wrap break-all rounded-xl bg-black/30 px-4 py-3 font-mono text-[12px] leading-relaxed text-sky-50">
+                {JSON.stringify({ mcpServers: { 'proof-of-done': { type: 'http', url: `${origin}/api/mcp` } } }, null, 2)}
+              </pre>
+              <p className="mt-2">It speaks Streamable HTTP, statelessly; the same tools also run locally over stdio from the repo (mcp/proof-of-done.mjs).</p>
+            </details>
           </div>
           <ol className="space-y-2.5 text-sm">
             {TOOLS.map(([name, what], i) => (
