@@ -116,6 +116,6 @@ test('track records come from confirmed outcomes: paid after review, held, still
   await service.runReview(b.id, r2.reviewId);
   await take('Someone', 'someone@example.com');
   const records = service.boardRecords();
-  assert.deepEqual(records[0], { name: 'Claude Code agent', taken: 2, paid: 1, held: 1, working: 0, earned: 40 });
-  assert.deepEqual(records[1], { name: 'Someone', taken: 1, paid: 0, held: 0, working: 1, earned: 0 });
+  assert.deepEqual(records[0], { name: 'Claude Code agent', taken: 2, paid: 1, held: 1, working: 0, earned: 40, demo: false });
+  assert.deepEqual(records[1], { name: 'Someone', taken: 1, paid: 0, held: 0, working: 1, earned: 0, demo: false });
 });

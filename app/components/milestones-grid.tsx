@@ -1,8 +1,9 @@
 'use client';
 
-// Milestones table on the home page (AG Grid), with renderers for status, amount and AI confidence.
+// Milestones table on the home page (AG Grid), with renderers for status, amount and AI confidence. It
+// stays live: new deals slide in and a status or payment that changes flashes, so the money moving is visible.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ClientSideRowModelModule,
@@ -12,16 +13,17 @@ import {
   DateFilterModule,
   CellStyleModule,
   RowStyleModule,
+  HighlightChangesModule,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
 } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import type { Milestone } from '@/lib/escrow/types';
-import { fmtMoney, StatusBadge } from './status';
+import { api, fmtMoney, StatusBadge } from './status';
 import { latestFindings } from '@/lib/escrow/policy';
 
-const modules = [ClientSideRowModelModule, TextFilterModule, NumberFilterModule, DateFilterModule, QuickFilterModule, CellStyleModule, RowStyleModule];
+const modules = [ClientSideRowModelModule, TextFilterModule, NumberFilterModule, DateFilterModule, QuickFilterModule, CellStyleModule, RowStyleModule, HighlightChangesModule];
 
 const theme = themeQuartz.withParams({
   fontFamily: 'var(--pp-font)',
@@ -61,9 +63,17 @@ function ConfidenceCell({ value }: ICellRendererParams<Row, number | null>) {
   );
 }
 
-export function MilestonesGrid({ milestones }: { milestones: Milestone[] }) {
+export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[] }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [milestones, setMilestones] = useState(initial);
+  useEffect(() => {
+    const tick = () => {
+      if (!document.hidden) api<{ milestones: Milestone[] }>('/api/escrow/milestones').then((r) => setMilestones(r.milestones), () => {});
+    };
+    const t = setInterval(tick, 5000);
+    return () => clearInterval(t);
+  }, []);
   const rows = useMemo<Row[]>(
     () =>
       milestones.map((m) => {
@@ -96,10 +106,10 @@ export function MilestonesGrid({ milestones }: { milestones: Milestone[] }) {
           <span className="font-semibold text-pp-navy">{data?.title}{data?.demo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo</span>}</span>
         ),
       },
-      { field: 'status', headerName: 'Status', width: 170, cellRenderer: ({ value }: ICellRendererParams<Row>) => <StatusBadge status={value} /> },
+      { field: 'status', headerName: 'Status', width: 170, enableCellChangeFlash: true, cellRenderer: ({ value }: ICellRendererParams<Row>) => <StatusBadge status={value} /> },
       { field: 'amount', headerName: 'Amount', width: 120, type: 'rightAligned', filter: 'agNumberColumnFilter', valueFormatter: ({ value, data }) => (data ? fmtMoney(value, data.currency) : '') },
-      { field: 'payment', headerName: 'PayPal', width: 120 },
-      { field: 'criteriaMet', headerName: 'Criteria met', width: 120 },
+      { field: 'payment', headerName: 'PayPal', width: 120, enableCellChangeFlash: true },
+      { field: 'criteriaMet', headerName: 'Criteria met', width: 120, enableCellChangeFlash: true },
       { field: 'confidence', headerName: 'Lowest AI confidence', width: 180, filter: 'agNumberColumnFilter', cellRenderer: ConfidenceCell },
       { field: 'freelancer', headerName: 'Freelancer', flex: 1, minWidth: 140 },
       { field: 'client', headerName: 'Client', flex: 1, minWidth: 140 },
@@ -125,6 +135,7 @@ export function MilestonesGrid({ milestones }: { milestones: Milestone[] }) {
               if (data && (event as KeyboardEvent | null)?.key === 'Enter') router.push(`/m/${data.id}`);
             }}
             rowStyle={{ cursor: 'pointer' }}
+            animateRows
             overlayNoRowsTemplate="No milestones yet - create one above, or load demo data."
           />
         </AgGridProvider>

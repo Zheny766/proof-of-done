@@ -1,4 +1,4 @@
-// The built-in "Escrow overview" report: pages for the money on hold, the AI reviewer, trust & PayPal and freelancers,
+// The built-in "Escrow overview" report: pages for the money on hold, the AI reviewer, trust & PayPal, the job board and freelancers,
 // as AG Studio report state. Field ids ('milestones.released') refer to the data sources in ./data.ts.
 
 import type { AgPageState, AgReportState, AgWidgetLayoutState } from 'ag-studio';
@@ -215,6 +215,55 @@ const freelancers: AgPageState = {
   },
 };
 
+// The open job board: who takes jobs (agents and people), and what the review let through.
+const agents: AgPageState = {
+  id: 'agents',
+  widgets: {
+    'kpi-board-jobs': kpi('Jobs on the board', countd('boardJobs.id'), 'calendar::week'),
+    'kpi-board-taken': kpi('Taken', sum('boardJobs.isTaken')),
+    'kpi-board-pass': kpi('Paid after review', { id: 'boardPassRate' }),
+    'kpi-board-earned': kpi('Earned by takers', sum('boardJobs.earned')),
+    'earned-by-taker': {
+      type: 'bar-chart-stacked',
+      dataMapping: {
+        categoryKey: [{ id: 'boardJobs.takenBy' }],
+        valueKey: [sum('boardJobs.amount')],
+        legendKey: [{ id: 'boardJobs.outcome' }],
+      },
+      format: { ...title('Board jobs by taker and outcome'), style: legend },
+    },
+    'board-outcomes': {
+      type: 'donut-chart',
+      dataMapping: { categoryKey: [{ id: 'boardJobs.outcome' }], valueKey: [countd('boardJobs.id')] },
+      format: { ...title('How board jobs ended'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } } } },
+    },
+    'board-log': {
+      type: 'grid',
+      dataMapping: {
+        cols: [
+          { id: 'boardJobs.postedAt' },
+          { id: 'boardJobs.title' },
+          { id: 'boardJobs.takenBy' },
+          { id: 'boardJobs.outcome' },
+          { id: 'boardJobs.amount', aggregation: 'sum' },
+          { id: 'boardJobs.earned', aggregation: 'sum' },
+        ],
+      },
+      sort: [{ field: { id: 'boardJobs.postedAt' }, direction: 'desc' }],
+      format: title('Every board job, newest first'),
+    },
+  },
+  widgetLayout: {
+    'kpi-board-jobs': at(0, 0, 6, 7),
+    'kpi-board-taken': at(6, 0, 6, 7),
+    'kpi-board-pass': at(12, 0, 6, 7),
+    'kpi-board-earned': at(18, 0, 6, 7),
+    'earned-by-taker': at(0, 7, 15, 18),
+    'board-outcomes': at(15, 7, 9, 18),
+    'board-log': at(0, 25, 24, 20),
+  },
+};
+
 // Why it is safe to let the AI pay: what the second opinion refused, and every PayPal call made.
 const trust: AgPageState = {
   id: 'trust',
@@ -267,5 +316,5 @@ const trust: AgPageState = {
 // The report opens on its first page.
 export const dashboardReport: AgReportState = {
   selectedPageId: overview.id,
-  pages: [overview, reviewer, trust, freelancers],
+  pages: [overview, reviewer, trust, agents, freelancers],
 };

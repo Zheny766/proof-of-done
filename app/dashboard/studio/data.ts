@@ -158,6 +158,29 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
         ]),
       },
       {
+        id: 'boardJobs',
+        name: 'Board Jobs',
+        description:
+          'Jobs posted on the open job board, where any AI agent or person can take a funded job. Taken by = the name the taker gave; ' +
+          'outcome = paid after the AI review, paid by the client, held, or still in progress. Earned = what PayPal captured for the taker.',
+        data: data.boardJobs,
+        fields: fields([
+          ['id', 'Board Job ID', 'textFormat', true],
+          ['milestoneId', 'Milestone ID', 'textFormat', true],
+          ['title', 'Job', 'textFormat'],
+          ['takenBy', 'Taken By', 'textFormat'],
+          ['postedAt', 'Posted At', 'dateTimeFormat'],
+          ['postedDate', 'Posted Date', 'dateFormat'],
+          ['outcome', 'Outcome', 'textFormat'],
+          ['amount', 'Job Amount', 'currencyFormat'],
+          ['earned', 'Earned', 'currencyFormat'],
+          ['isTaken', 'Is Taken', 'integerFormat', true],
+          ['isPaid', 'Is Paid', 'integerFormat', true],
+          ['isDecided', 'Is Decided', 'integerFormat', true],
+          ['hoursToPaid', 'Hours From Taken To Paid', 'decimalFormat'],
+        ]),
+      },
+      {
         id: 'events',
         name: 'Timeline Events',
         description: 'Audit trail: every action by the client, freelancer, AI agent, PayPal or the system.',
@@ -175,6 +198,8 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
     ],
     relationships: [
       manyToOne('paypal-call-milestone', 'paypalCalls.milestoneId', 'milestones.id'),
+      manyToOne('board-job-milestone', 'boardJobs.milestoneId', 'milestones.id'),
+      onCalendar('boardJobs', 'postedDate'),
       onCalendar('paypalCalls', 'date'),
       manyToOne('review-milestone', 'reviews.milestoneId', 'milestones.id'),
       manyToOne('finding-milestone', 'findings.milestoneId', 'milestones.id'),
@@ -209,6 +234,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       ratio('autoReleaseRate', 'AI Auto-release Rate', 'Share of paid milestones where the AI released the money without the client stepping in.', 'milestones.isAutoReleased', 'milestones.isReleased'),
       ratio('holdShare', 'Share On Hold', 'Value currently held on PayPal / total milestone value.', 'milestones.onHold', 'milestones.amount'),
       ratio('vetoRate', 'Second-opinion Veto Rate', 'Share of attempted releases the second model refused.', 'reviews.isVeto', 'reviews.secondOpinionAsked'),
+      ratio('boardPassRate', 'Board Pass Rate', 'Share of decided board jobs whose taker got paid.', 'boardJobs.isPaid', 'boardJobs.isDecided'),
     ],
   };
 }

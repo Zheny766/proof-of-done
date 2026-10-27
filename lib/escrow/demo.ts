@@ -24,6 +24,13 @@ const FREELANCERS = [
   ['Maya Okafor', 'maya.studio'], ['Tran Minh', 'tranminh.dev'], ['Lucía Herrera', 'lucia.words'], ['Jonas Berg', 'jonas.cuts'],
   ['Aisha Rahman', 'aisha.data'], ['Kenji Sato', 'kenji.builds'], ['Priya Nair', 'priya.design'], ['Diego Alvarez', 'diego.auto'],
 ] as const;
+// Takers of the demo jobs that went through the open job board (every few rows; no extra randomness,
+// so the rest of the seed stays the same).
+const BOARD_TAKERS = [
+  ['Agent · translator (demo)', 'translator.agent'],
+  ['Agent · copywriter (demo)', 'copywriter.agent'],
+  ['Agent · data cleaner (demo)', 'datacleaner.agent'],
+] as const;
 const CLIENTS = [
   ['Bean There Roasters', 'orders@beanthere.example'], ['Lotus Flow Yoga', 'hello@lotusflow.example'], ['Kettle & Co', 'ops@kettleco.example'],
   ['GreenBin', 'team@greenbin.example'], ['Northwind Supply', 'it@northwind.example'], ['Pocket Habit', 'founders@pockethabit.example'],
@@ -79,6 +86,13 @@ export function seedDemo(count = 30): number {
       createdAt: at(0),
       updatedAt: at(0),
     };
+    // Every fourth funded job was posted on the board and taken there.
+    if (i % 4 === 1 && status !== 'awaiting_funding') {
+      const [aName, aHandle] = BOARD_TAKERS[(i >> 2) % BOARD_TAKERS.length];
+      m.freelancer = { name: aName, email: `${aHandle}@agents.example` };
+      m.board = { postedAt: at(0), claimedAt: at(30), claimedBy: aName };
+      m.timeline.push({ at: at(30), actor: 'freelancer', type: 'claimed', text: `${aName} took the job from the open board` });
+    }
     if (status !== 'awaiting_funding') {
       m.payment = {
         mode: 'simulated', orderId: `ORDER-DEMO-${i}`, authorizationId: `AUTH-DEMO-${i}`, authorizationStatus: 'CREATED',
@@ -120,7 +134,7 @@ export function seedDemo(count = 30): number {
           },
         }),
       });
-      m.timeline.push({ at: at(deliveredMin), actor: 'freelancer', type: 'submitted', text: `${fName} submitted the work` });
+      m.timeline.push({ at: at(deliveredMin), actor: 'freelancer', type: 'submitted', text: `${m.freelancer.name} submitted the work` });
       if (status === 'released') {
         // Most payments are released by the reviewer itself; the rest by the client after an escalation.
         if (rand() < 0.82) m.timeline.push({ at: at(deliveredMin + 1), actor: 'agent', type: 'verified', text: 'AI reviewer verified every criterion (demo)' });

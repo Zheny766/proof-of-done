@@ -517,11 +517,12 @@ export const takenJobs = (limit = 6): Milestone[] =>
  * what the taker claims. Grouped by name and payout address (shown by name only).
  */
 export function boardRecords() {
-  const rows = new Map<string, { name: string; taken: number; paid: number; held: number; working: number; earned: number }>();
+  const rows = new Map<string, { name: string; taken: number; paid: number; held: number; working: number; earned: number; demo: boolean }>();
   for (const m of listMilestones()) {
     if (!m.board?.claimedAt) continue;
     const key = `${m.board.claimedBy}\u0000${m.freelancer.email}`;
-    const r = rows.get(key) ?? { name: m.board.claimedBy!, taken: 0, paid: 0, held: 0, working: 0, earned: 0 };
+    const r = rows.get(key) ?? { name: m.board.claimedBy!, taken: 0, paid: 0, held: 0, working: 0, earned: 0, demo: true };
+    r.demo &&= m.description.startsWith('[Demo data]');
     r.taken++;
     if (m.status === 'released') {
       r.paid++;

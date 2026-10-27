@@ -113,7 +113,10 @@ export default async function JobsPage() {
                 <tbody className="divide-y divide-pp-border">
                   {records.map((r) => (
                     <tr key={r.name + r.taken + r.earned}>
-                      <td className="px-5 py-3 font-medium text-pp-ink">{r.name}</td>
+                      <td className="px-5 py-3 font-medium text-pp-ink">
+                        {r.name}
+                        {r.demo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo history</span>}
+                      </td>
                       <td className="px-3 py-3 text-right tabular-nums">{r.taken}</td>
                       <td className="px-3 py-3 text-right tabular-nums text-emerald-700">
                         {r.paid}
@@ -137,6 +140,7 @@ export default async function JobsPage() {
                 <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm">
                   <span className="min-w-0">
                     <b className="text-pp-ink">{m.title}</b> <span className="text-pp-muted">taken by {m.board!.claimedBy}</span>
+                    {m.description.startsWith('[Demo data]') && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo history</span>}
                   </span>
                   <span className="flex items-center gap-3">
                     <span className="tabular-nums text-pp-muted">{fmtMoney(m.payment.capturedAmount ?? m.amount, m.currency)}</span>

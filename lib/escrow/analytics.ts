@@ -1,5 +1,5 @@
 import 'server-only';
-// Milestones flattened into five tables (milestones, reviews, findings, events, PayPal calls) for AG Studio.
+// Milestones flattened into six tables (milestones, reviews, findings, events, PayPal calls, board jobs) for AG Studio.
 
 import { redactEmails } from './access.ts';
 import { paymentMode } from './payments.ts';
@@ -95,6 +95,23 @@ export type EventRow = {
   text: string;
 };
 
+/** A job posted on the open board: who took it and how it ended. */
+export type BoardJobRow = {
+  id: string;
+  milestoneId: string;
+  title: string;
+  takenBy: string;
+  postedAt: string;
+  postedDate: string;
+  outcome: string;
+  amount: number;
+  earned: number;
+  isTaken: number;
+  isPaid: number;
+  isDecided: number;
+  hoursToPaid: number | null;
+};
+
 export type EscrowDashboardData = {
   asOf: string;
   paymentMode: 'sandbox' | 'simulated';
@@ -103,6 +120,7 @@ export type EscrowDashboardData = {
   findings: FindingRow[];
   events: EventRow[];
   paypalCalls: PayPalCallRow[];
+  boardJobs: BoardJobRow[];
 };
 
 const STAGE: Record<string, string> = {
@@ -130,12 +148,14 @@ const categoryOf = (description: string, title: string) => {
 };
 
 export function getEscrowDashboardData(): EscrowDashboardData {
-  const milestones = listMilestones().filter((m) => !m.demo);
+  // Demo deals stay out, except board jobs a visitor's agent took: that is real agent activity, on a simulated hold.
+  const milestones = listMilestones().filter((m) => !m.demo || (m.demo.scenario === 'board' && m.board?.claimedAt));
   const mRows: MilestoneRow[] = [];
   const rRows: ReviewRow[] = [];
   const fRows: FindingRow[] = [];
   const eRows: EventRow[] = [];
   const pRows: PayPalCallRow[] = [];
+  const bRows: BoardJobRow[] = [];
 
   for (const m of milestones) {
     const amount = Number(m.amount);
@@ -178,6 +198,27 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       paymentMode: m.payment.mode,
       isDemo: m.description.startsWith('[Demo data]'),
     });
+
+    if (m.board) {
+      const aiPaid = m.status === 'released' && autoReleased;
+      const decided = ['released', 'changes_requested', 'escalated', 'cancelled'].includes(m.status);
+      const takenAt = m.board.claimedAt ?? null;
+      bRows.push({
+        id: `${m.id}-board`,
+        milestoneId: m.id,
+        title: m.title,
+        takenBy: m.board.claimedBy ?? 'not taken yet',
+        postedAt: m.board.postedAt,
+        postedDate: m.board.postedAt.slice(0, 10),
+        outcome: !takenAt ? 'Open on the board' : aiPaid ? 'Paid after review' : m.status === 'released' ? 'Paid by the client' : decided ? 'Held' : 'Working on it',
+        amount,
+        earned: m.status === 'released' ? captured : 0,
+        isTaken: takenAt ? 1 : 0,
+        isPaid: m.status === 'released' ? 1 : 0,
+        isDecided: decided ? 1 : 0,
+        hoursToPaid: takenAt && releasedAt ? Math.max(0, Math.round((+new Date(releasedAt) - +new Date(takenAt)) / 3_600_000)) : null,
+      });
+    }
 
     for (const r of m.reviews) {
       const counts = { met: 0, not_met: 0, unclear: 0 };
@@ -237,5 +278,5 @@ export function getEscrowDashboardData(): EscrowDashboardData {
     );
   }
 
-  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows, paypalCalls: pRows };
+  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows, paypalCalls: pRows, boardJobs: bRows };
 }

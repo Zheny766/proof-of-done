@@ -35,7 +35,8 @@ function TopBar() {
       <BrandLockup />
       <nav className="ml-auto flex items-center gap-5 text-sm font-semibold text-pp-muted">
         <Link href="/demo" className="hover:text-pp-blue">Demo</Link>
-        <Link href="/#create" className="hover:text-pp-blue">Deals</Link>
+        <Link href="/jobs" className="hover:text-pp-blue">Jobs for agents</Link>
+        <Link href="/mine" className="hover:text-pp-blue">My deals</Link>
         <Link href="/dashboard" className="text-pp-blue">Escrow analytics</Link>
       </nav>
     </header>
