@@ -772,7 +772,8 @@ export function deliverArena(raw: unknown, key: string | null) {
 /** The scoreboard: how many tricks were tried, and how many got the draft paid. */
 export function arenaStats() {
   // Only live Claude reviews count: the scoreboard is about what the AI does.
-  const tried = arenaDeals().filter((m) => m.reviews.some((r) => r.finishedAt && r.engine === 'claude'));
+  // A review that failed (an API error, a spent budget) isn't an attempt the AI judged either.
+  const tried = arenaDeals().filter((m) => m.reviews.some((r) => r.finishedAt && r.engine === 'claude' && !r.log.some((l) => l.kind === 'error')));
   return {
     attempts: tried.length,
     // Paid by the AI, that is: a visitor who switches to the client and approves doesn't count.
