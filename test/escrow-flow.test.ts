@@ -285,7 +285,7 @@ test('a new submission withdraws an open offer', async () => {
 
 test('demo deals: funded with a simulated hold, and the prepared delivery replays a recorded review', async () => {
   const outcomes: Record<string, string> = {};
-  for (const scenario of ['honest', 'cheater', 'partial']) {
+  for (const scenario of ['honest', 'cheater', 'partial', 'code']) {
     const m = service.startDemo(scenario);
     assert.equal(m.status, 'funded');
     assert.equal(m.payment.mode, 'simulated');
@@ -296,11 +296,12 @@ test('demo deals: funded with a simulated hold, and the prepared delivery replay
     const after = store.getMilestone(m.id)!;
     const review = after.reviews.at(-1)!;
     assert.equal(review.engine, 'replay');
-    assert.equal(review.findings.length, 3);
+    assert.equal(review.findings.length, scenario === 'code' ? 4 : 3);
     outcomes[scenario] = after.status;
+    if (scenario === 'code') assert.ok(review.log.some((l) => /Anthropic's sandbox/.test(l.text)), 'the replay shows the code being run');
     if (scenario === 'cheater') assert.equal(review.audit?.agreed, false, 'the second opinion refused');
   }
-  assert.deepEqual(outcomes, { honest: 'released', cheater: 'escalated', partial: 'changes_requested' });
+  assert.deepEqual(outcomes, { honest: 'released', cheater: 'escalated', partial: 'changes_requested', code: 'changes_requested' });
   const normal = service.createMilestone(input());
   assert.throws(() => service.deliverDemo(normal.id, normal.access!.freelancerKey), /not a demo deal/);
   assert.throws(() => service.startDemo('../../etc'), /Unknown demo scenario/);

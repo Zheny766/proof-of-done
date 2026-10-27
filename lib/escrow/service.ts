@@ -709,6 +709,7 @@ const DEMO_FREELANCERS: Record<string, [string, string]> = {
   honest: ['Diego Alvarez', 'diego@studio.example'],
   cheater: ['Sam Rivera', 'sam@studio.example'],
   partial: ['Priya Nair', 'priya@studio.example'],
+  code: ['Kenji Sato', 'kenji@studio.example'],
   arena: ['You', 'you@visitor.example'],
 };
 

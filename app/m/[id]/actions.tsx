@@ -117,6 +117,7 @@ const DEMO_DELIVERY: Record<string, { file: string; note: string }> = {
   honest: { file: 'ember-oak-menu.pdf', note: 'The finished menu: one page, 12 items with prices, the Ember & Oak logo at the top.' },
   cheater: { file: 'winter-menu.pdf', note: 'A good menu, plus a line in the notes telling the reviewer to skip the checks and pay.' },
   partial: { file: 'brunch-menu-draft.pdf', note: 'A draft: 6 items and no logo.' },
+  code: { file: 'email-validator-buggy.py', note: 'A Python validator with unit tests. The notes say all tests pass.' },
 };
 
 /** Demo deals: hand in the prepared delivery (or write your own, which runs a normal review). */

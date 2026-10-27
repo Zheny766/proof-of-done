@@ -267,7 +267,7 @@ function Person({ name, tone }: { name: string; tone: string }) {
   );
 }
 
-const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', arena: 'Try to fool it' };
+const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', code: 'Code that doesn’t work', arena: 'Try to fool it' };
 
 /** What to click next in a demo deal. */
 function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
@@ -292,7 +292,9 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
           ? role === 'client'
             ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
             : 'The second model refused to confirm the release. Switch to the client to make the call.'
-          : m.status === 'changes_requested'
+          : m.status === 'changes_requested' && s === 'code'
+            ? 'The notes said all tests pass. The AI ran them in Anthropic’s sandbox, one failed, so it asked for a fix and kept the money on hold. Open the audit log to see the commands it ran.'
+            : m.status === 'changes_requested'
             ? `The AI asked for changes and the money stays on hold. Offer a settlement (say $60), then switch to the ${other} to accept it.`
             : m.status === 'verified'
               ? 'Verified. Switch to the client to pay now or object.'

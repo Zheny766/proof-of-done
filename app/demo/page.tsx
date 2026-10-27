@@ -33,6 +33,14 @@ const SCENARIOS = [
     see: 'The AI asks for changes and keeps the money on hold. Offer a settlement, accept it as the other side, and PayPal captures only that part.',
     tone: 'border-sky-200',
   },
+  {
+    id: 'code',
+    n: '4',
+    title: 'Code that doesn’t work',
+    who: 'Kenji’s notes say all the tests pass.',
+    see: 'The AI copies his Python file into Anthropic’s code execution sandbox and runs it: one of four tests fails. It names the bug, asks for a fix, and the money stays on hold.',
+    tone: 'border-violet-200',
+  },
 ];
 
 export default async function DemoPage() {
@@ -44,11 +52,11 @@ export default async function DemoPage() {
       <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Try it in 60 seconds</p>
-        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Three real situations. You play both sides.</h1>
+        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Four real situations, and one live challenge. You play both sides.</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-pp-muted">
           Each one opens a private deal with $100 already on hold. Hand in the prepared delivery as the freelancer, watch the AI decide, then switch to the client. The AI reviews are replays of real Claude runs, so the demo costs nothing and works without keys; the money is a simulated PayPal hold.
         </p>
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {SCENARIOS.map((s) => (
             <section key={s.id} className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${s.tone}`}>
               <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>
@@ -61,7 +69,7 @@ export default async function DemoPage() {
         </div>
         <section className="mt-6 grid gap-6 rounded-2xl border-2 border-pp-navy bg-white p-6 shadow-sm lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
           <div>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">4</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">5</span>
             <h2 className="mt-4 font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
             <p className="mt-2 text-[15px] font-medium text-pp-ink">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
             <p className="mt-2 text-sm leading-relaxed text-pp-muted">

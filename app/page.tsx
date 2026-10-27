@@ -62,7 +62,7 @@ export default async function Home() {
               </Link>
             </div>
             <p className="mt-6 text-sm text-pp-muted">
-              {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} · Claude Opus 5.5 reviews, Claude Haiku 5.5 double-checks · 0 false payouts across 31 test deliveries and 10 live tricks
+              {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} · Claude Opus 5.5 reviews, Claude Haiku 5.5 double-checks · 0 false payouts across 32 test deliveries and 10 live tricks
             </p>
           </div>
           <PreviewCard />

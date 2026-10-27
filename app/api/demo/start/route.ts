@@ -7,7 +7,7 @@ import { allowRequest } from '@/lib/rate-limit';
 // visitor can play the client and the freelancer.
 export const POST = handle(async (request: Request) => {
   if (!allowRequest(request, 'demo-start', 20)) return Response.json({ error: 'Too many demo deals, try again in a minute.' }, { status: 429 });
-  const { scenario } = z.object({ scenario: z.enum(['honest', 'cheater', 'partial', 'arena']) }).parse(await request.json());
+  const { scenario } = z.object({ scenario: z.enum(['honest', 'cheater', 'partial', 'code', 'arena']) }).parse(await request.json());
   const m = startDemo(scenario);
   return Response.json({ id: m.id, clientKey: m.access!.clientKey, freelancerKey: m.access!.freelancerKey }, { status: 201 });
 });
