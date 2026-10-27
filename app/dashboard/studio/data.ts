@@ -196,7 +196,14 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       },
     ],
     // Money in USD: show a dollar sign and whole dollars (the default currency format has no symbol).
-    formats: createFormats({ overrides: { currencyFormat: { formatOptions: { format: '$#,##0' } } } }),
+    // Dates spelled out in English: the default patterns came out garbled in some browser locales.
+    formats: createFormats({
+      overrides: {
+        currencyFormat: { formatOptions: { format: '$#,##0' } },
+        dateFormat: { formatOptions: { format: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } },
+        dateTimeFormat: { formatOptions: { format: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) } },
+      },
+    }),
     expressions: [
       ratio('releaseRate', 'Release Rate', 'Released value / total milestone value.', 'milestones.released', 'milestones.amount'),
       ratio('autoReleaseRate', 'AI Auto-release Rate', 'Share of paid milestones where the AI released the money without the client stepping in.', 'milestones.isAutoReleased', 'milestones.isReleased'),
