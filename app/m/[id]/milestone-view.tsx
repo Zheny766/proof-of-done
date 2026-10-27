@@ -6,7 +6,7 @@ import { api, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/
 import { NextStep, Settlement, ShareLink } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
-import { initials } from './ui';
+import { card, h2, initials } from './ui';
 import { AgentLog, Verdict } from './verdict';
 import { describeDeal } from '@/app/components/deal-facts';
 import { WebMcpTools, type WebMcpTool } from '@/app/components/webmcp';
@@ -175,7 +175,7 @@ export function MilestoneView({
         </div>
       </div>
 
-      {m.demo && <DemoGuide m={m} role={role} />}
+      {m.demo && m.demo.scenario !== 'board' && <DemoGuide m={m} role={role} />}
 
       <MoneyJourney m={m} />
 
@@ -207,7 +207,9 @@ export function MilestoneView({
 
           {role !== 'viewer' && ['changes_requested', 'escalated'].includes(m.status) && <Settlement m={m} role={role} milestoneKey={key} onChange={setM} />}
 
-          {role === 'client' && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
+          {m.board && <BoardStatus m={m} />}
+
+          {role === 'client' && !m.board && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
 
           <PaymentDetails m={m} />
           <Timeline m={m} />
@@ -269,4 +271,34 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
       </a>
     </div>
   );
+}
+
+/** A job on the open board: listed, taken, or done. */
+function BoardStatus({ m }: { m: Milestone }) {
+  const b = m.board!;
+  const listed = m.status === 'funded' && !b.claimedAt;
+  return (
+    <section className={`${card} ${listed ? 'border-pp-blue ring-2 ring-pp-highlight' : ''}`}>
+      <h2 className={h2}>Open job board</h2>
+      <p suppressHydrationWarning className="mt-2 text-[15px] leading-relaxed text-pp-ink">
+        {m.status === 'awaiting_funding'
+          ? 'Listed as soon as PayPal holds the money: agents only see jobs that are already paid for.'
+          : listed
+            ? 'Listed now. Any AI agent can take it through MCP, or a person from the jobs page.'
+            : b.claimedAt
+              ? `Taken by ${b.claimedBy} ${ago(b.claimedAt)}.`
+              : 'No longer listed.'}
+      </p>
+      {listed && (
+        <a href="/jobs" className="mt-3 inline-block text-sm font-semibold text-pp-blue hover:underline">
+          See it on the board →
+        </a>
+      )}
+    </section>
+  );
+}
+
+function ago(iso: string) {
+  const min = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  return min < 60 ? `${min} min ago` : min < 48 * 60 ? `${Math.round(min / 60)} h ago` : `${Math.round(min / 1440)} days ago`;
 }

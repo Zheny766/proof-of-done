@@ -62,8 +62,10 @@ export const CreateMilestoneInput = z.object({
   currency: z.literal('USD').default('USD'),
   clientName: z.string().trim().min(1).max(80),
   clientEmail: z.email(),
-  freelancerName: z.string().trim().min(1).max(80),
-  freelancerEmail: z.email(),
+  // Not needed for a job on the open board: whoever takes it gives their name and PayPal email then.
+  freelancerName: z.string().trim().min(1).max(80).optional(),
+  freelancerEmail: z.email().optional(),
+  postToBoard: z.boolean().default(false),
   releaseThreshold: z.coerce.number().min(0.5).max(0.99).default(0.8),
   // Capped well inside PayPal's 3-day honor period, so the capture after the window still goes through.
   objectionHours: z.coerce.number().int().min(0).max(48).default(0),
@@ -71,6 +73,9 @@ export const CreateMilestoneInput = z.object({
 
 export function createMilestone(raw: unknown): Milestone {
   const input = CreateMilestoneInput.parse(raw);
+  if (!input.postToBoard && (!input.freelancerName || !input.freelancerEmail)) {
+    throw new EscrowError('Add the freelancer, or post the job on the open board.');
+  }
   const m: Milestone = {
     id: newId('ms'),
     title: input.title,
@@ -79,7 +84,7 @@ export function createMilestone(raw: unknown): Milestone {
     amount: input.amount.toFixed(2),
     currency: input.currency,
     client: { name: input.clientName, email: input.clientEmail },
-    freelancer: { name: input.freelancerName, email: input.freelancerEmail },
+    freelancer: input.postToBoard ? { name: 'Anyone on the board', email: '' } : { name: input.freelancerName!, email: input.freelancerEmail! },
     releaseThreshold: input.releaseThreshold,
     objectionHours: input.objectionHours,
     status: 'awaiting_funding',
@@ -88,10 +93,12 @@ export function createMilestone(raw: unknown): Milestone {
     reviews: [],
     timeline: [],
     access: newAccess(),
+    ...(input.postToBoard && { board: { postedAt: nowIso() } }),
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
   pushEvent(m, 'client', 'created', `${m.client.name} created the milestone for ${money(input.amount, m.currency)}`);
+  if (input.postToBoard) pushEvent(m, 'client', 'posted', 'Posted on the open job board: it is listed once PayPal holds the money');
   return insertMilestone(m);
 }
 
@@ -456,6 +463,88 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
     );
     pushPayoutEvent(x, payment);
   });
+}
+
+// The open job board: funded jobs any AI agent (or person) can take. Taking one gives the taker a
+// fresh freelancer key, so only they can deliver; a claim with no delivery lapses after a day.
+const CLAIM_MS = 24 * 3_600_000;
+
+const claimActive = (m: Milestone) => !!m.board?.claimedAt && (m.submissions.length > 0 || Date.now() - Date.parse(m.board.claimedAt) < CLAIM_MS);
+export const isOpenJob = (m: Milestone) => !!m.board && m.status === 'funded' && m.submissions.length === 0 && !claimActive(m);
+
+/** Open jobs, newest first. The money is already on hold for each one. */
+export function openJobs(): Milestone[] {
+  ensureBoardDemoJobs();
+  return listMilestones()
+    .filter(isOpenJob)
+    .sort((a, b) => b.board!.postedAt.localeCompare(a.board!.postedAt));
+}
+
+/** Jobs from the board that someone took, newest first: who took them and how they ended. */
+export const takenJobs = (limit = 6): Milestone[] =>
+  listMilestones()
+    .filter((m) => m.board?.claimedAt)
+    .sort((a, b) => b.board!.claimedAt!.localeCompare(a.board!.claimedAt!))
+    .slice(0, limit);
+
+export const ClaimJobInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  payoutEmail: z.email(),
+});
+
+export const claimJob = (id: string, raw: unknown) => exclusive(id, async () => claimJobNow(id, ClaimJobInput.parse(raw)));
+function claimJobNow(id: string, input: z.infer<typeof ClaimJobInput>): { milestone: Milestone; freelancerKey: string } {
+  const m = mustGet(id);
+  if (!m.board) throw new EscrowError('This job is not on the open board.', 404);
+  if (!isOpenJob(m)) throw new EscrowError(claimActive(m) ? 'Someone already took this job.' : 'This job is not open: it has no PayPal hold or it is already done.', 409);
+  const freelancerKey = newAccess().freelancerKey;
+  const milestone = updateMilestone(id, (x) => {
+    x.access = { ...x.access!, freelancerKey };
+    x.freelancer = { name: input.name, email: input.payoutEmail };
+    x.board = { ...x.board!, claimedAt: nowIso(), claimedBy: input.name };
+    pushEvent(x, 'freelancer', 'claimed', `${input.name} took the job from the open board`);
+  });
+  return { milestone, freelancerKey };
+}
+
+// The hosted demo keeps a few jobs on the board (simulated holds), so a visitor's agent always has
+// something to take. Only where POD_SEED_BOARD is set.
+const BOARD_DEMO_JOBS = [
+  {
+    title: 'Spanish menu for a cafe',
+    description: 'Translate the Ember & Oak cafe menu into Spanish for a new Madrid branch. The items: Espresso $3.00, Cappuccino $4.25, Oat latte $4.75, Hot chocolate $4.50, Iced tea $3.75, Fresh orange juice $4.50, Butter croissant $3.50, Almond croissant $4.25, Avocado toast $9.50, Ham and cheese sandwich $8.75, Granola bowl $8.50, Banana bread $3.75.',
+    criteria: ['Delivered as a Markdown or text file', 'All 12 items have Spanish names', 'Every price is unchanged', 'The cafe name stays EMBER & OAK'],
+    amount: 40,
+  },
+  {
+    title: 'README for a tiny CLI tool',
+    description: 'Write the README for "brisk", a command-line timer. "brisk 25m" starts a 25-minute timer, "brisk --list" shows past timers, "brisk --sound off" mutes the bell. It installs with "npm i -g brisk-timer". MIT licence.',
+    criteria: ['Delivered as a Markdown file', 'Explains how to install it', 'Shows all three commands with an example each', 'Mentions the MIT licence'],
+    amount: 60,
+  },
+  {
+    title: 'Five product descriptions for a candle shop',
+    description: 'Short web-shop descriptions for five soy candles from Wick & Ember: Cedar Smoke, Fig Leaf, Sea Salt, Black Tea, Orange Peel. 40 to 80 words each, warm and plain, no exclamation marks.',
+    criteria: ['All five candles have a description', 'Each description is 40 to 80 words', 'No exclamation marks anywhere'],
+    amount: 35,
+  },
+];
+
+function ensureBoardDemoJobs() {
+  if (!process.env.POD_SEED_BOARD) return;
+  const open = listMilestones().filter((m) => m.demo?.scenario === 'board' && isOpenJob(m));
+  for (const job of BOARD_DEMO_JOBS) {
+    if (open.some((m) => m.title === job.title)) continue;
+    const m = createMilestone({ ...job, clientName: 'Ember & Oak', clientEmail: 'maya@ember-oak.example', postToBoard: true });
+    const tag = crypto.randomBytes(5).toString('hex').toUpperCase();
+    const at = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+    updateMilestone(m.id, (x) => {
+      x.demo = { scenario: 'board' };
+      x.payment = { mode: 'simulated', orderId: `ORDER-DEMO-${tag}`, authorizationId: `AUTH-DEMO-${tag}`, authorizationStatus: 'CREATED', authorizedAt: nowIso(), honorExpiresAt: at(3), expiresAt: at(29) };
+      x.status = 'funded';
+      pushEvent(x, 'paypal', 'authorized', `PayPal authorized ${money(job.amount, x.currency)}: the money is on hold, nothing has been charged yet (demo: simulated hold)`);
+    });
+  }
 }
 
 // "Try it in 60 seconds": a ready deal per scenario, funded with a simulated hold, whose prepared

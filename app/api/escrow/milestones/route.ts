@@ -11,7 +11,8 @@ export const POST = handle(async (request: Request) => {
   if (!allowRequest(request, 'create', 30)) return Response.json({ error: 'Too many requests, try again in a minute.' }, { status: 429 });
   const milestone = createMilestone(await request.json());
   return Response.json(
-    { milestone: publicMilestone(milestone), clientKey: milestone.access!.clientKey, freelancerKey: milestone.access!.freelancerKey },
+    // A job on the open board has no freelancer yet: whoever takes it gets their own key.
+    { milestone: publicMilestone(milestone), clientKey: milestone.access!.clientKey, freelancerKey: milestone.board ? undefined : milestone.access!.freelancerKey },
     { status: 201 },
   );
 });

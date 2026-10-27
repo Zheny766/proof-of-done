@@ -29,7 +29,8 @@ export default async function MilestonePage(props: PageProps<'/m/[id]'>) {
         initial={role === 'viewer' ? viewerMilestone(milestone) : publicMilestone(milestone)}
         link={role === 'viewer' ? null : { role, key: linkKey! }}
         // The client gets the freelancer's link to pass on.
-        freelancerKey={role === 'client' ? milestone.access!.freelancerKey : null}
+        // (not for a job on the open board: whoever takes it gets their own key).
+        freelancerKey={role === 'client' && !milestone.board ? milestone.access!.freelancerKey : null}
         paypalClientId={paymentMode() === 'sandbox' ? (process.env.PAYPAL_CLIENT_ID ?? null) : null}
       />
     </>

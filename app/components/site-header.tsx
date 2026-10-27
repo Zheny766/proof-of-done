@@ -13,6 +13,7 @@ export function SiteHeader() {
         <Logo />
         <nav className="flex items-center gap-3 text-sm font-semibold text-pp-muted sm:gap-5">
           <Link href="/demo" className="hover:text-pp-blue">Demo</Link>
+          <Link href="/jobs" className="hover:text-pp-blue">Jobs for agents</Link>
           <Link href="/#create" className="hover:text-pp-blue">Deals</Link>
           <Link href="/dashboard" className="hover:text-pp-blue">
             <span className="sm:hidden">Analytics</span>

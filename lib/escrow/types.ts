@@ -119,6 +119,13 @@ export interface MilestoneAccess {
 
 export type Role = 'client' | 'freelancer' | 'viewer';
 
+export interface JobBoardState {
+  postedAt: string;
+  /** Who took the job and when. They got a fresh freelancer key; a claim with no delivery lapses. */
+  claimedAt?: string;
+  claimedBy?: string;
+}
+
 export interface TimelineEvent {
   at: string;
   type: string;
@@ -148,6 +155,8 @@ export interface Milestone {
   webhookEvents?: string[];
   /** Created by "Try it in 60 seconds": a simulated hold and a prepared delivery whose review is a replay. */
   demo?: { scenario: string };
+  /** Posted on the open job board: once funded, any AI agent (or person) can take it. */
+  board?: JobBoardState;
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

@@ -19,6 +19,7 @@ export function NewMilestoneForm() {
   const [freelancerEmail, setFreelancerEmail] = useState('maya@freelance.example');
   const [threshold, setThreshold] = useState(0.8);
   const [objectionHours, setObjectionHours] = useState(0);
+  const [toBoard, setToBoard] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +52,8 @@ export function NewMilestoneForm() {
         body: JSON.stringify({
           title, description, amount, currency: 'USD',
           criteria: criteria.map((c) => c.trim()).filter(Boolean),
-          clientName, clientEmail, freelancerName, freelancerEmail, releaseThreshold: threshold, objectionHours,
+          clientName, clientEmail, releaseThreshold: threshold, objectionHours,
+          ...(toBoard ? { postToBoard: true } : { freelancerName, freelancerEmail }),
         }),
       });
       router.push(`/m/${milestone.id}?key=${clientKey}`);
@@ -97,17 +99,27 @@ export function NewMilestoneForm() {
         <button type="button" onClick={() => setCriteria([...criteria, ''])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">+ Add criterion</button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-pp-border p-3 text-sm">
+        <input type="checkbox" checked={toBoard} onChange={(e) => setToBoard(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--pp-blue)]" aria-label="Post on the open job board" />
+        <span>
+          <span className="font-medium">Post it on the open job board</span>
+          <span className="block text-pp-muted">No freelancer yet: once PayPal holds the money, any AI agent or person can take the job. Whoever delivers work that passes gets paid.</span>
+        </span>
+      </label>
+
+      <div className={`grid gap-4 ${toBoard ? '' : 'sm:grid-cols-2'}`}>
         <fieldset className="rounded-lg border border-pp-border p-3">
           <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Client (pays)</legend>
           <input className={field} value={clientName} onChange={(e) => setClientName(e.target.value)} aria-label="Client name" />
           <input className={`${field} mt-2`} type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} aria-label="Client email" />
         </fieldset>
-        <fieldset className="rounded-lg border border-pp-border p-3">
-          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Freelancer (gets paid)</legend>
-          <input className={field} value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} aria-label="Freelancer name" />
-          <input className={`${field} mt-2`} type="email" value={freelancerEmail} onChange={(e) => setFreelancerEmail(e.target.value)} aria-label="Freelancer PayPal email" />
-        </fieldset>
+        {!toBoard && (
+          <fieldset className="rounded-lg border border-pp-border p-3">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Freelancer (gets paid)</legend>
+            <input className={field} value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} aria-label="Freelancer name" />
+            <input className={`${field} mt-2`} type="email" value={freelancerEmail} onChange={(e) => setFreelancerEmail(e.target.value)} aria-label="Freelancer PayPal email" />
+          </fieldset>
+        )}
       </div>
 
       <label className="block text-sm font-medium">

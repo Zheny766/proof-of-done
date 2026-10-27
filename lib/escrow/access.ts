@@ -60,3 +60,19 @@ export function viewerMilestone(m: Milestone): Milestone {
     timeline: p.timeline.map((e) => ({ ...e, text: redactEmails(['agent', 'client', 'freelancer'].includes(e.actor) ? e.text.split(': ')[0] : e.text) })),
   };
 }
+
+/** A job on the open board, as anyone may see it: what to do and what it pays, nothing private. */
+export function publicJob(m: Milestone) {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    criteria: m.criteria.map((c) => c.text),
+    amount: m.amount,
+    currency: m.currency,
+    releaseThreshold: m.releaseThreshold,
+    client: m.client.name,
+    postedAt: m.board?.postedAt ?? m.createdAt,
+    hold: m.payment.mode === 'sandbox' ? 'PayPal sandbox authorization' : 'simulated hold (demo)',
+  };
+}

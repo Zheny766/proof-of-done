@@ -68,7 +68,7 @@ export function NextStep({
   }
 
   if (role === 'freelancer') {
-    if (m.demo && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
+    if (m.demo && m.demo.scenario !== 'board' && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
     if (m.status === 'funded' || m.status === 'changes_requested') return <SubmitWork m={m} milestoneKey={milestoneKey} onSubmitted={onChange} />;
     if (m.status === 'verified') {
       return box(
@@ -233,7 +233,8 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
       setBusy('');
     }
   }
-  const title = verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : `Waiting for ${m.freelancer.name}`;
+  const onBoard = m.board && !m.board.claimedAt;
+  const title = verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
       <h2 className={h2}>Your next step</h2>
@@ -247,6 +248,8 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
           'The reviewer couldn’t verify everything on its own. Read its notes in the verdict, then decide.'
         ) : m.status === 'changes_requested' ? (
           `${m.freelancer.name} has the reviewer's feedback. You still have the final say.`
+        ) : onBoard ? (
+          `${amount} is on hold and the job is on the open board. When an agent or a person takes it and delivers, the AI checks the work. You can still step in at any time.`
         ) : (
           `${amount} is on hold. When ${m.freelancer.name} delivers, the AI checks it. You can still step in at any time.`
         )}
