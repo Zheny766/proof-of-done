@@ -6,7 +6,7 @@ The client puts the money on hold with PayPal. The freelancer delivers. A Claude
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) with PayPal Orders v2 (`intent: AUTHORIZE`), authorization capture/void, Payouts and the JS SDK v6, plus Claude Opus 5.5 and AG Grid / AG Studio.
 
-**Try it without installing anything:** [deploy your own copy on Render](https://render.com/deploy?repo=https://github.com/Zheny766/proof-of-done) (free plan, simulated PayPal and reviewer, no keys needed), or run it locally with sandbox keys as described in [Run it](#run-it).
+**Try it without installing anything:** <https://proof-of-done-ocrr.onrender.com> runs with simulated PayPal and a simulated reviewer, so no keys are needed. The free server sleeps when idle, so the first load can take up to a minute. For the real flow, run it locally with sandbox keys as described in [Run it](#run-it), or [deploy your own copy](https://render.com/deploy?repo=https://github.com/Zheny766/proof-of-done) and add the keys there.
 
 ![Milestone page: PayPal hold, AI verdicts per criterion, audit log](docs/screenshots/milestone.png)
 
@@ -177,6 +177,7 @@ Run end to end on October 26, 2026 with a sandbox Personal buyer:
 - **Capture and payout:** the full $450.00 was captured, then a payout batch went from `PENDING` to `SUCCESS` for the freelancer. The app refreshes a pending payout's status from PayPal.
 - **Void:** a $220.00 hold was cancelled by the client. PayPal reports the authorization as `VOIDED`, and nothing was charged.
 - **Again after the hardening passes:** an $85.00 hold through the popup (amount checked against the milestone), captured, payout `SUCCESS`. A second void of an already voided authorization returns `422 PREVIOUSLY_VOIDED`, which the cancel flow now accepts.
+- **Settlement (October 27):** a $100.00 hold through the popup. The freelancer offered $60, the client accepted. PayPal captured $60.00 with `final_capture` (capture `COMPLETED`, authorization `CAPTURED`), and a later attempt to capture another $1.00 was refused with `422 AUTHORIZATION_ALREADY_CAPTURED`, so the remaining $40.00 can't be taken from the buyer. The $60.00 payout item reached `SUCCESS`.
 
 ## Tested with the live Claude reviewer
 
