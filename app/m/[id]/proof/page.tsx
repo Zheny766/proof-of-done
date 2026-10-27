@@ -94,10 +94,10 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
           <h2 className="mt-8 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">What was delivered</h2>
           {files.length ? (
             <ul className="mt-3 space-y-2">
-              {files.map((a) => (
+              {files.map((a, i) => (
                 <li key={a.id} className="rounded-xl border border-pp-border px-4 py-3">
                   <div className="flex justify-between gap-3 text-sm">
-                    <b className="min-w-0 truncate">{a.name}</b>
+                    <b className="min-w-0 truncate">{fileLabel(i, a.mime)}</b>
                     <span className="shrink-0 text-pp-muted">{(a.size / 1024).toFixed(1)} KB</span>
                   </div>
                   <div className="mt-1 break-all font-mono text-[11px] text-pp-muted">SHA-256 {a.sha256 ?? 'not recorded (delivered before fingerprints were kept)'}</div>
@@ -107,10 +107,10 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
           ) : (
             <p className="mt-3 text-sm text-pp-muted">Notes and links only, no files.</p>
           )}
-          {files.some((a) => a.sha256) && <CheckFile hashes={files.flatMap((a) => (a.sha256 ? [{ name: a.name, sha256: a.sha256 }] : []))} />}
+          {files.some((a) => a.sha256) && <CheckFile hashes={files.flatMap((a, i) => (a.sha256 ? [{ name: fileLabel(i, a.mime), sha256: a.sha256 }] : []))} />}
 
           <p className="mt-8 border-t border-pp-border pt-4 text-xs leading-relaxed text-pp-muted">
-            Certificate {m.id}. The reviewer&apos;s evidence, the notes and the work itself are visible only to the client and the freelancer, on{' '}
+            Certificate {m.id}. The reviewer&apos;s evidence, the notes, the file names and the work itself are visible only to the client and the freelancer, on{' '}
             <Link href={`/m/${m.id}`} className="text-pp-blue hover:underline">
               the deal page
             </Link>
@@ -121,6 +121,9 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
     </>
   );
 }
+
+// The certificate is public, so files are named by type and position, not by their (possibly telling) names.
+const fileLabel = (i: number, mime: string) => `File ${i + 1} · ${mime === 'application/pdf' ? 'PDF' : mime.startsWith('image/') ? 'image' : mime.startsWith('text/') ? 'text' : 'file'}`;
 
 function Fact({ label, value, mono, note }: { label: string; value: string; mono?: boolean; note?: string }) {
   return (
