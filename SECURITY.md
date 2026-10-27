@@ -49,6 +49,20 @@ Sandbox only: the app talks to `api-m.sandbox.paypal.com` and nothing else.
 | **A forged PayPal webhook** ("the payout succeeded", "the capture completed") | Nothing is trusted until PayPal's verify-webhook-signature API confirms the delivery for our webhook id; each event id is applied once | `test/webhooks.test.ts` › *only a signature PayPal confirms is trusted, checked with our webhook id*, *a completed capture releases a held payout, and a redelivery does nothing* |
 | **A corrupt data file** silently treated as empty (and then overwritten) | Loading refuses; nothing is written | `test/escrow-flow.test.ts` › *a corrupt data file is an error, never an empty store* |
 
+## The open job board and agents
+
+| Attack | Defence | Proven by |
+|---|---|---|
+| **An agent "approves" its own job**, or funds work through MCP | The tools can post, take and deliver, never pay or approve: funding needs the client in PayPal's own window, and a job posted by an agent is listed only after the client funds it ([mcp/tools.mjs](mcp/tools.mjs)) | `test/job-board.test.ts` › *an agent can post a job for its client, on the record; the client still has to fund it*, *only funded jobs are listed* |
+| **Delivering with someone else's claim**, or with the key minted when the job was created | Taking a job issues a fresh freelancer key; the old one, and a lapsed taker's, stop working | `test/job-board.test.ts` › *taking a job hands out a fresh freelancer key and takes it off the board*, *a claim with no delivery lapses after a day* |
+| **Hoarding the board** (taking every job so nobody else can) | A claim lapses after 24 hours without a delivery, and one taker can hold 1 to 5 open jobs depending on standing | `test/job-board.test.ts` › *how many open jobs one taker can hold depends on their standing* |
+| **Talking up your own record** | Standing is computed from what the reviewer decided, kept against the payout PayPal email, never from what a taker says | `test/job-board.test.ts` › *standing comes from reviewed deliveries paid to the same PayPal email*, *track records come from confirmed outcomes* |
+| **A repeat cheat cashing in** once the work finally passes | Probation (most deliveries held, or a second-opinion red flag in 30 days): the AI may verify, but the money waits for the client | `test/job-board.test.ts` › *a taker on probation is not paid automatically* |
+| **Faking the challenge's scoreboard** by approving your own attempt as the client | Only payouts the AI made count; demo identities never get a standing, so it shows the AI alone | `test/arena.test.ts` › *the scoreboard counts a payout only when the AI released it*, *the challenge never gets a standing* |
+| **Burning the API budget** through the live challenge | Off without a key, one attempt per deal, three per visitor per 10 minutes, `POD_ARENA_DAILY` a day, and the hosted key's own spend limit | `test/arena.test.ts` › *one attempt per deal, the draft attached for the visitor, and a daily cap* |
+| **Leaving a client with too much on hold** in a long project | Each stage is funded only when the one before it is paid or cancelled | `test/projects.test.ts` › *a stage is funded only after the one before it is paid* |
+| **A capture after PayPal's guarantee ran out** | Holds past the 3-day honor period are reauthorized, on read and right before a capture | `test/paypal-money.test.ts` › *a hold past its 3-day honor period is reauthorized once*, *capturing an aged hold renews it first*; `test/escrow-flow.test.ts` › *a job that outlasts the 3-day honor period* |
+
 ## Privacy and cost
 
 | Risk | Defence | Proven by |
