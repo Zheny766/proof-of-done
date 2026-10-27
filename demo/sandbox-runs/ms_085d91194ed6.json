@@ -1,0 +1,74 @@
+{
+  "id": "ms_085d91194ed6",
+  "title": "Menu redesign for a cafe",
+  "amount": "85.00",
+  "currency": "USD",
+  "status": "released",
+  "createdAt": "2026-10-26T09:26:40.062Z",
+  "takenBy": null,
+  "criteria": [
+    {
+      "text": "The menu is delivered as a PDF",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "It lists at least 10 items with prices",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "The cafe logo is at the top",
+      "status": null,
+      "confidence": null
+    }
+  ],
+  "review": null,
+  "paypal": {
+    "orderId": "6FJ816144R886964N",
+    "authorizationId": "7E798906L73502445",
+    "authorizationStatus": "CAPTURED",
+    "authorizedAt": "2026-10-26T09:30:17Z",
+    "previousAuthorizationId": null,
+    "reauthorizedAt": null,
+    "captureId": "8SW34766R8713490K",
+    "capturedAt": "2026-10-26T09:30:55Z",
+    "capturedAmount": "85.00",
+    "payoutBatchId": "PWPN446LL494J",
+    "payoutStatus": "SUCCESS",
+    "voidedAt": null
+  },
+  "calls": [],
+  "timeline": [
+    {
+      "at": "2026-10-26T09:26:40.062Z",
+      "actor": "client",
+      "text": "Maya Chen created the milestone for 85.00 USD"
+    },
+    {
+      "at": "2026-10-26T09:30:18.671Z",
+      "actor": "paypal",
+      "text": "PayPal authorized 85.00 USD: the money is on hold, nothing has been charged yet"
+    },
+    {
+      "at": "2026-10-26T09:30:56.762Z",
+      "actor": "client",
+      "text": "Maya Chen approved the work and released the payment"
+    },
+    {
+      "at": "2026-10-26T09:30:56.762Z",
+      "actor": "paypal",
+      "text": "PayPal captured 85.00 USD (capture 8SW34766R8713490K)"
+    },
+    {
+      "at": "2026-10-26T09:30:56.763Z",
+      "actor": "paypal",
+      "text": "Payout sent to [email] (batch PWPN446LL494J)"
+    },
+    {
+      "at": "2026-10-26T09:31:25.038Z",
+      "actor": "paypal",
+      "text": "PayPal payout completed: the money reached [email]"
+    }
+  ]
+}

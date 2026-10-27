@@ -20,8 +20,9 @@ export default async function SandboxPage() {
         <h1 className="mt-3 font-display text-4xl leading-tight text-pp-navy">These deals ran on the real PayPal sandbox</h1>
         <p className="mt-4 max-w-3xl text-[17px] leading-relaxed text-pp-muted">
           Every id below came back from <code className="text-[15px]">api-m.sandbox.paypal.com</code>: the order the client approved in the PayPal popup, the
-          authorization that held the money, the capture, and the payout to the freelancer. Each REST call carries PayPal&apos;s debug id, which is how
-          PayPal finds a request on its side. The brief, the delivered work and everyone&apos;s email stay out of it.
+          authorization that held the money, the capture, and the payout to the freelancer. Runs recorded since we started logging each REST call also
+          list those calls with PayPal&apos;s debug id, which is how PayPal finds a request on its side. The brief, the delivered work and everyone&apos;s
+          email stay out of it.
         </p>
         {runs.length === 0 && <p className="mt-10 rounded-xl bg-pp-canvas px-4 py-3 text-pp-muted">No runs saved yet.</p>}
         <div className="mt-10 space-y-8">
@@ -68,6 +69,9 @@ function Run({ run }: { run: SandboxRun }) {
         <span className={`rounded-full px-3 py-1 text-sm font-semibold ${o.tone}`}>{o.label}</span>
       </div>
 
+      {!run.review && run.paypal.captureId && (
+        <p className="mt-4 text-[15px] leading-relaxed text-pp-ink">No AI review on this one: the client looked at the work and released the payment by hand.</p>
+      )}
       {run.review && (
         <p className="mt-4 text-[15px] leading-relaxed text-pp-ink">
           {run.review.reviewer?.startsWith('claude') ? modelName(run.review.reviewer) : 'The reviewer'} found {met} of {run.criteria.length} criteria met and decided to{' '}
@@ -89,7 +93,7 @@ function Run({ run }: { run: SandboxRun }) {
             <span className="text-[15px] text-pp-ink">{label}</span>
             <span suppressHydrationWarning className="font-mono text-xs text-pp-muted">
               {id}
-              {at && <> · {fmtDate(at)}</>}
+              {at && <>{id && ' · '}{fmtDate(at)}</>}
             </span>
           </li>
         ))}

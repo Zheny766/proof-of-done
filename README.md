@@ -11,7 +11,8 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 2. Same page → *Your turn: try to fool it*: write any trick you like; a live Claude review and second opinion decide.
 3. [/jobs](https://proof-of-done.onrender.com/jobs): point your own agent at the board with one line and let it earn a (simulated) payout.
 4. [/dashboard](https://proof-of-done.onrender.com/dashboard) → *Trust & PayPal* and *Agents & job board* in AG Studio; ask the assistant why a deal was held.
-5. The [video](#) shows the same flow on the real PayPal sandbox, with Claude Code taking a job.
+5. [/sandbox](https://proof-of-done.onrender.com/sandbox): deals that ran on the real PayPal sandbox, with every id PayPal returned (order, hold, capture, payout, and a voided hold).
+6. The [video](#) shows the same flow on the real PayPal sandbox, with Claude Code taking a job.
 
 **Try it in 60 seconds:** <https://proof-of-done.onrender.com/demo>. Four scenarios (honest work gets paid, a cheater gets caught, half the work is settled, code that says its tests pass gets run and sent back) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude runs (Opus 5.5, and Haiku 5.5 for the code), so it costs nothing and needs no keys. A fifth, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review plus second opinion decide, on a public scoreboard. The free server sleeps when idle, so the first load can take up to a minute. For the full flow with the PayPal sandbox, [run it locally](#run-it).
 

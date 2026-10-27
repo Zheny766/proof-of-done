@@ -1,0 +1,79 @@
+{
+  "id": "ms_e8462c636b71",
+  "title": "Landing page for a coffee roastery",
+  "amount": "450.00",
+  "currency": "USD",
+  "status": "released",
+  "createdAt": "2026-10-26T03:49:11.948Z",
+  "takenBy": null,
+  "criteria": [
+    {
+      "text": "The page is published at a public URL",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "A hero section shows the roastery name and a call-to-action button",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "A menu section lists at least 6 drinks, each with a price",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "Opening hours and a street address are shown",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "The layout works on a 375px-wide phone screen without horizontal scrolling",
+      "status": null,
+      "confidence": null
+    }
+  ],
+  "review": null,
+  "paypal": {
+    "orderId": "0H205492EL3680341",
+    "authorizationId": "2FL6826114691202G",
+    "authorizationStatus": "CAPTURED",
+    "authorizedAt": "2026-10-26T04:09:17Z",
+    "previousAuthorizationId": null,
+    "reauthorizedAt": null,
+    "captureId": "78E39308ER865604P",
+    "capturedAt": "2026-10-26T04:12:37Z",
+    "capturedAmount": "450.00",
+    "payoutBatchId": "3J758X4GKRQT4",
+    "payoutStatus": "SUCCESS",
+    "voidedAt": null
+  },
+  "calls": [],
+  "timeline": [
+    {
+      "at": "2026-10-26T03:49:11.948Z",
+      "actor": "client",
+      "text": "Maya Chen created the milestone for 450.00 USD"
+    },
+    {
+      "at": "2026-10-26T04:09:17.965Z",
+      "actor": "paypal",
+      "text": "PayPal authorized 450.00 USD: the money is on hold, nothing has been charged yet"
+    },
+    {
+      "at": "2026-10-26T04:12:39.483Z",
+      "actor": "client",
+      "text": "Maya Chen approved the work and released the payment"
+    },
+    {
+      "at": "2026-10-26T04:12:39.483Z",
+      "actor": "paypal",
+      "text": "PayPal captured 450.00 USD (capture 78E39308ER865604P)"
+    },
+    {
+      "at": "2026-10-26T04:13:32.643Z",
+      "actor": "paypal",
+      "text": "PayPal payout completed: 450.00 USD reached [email]"
+    }
+  ]
+}

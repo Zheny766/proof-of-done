@@ -1,0 +1,64 @@
+{
+  "id": "ms_3e8bd57229c2",
+  "title": "Logo for a neighborhood bakery",
+  "amount": "220.00",
+  "currency": "USD",
+  "status": "cancelled",
+  "createdAt": "2026-10-26T03:49:11.975Z",
+  "takenBy": null,
+  "criteria": [
+    {
+      "text": "The logo includes the name Crumb & Co",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "It includes a wheat or bread mark",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "Files are delivered in both SVG and PNG formats",
+      "status": null,
+      "confidence": null
+    },
+    {
+      "text": "A one-color (single ink) version is included",
+      "status": null,
+      "confidence": null
+    }
+  ],
+  "review": null,
+  "paypal": {
+    "orderId": "7N565630MX6586216",
+    "authorizationId": "5UC02564GU8583729",
+    "authorizationStatus": "VOIDED",
+    "authorizedAt": "2026-10-26T04:38:39Z",
+    "previousAuthorizationId": null,
+    "reauthorizedAt": null,
+    "captureId": null,
+    "capturedAt": null,
+    "capturedAmount": null,
+    "payoutBatchId": null,
+    "payoutStatus": null,
+    "voidedAt": "2026-10-26T04:39:12.328Z"
+  },
+  "calls": [],
+  "timeline": [
+    {
+      "at": "2026-10-26T03:49:11.975Z",
+      "actor": "client",
+      "text": "Maya Chen created the milestone for 220.00 USD"
+    },
+    {
+      "at": "2026-10-26T04:38:40.343Z",
+      "actor": "paypal",
+      "text": "PayPal authorized 220.00 USD: the money is on hold, nothing has been charged yet"
+    },
+    {
+      "at": "2026-10-26T04:39:12.329Z",
+      "actor": "client",
+      "text": "Maya Chen cancelled the milestone; the PayPal hold was voided, nothing was charged"
+    }
+  ]
+}

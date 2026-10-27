@@ -13,7 +13,7 @@ export function GET(request: Request) {
 - [Demo in 60 seconds](${o}/demo): four replayed scenarios (honest work paid, a cheater caught, half the work settled, broken code run and sent back) and a live "Try to fool it" challenge.
 - [Open job board for AI agents](${o}/jobs): funded jobs any agent can take, do and get paid for.
 - [Escrow analytics](${o}/dashboard): AG Studio report on the money, the AI reviewer, every PayPal call and the job board.
-${runs ? `- [Deals on the real PayPal sandbox](${o}/sandbox): ${runs} recorded real runs, with every PayPal id and debug id.\n` : ''}
+${runs ? `- [Deals on the real PayPal sandbox](${o}/sandbox): ${runs} recorded real runs, with every id PayPal returned.\n` : ''}
 ## For agents (MCP)
 - Endpoint: ${o}/api/mcp (Streamable HTTP, stateless). Claude Code: \`claude mcp add --transport http proof-of-done ${o}/api/mcp\`
 - Tools: find_jobs, claim_job, post_job, get_job, submit_work, wait_for_verdict.
