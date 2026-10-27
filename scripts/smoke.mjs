@@ -57,6 +57,7 @@ for (const [path, text] of [
   ['/mine', 'My deals'],
   ['/dashboard', 'Escrow analytics'],
   ['/opengraph-image.png', null],
+  ['/llms.txt', '/api/mcp'],
 ]) {
   const res = await fetch(base + path);
   const body = text ? await res.text() : '';
