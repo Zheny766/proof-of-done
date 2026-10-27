@@ -30,3 +30,18 @@ export function allowRequest(request: Request, bucket: string, limit: number, wi
 
 /** Browsers send Sec-Fetch-Site; refuse writes that another site triggered (CSRF). */
 export const isCrossSite = (request: Request) => ['cross-site', 'same-site'].includes(request.headers.get('sec-fetch-site') ?? '');
+
+// A day's allowance, shared by everyone, for Claude calls that nothing else caps (the dashboard
+// assistant's turns and criteria drafts): POD_CLAUDE_DAILY calls per UTC day, unlimited when unset.
+// The per-minute limits slow one client down; this keeps a bot from emptying the demo's API budget.
+const daily = new Map<string, { day: string; used: number }>();
+
+export function withinDailyBudget(bucket: string, limit = Number(process.env.POD_CLAUDE_DAILY || 0), now = Date.now()): boolean {
+  if (!(limit > 0)) return true;
+  const day = new Date(now).toISOString().slice(0, 10);
+  const today = daily.get(bucket)?.day === day ? daily.get(bucket)! : { day, used: 0 };
+  daily.set(bucket, today);
+  if (today.used >= limit) return false;
+  today.used++;
+  return true;
+}

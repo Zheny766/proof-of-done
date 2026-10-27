@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AgLlmRequest } from 'ag-studio';
 import { aiModels, claudeErrorMessage, isClaudeConfigured, refusalFallback } from '@/lib/ai';
-import { allowRequest, isCrossSite } from '@/lib/rate-limit';
+import { allowRequest, isCrossSite, withinDailyBudget } from '@/lib/rate-limit';
 import { ClaudeToAgTranslator, encodeConversation, encodeTools, steeringInstructions, toAgResponse } from '@/lib/claude-bridge';
 
 // One assistant turn for AG Studio: AgLlmRequest in, Claude streamed back as AG-UI events over SSE.
@@ -34,6 +34,9 @@ export async function POST(request: Request) {
   }
   if (!isClaudeConfigured()) {
     return Response.json({ error: { message: 'The AI assistant is not configured: set ANTHROPIC_API_KEY in .env.local.' } }, { status: 503 });
+  }
+  if (!withinDailyBudget('claude')) {
+    return Response.json({ error: { message: "The assistant has used today's budget on this demo server. It's back tomorrow (UTC); the rest of the dashboard works as before." } }, { status: 429 });
   }
   let body: AgLlmRequest;
   try {
