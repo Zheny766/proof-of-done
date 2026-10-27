@@ -25,6 +25,12 @@ const SAFEGUARDS = [
   ['Every step on the record', 'Each finding, decision and PayPal call is logged with who made it: client, freelancer, AI or PayPal.'],
 ];
 
+const COSTS = [
+  ['Escrow.com', '$50', 'Its standard fee is 2.6% with a $50 minimum up to $5,000, so a $250 job pays the minimum: 20%. A person still has to approve the release.', 'https://www.escrow.com/fee-calculator'],
+  ['Upwork', 'up to $37.50', 'The freelancer service fee is 0% to 15% of each contract, on top of what the client pays the marketplace.', 'https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee'],
+  ['Proof of Done', '$0.10', 'What one review with Claude Opus and the Haiku second opinion cost in our evaluation; with Haiku reviewing, $0.003. Plus PayPal’s usual processing fee.', ''],
+];
+
 export default async function Home() {
   await connection();
   seedDemoIfEmpty();
@@ -109,6 +115,27 @@ export default async function Home() {
               <div key={t} className="rounded-2xl border border-pp-border bg-white p-5">
                 <div className="text-[15px] font-semibold text-pp-navy">{t}</div>
                 <p className="mt-1.5 text-sm leading-relaxed text-pp-muted">{d}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 pb-14">
+          <h2 className="font-display text-3xl text-pp-navy">What checking the work costs</h2>
+          <p className="mt-2 max-w-3xl text-[15px] text-pp-muted">For a typical $250 job. Small jobs are exactly where escrow and marketplaces cost the most, so they mostly run on trust.</p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {COSTS.map(([who, cost, note, href]) => (
+              <div key={who} className={`rounded-2xl border p-5 ${who === 'Proof of Done' ? 'border-emerald-300 bg-emerald-50/50' : 'border-pp-border bg-white'}`}>
+                <div className="text-sm font-semibold text-pp-muted">{who}</div>
+                <div className="mt-1 font-display text-4xl text-pp-navy">{cost}</div>
+                <p className="mt-2 text-sm leading-relaxed text-pp-muted">
+                  {note}{' '}
+                  {href && (
+                    <a href={href} className="text-pp-blue hover:underline" target="_blank" rel="noreferrer">
+                      source
+                    </a>
+                  )}
+                </p>
               </div>
             ))}
           </div>

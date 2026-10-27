@@ -14,6 +14,8 @@ With fixed-price freelance work someone always has to go first. Either the freel
 - 71% of US freelancers have struggled to get paid at least once, and an unpaid freelancer loses almost $6,000 a year, about 13% of their income ([Freelancers Union, *The Costs of Nonpayment*, 5,000+ freelancers](https://blog.freelancersunion.org/2015/12/10/costs-nonpayment/)).
 - In the UK, 54% of freelancers have had a client pay late, 31% did work they were never paid for, and they are owed £5,230 on average ([IPSE](https://www.ipse.co.uk/policy/research/financial-wellbeing/late-payment-within-the-self-employed-sector.html)).
 
+Small jobs are where today's options cost the most: on a $250 job Escrow.com charges its $50 minimum (2.6%, $50 minimum up to $5,000), and Upwork takes a 0-15% freelancer service fee. In my evaluation one AI review cost about $0.10 with Claude Opus and Haiku, and a third of a cent with Haiku alone.
+
 Escrow fixes who holds the money, but releasing it still waits on someone opening the delivery, checking it and clicking approve - which can take days, or end in a dispute. I wanted to see if that check, and the payment after it, could be handed to an AI agent with PayPal holding the money - without giving the agent a blank cheque.
 
 ## What it does

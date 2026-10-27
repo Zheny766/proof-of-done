@@ -25,6 +25,8 @@ Small fixed-price jobs, roughly $50-$2,000: a logo, a landing page, a bug fix, c
 
 Here the hold stays with PayPal and the approval step becomes a check against the criteria, with the evidence written down for both sides.
 
+**What checking costs.** Small jobs are where today's options cost the most. On a $250 job, Escrow.com charges its $50 minimum (2.6% with a $50 minimum up to $5,000, [fee calculator](https://www.escrow.com/fee-calculator)), and a person still approves the release; Upwork takes a 0-15% freelancer service fee per contract ([Upwork](https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee)) on top of the client's marketplace fee. In our [evaluation](#evaluation), one review cost **$0.096** with Claude Opus reviewing and Haiku as the second opinion ($0.67 for 7 deliveries), and **$0.0026** with Haiku doing both ($0.04 for 16). PayPal's processing fee applies either way. So a platform like this could charge a small percentage, `POD_PLATFORM_FEE_PCT` is already supported on payouts, and still be far cheaper for exactly the jobs that run on trust today.
+
 ## How it works
 
 ```mermaid
