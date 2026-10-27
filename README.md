@@ -238,6 +238,9 @@ npm test        # 96 tests: escrow state machine (simulated, throwaway data dir)
                 # evidence handling, rate limits, Claude <-> AG Studio bridge
 npm run lint
 npm run build
+npm run smoke -- https://proof-of-done.onrender.com
+                # the judge's path against a running copy: pages, the agent endpoint, and the four
+                # replayed demos ending paid / held / settled for part / sent back (no API cost)
 ```
 
 ## Project structure

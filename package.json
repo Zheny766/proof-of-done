@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --conditions=react-server --test test/"
+    "test": "node --conditions=react-server --test test/",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
