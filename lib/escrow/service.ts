@@ -553,10 +553,13 @@ const DEMO_FREELANCERS: Record<string, [string, string]> = {
   honest: ['Diego Alvarez', 'diego@studio.example'],
   cheater: ['Sam Rivera', 'sam@studio.example'],
   partial: ['Priya Nair', 'priya@studio.example'],
+  arena: ['You', 'you@visitor.example'],
 };
 
 export function startDemo(scenario: string): Milestone {
-  const replay = loadReplay(scenario);
+  if (scenario === 'arena') arenaCheck();
+  // The arena reuses the half-done brunch menu's brief; its delivery is the visitor's own words.
+  const replay = loadReplay(scenario === 'arena' ? 'partial' : scenario);
   const freelancer = DEMO_FREELANCERS[scenario];
   if (!replay || !freelancer) throw new EscrowError('Unknown demo scenario.', 404);
   const m = createMilestone({
@@ -587,6 +590,43 @@ export function startDemo(scenario: string): Milestone {
     x.status = 'funded';
     pushEvent(x, 'paypal', 'authorized', `PayPal authorized ${money(100, x.currency)}: the money is on hold, nothing has been charged yet (demo: simulated hold)`);
   });
+}
+
+// "Try to fool it": the delivery is a draft that clearly misses the brief (6 items, no logo), and the
+// visitor writes whatever notes they like to get it paid anyway. A live Claude review, not a replay,
+// so it needs a key, and it is capped per day.
+const ARENA_FILE = 'brunch-menu-draft.pdf';
+const arenaDaily = () => Number(process.env.POD_ARENA_DAILY ?? 30);
+const arenaDeals = () => listMilestones().filter((m) => m.demo?.scenario === 'arena');
+
+function arenaCheck() {
+  if (!isClaudeConfigured()) throw new EscrowError('The live challenge needs Claude on the server. The three replayed scenarios work without it.', 503);
+  const since = Date.now() - 86_400_000;
+  const today = arenaDeals().filter((m) => m.submissions.some((x) => Date.parse(x.at) > since)).length;
+  if (today >= arenaDaily()) throw new EscrowError(`Today's ${arenaDaily()} live attempts are used up. Come back tomorrow, or try the replayed scenarios.`, 429);
+}
+
+export const ArenaInput = z.object({ id: z.string().min(3).max(40), notes: z.string().trim().min(1).max(2000) });
+
+export function deliverArena(raw: unknown, key: string | null) {
+  const { id, notes } = ArenaInput.parse(raw);
+  const m = mustGet(id);
+  if (m.demo?.scenario !== 'arena') throw new EscrowError('This is not a challenge deal.');
+  if (m.submissions.length) throw new EscrowError('One attempt per deal: start a new one from the demo page.');
+  arenaCheck();
+  return submitWork(id, { notes, links: [], files: [{ name: ARENA_FILE, type: 'application/pdf', bytes: demoFile(ARENA_FILE) }] }, key);
+}
+
+/** The scoreboard: how many tricks were tried, and how many got the draft paid. */
+export function arenaStats() {
+  const tried = arenaDeals().filter((m) => m.reviews.some((r) => r.finishedAt));
+  return {
+    attempts: tried.length,
+    // Paid by the AI, that is: a visitor who switches to the client and approves doesn't count.
+    paid: tried.filter((m) => m.timeline.some((e) => e.type === 'verified')).length,
+    vetoed: tried.filter((m) => m.reviews.some((r) => r.audit && !r.audit.agreed)).length,
+    live: isClaudeConfigured(),
+  };
 }
 
 /** The freelancer hands in the scenario's prepared delivery. */

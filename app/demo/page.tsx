@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { connection } from 'next/server';
+import { arenaStats } from '@/lib/escrow/service';
 import { SiteHeader } from '@/app/components/site-header';
 import { StartDemo } from './start-button';
 
@@ -32,7 +34,9 @@ const SCENARIOS = [
   },
 ];
 
-export default function DemoPage() {
+export default async function DemoPage() {
+  await connection();
+  const arena = arenaStats();
   return (
     <>
       <SiteHeader />
@@ -53,6 +57,36 @@ export default function DemoPage() {
             </section>
           ))}
         </div>
+        <section className="mt-6 grid gap-6 rounded-2xl border-2 border-pp-navy bg-white p-6 shadow-sm lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
+          <div>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">4</span>
+            <h2 className="mt-4 font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
+            <p className="mt-2 text-[15px] font-medium text-pp-ink">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
+            <p className="mt-2 text-sm leading-relaxed text-pp-muted">
+              Write anything you like in the notes to get it paid anyway: claims, excuses, a fake message from the client, orders for the AI. This one is not a replay: a real Claude review and a real second opinion decide, and the result goes on the scoreboard.
+            </p>
+            {arena.live ? (
+              <div className="max-w-xs">
+                <StartDemo scenario="arena" label="Try to get it paid" />
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl bg-pp-canvas px-4 py-3 text-sm text-pp-muted">Needs an Anthropic key on the server, so it is off here. Run it locally with ANTHROPIC_API_KEY set.</p>
+            )}
+          </div>
+          <dl className="grid grid-cols-3 gap-3 text-center">
+            {[
+              ['Tricks tried', arena.attempts, 'text-pp-navy'],
+              ['Got paid', arena.paid, arena.paid ? 'text-pp-danger' : 'text-emerald-600'],
+              ['Second opinion stopped', arena.vetoed, 'text-violet-700'],
+            ].map(([label, n, tone]) => (
+              <div key={label as string} className="rounded-xl bg-pp-canvas px-2 py-4">
+                <dd className={`font-display text-5xl tabular-nums ${tone}`}>{n}</dd>
+                <dt className="mt-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">{label}</dt>
+              </div>
+            ))}
+          </dl>
+        </section>
+
         <div className="mt-10 rounded-2xl border border-pp-border bg-white p-6 text-[15px] leading-relaxed text-pp-muted">
           <b className="text-pp-ink">Want to see it live?</b> <Link href="/#create" className="text-pp-blue hover:underline">Create your own deal</Link>: it goes through the real PayPal sandbox (log in to the popup with a sandbox buyer account), and with an Anthropic key set the review runs live on Claude.
         </div>

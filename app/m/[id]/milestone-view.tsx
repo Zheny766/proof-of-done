@@ -234,14 +234,22 @@ function Person({ name, tone }: { name: string; tone: string }) {
   );
 }
 
-const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay' };
+const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', arena: 'Try to fool it' };
 
 /** What to click next in a demo deal. */
 function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
   const s = m.demo!.scenario;
   const other = role === 'client' ? 'freelancer' : 'client';
-  const tip =
-    m.status === 'funded'
+  const arena = s === 'arena';
+  const tip = arena
+    ? m.status === 'funded'
+      ? 'Write your trick in the notes and hand in the draft. A live Claude review decides, and a second model has to agree before anything is paid.'
+      : m.status === 'reviewing'
+        ? 'Claude is reviewing your delivery right now: a live run, not a replay. Watch the audit log.'
+        : ['verified', 'released'].includes(m.status)
+          ? 'It got paid. That counts as a false payout on the scoreboard, and we would love to know how you did it.'
+          : 'Held: the draft did not get paid and the money stays on hold. Read why in the verdict, or try another trick from the demo page.'
+    : m.status === 'funded'
       ? role === 'freelancer'
         ? 'You are the freelancer. Hand in the prepared work below and watch the AI review it.'
         : 'Switch to the freelancer (left column) and hand in the work.'
