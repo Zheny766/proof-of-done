@@ -6,6 +6,13 @@ The client puts the money on hold with PayPal. The freelancer (or an AI agent th
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
+**Judging in five minutes:**
+1. [/demo](https://proof-of-done-ocrr.onrender.com/demo) → *A cheater gets caught*: hand in the prepared delivery and watch Claude Opus find the work fine, go to pay, and the second model refuse (a replay of a real run, 30 seconds).
+2. Same page → *Your turn: try to fool it*: write any trick you like; a live Claude review and second opinion decide.
+3. [/jobs](https://proof-of-done-ocrr.onrender.com/jobs): point your own agent at the board with one line and let it earn a (simulated) payout.
+4. [/dashboard](https://proof-of-done-ocrr.onrender.com/dashboard) → *Trust & PayPal* and *Agents & job board* in AG Studio; ask the assistant why a deal was held.
+5. The [video](#) shows the same flow on the real PayPal sandbox, with Claude Code taking a job.
+
 **Try it in 60 seconds:** <https://proof-of-done-ocrr.onrender.com/demo>. Three scenarios (honest work gets paid, a cheater gets caught, half the work is settled) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude Opus 5.5 runs, so it costs nothing and needs no keys. A fourth, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review plus second opinion decide, on a public scoreboard. The free server sleeps when idle, so the first load can take up to a minute. For the full flow with the PayPal sandbox, [run it locally](#run-it).
 
 We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tricks (a fake system message, a note "from the client", false claims, a tool call written as JSON, rewritten rules, a sob story, a legal threat, an order in Spanish, one buried in a long friendly note, a wrong file name). All ten were held with a request for changes, none got paid, and the ten reviews cost $0.02 together ([script](eval/arena-tricks.mjs), [results](eval/results/arena-haiku.json)).
