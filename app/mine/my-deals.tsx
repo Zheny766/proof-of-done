@@ -77,6 +77,12 @@ export function MyDeals() {
                           <StatusBadge status={m.status} />
                           {m.demo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">demo</span>}
                           {m.board && <span className="rounded-full bg-pp-highlight px-2 py-0.5 text-[11px] font-semibold text-pp-blue">job board</span>}
+                          {m.project && (
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                              stage {m.project.stage} of {m.project.stageIds.length}
+                            </span>
+                          )}
+                          {!!m.disputes?.length && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-pp-danger">PayPal dispute</span>}
                         </div>
                         <div className="mt-2 font-display text-2xl leading-tight text-pp-navy">{m.title}</div>
                         <div className="mt-1 text-sm text-pp-muted">{role === 'client' ? `for ${m.freelancer.name}` : `from ${m.client.name}`}</div>
