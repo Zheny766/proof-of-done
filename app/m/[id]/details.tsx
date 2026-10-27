@@ -49,7 +49,7 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
         <details className="group mt-4 border-t border-pp-border pt-3">
           <summary className="cursor-pointer list-none text-xs font-semibold text-pp-blue">
             <span className="group-open:hidden">Show the {m.paypalCalls.length} PayPal API calls</span>
-            <span className="hidden group-open:inline">PayPal API calls · each POST carries an idempotency key</span>
+            <span className="hidden group-open:inline">PayPal API calls · each POST carries an idempotency key; PayPal&apos;s debug id finds the call on PayPal&apos;s side</span>
           </summary>
           <ol className="mt-3 space-y-2">
             {m.paypalCalls.map((c, i) => (
@@ -62,6 +62,7 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
                 </div>
                 <div suppressHydrationWarning className="text-pp-muted">
                   {fmtDate(c.at)} · {c.ms} ms{c.requestId ? ` · PayPal-Request-Id ${c.requestId}` : ''}
+                  {c.debugId ? ` · debug id ${c.debugId}` : ''}
                 </div>
               </li>
             ))}

@@ -78,6 +78,8 @@ export type PayPalCallRow = {
   ok: boolean;
   isError: number;
   ms: number;
+  /** PayPal's own id for the request (`PayPal-Debug-Id`), what PayPal support asks for. */
+  debugId: string;
 };
 
 export type FindingRow = {
@@ -288,6 +290,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
         ok: c.status < 400,
         isError: c.status < 400 ? 0 : 1,
         ms: c.ms,
+        debugId: c.debugId ?? '',
       }),
     );
 

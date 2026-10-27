@@ -307,6 +307,7 @@ const trust: AgPageState = {
           { id: 'paypalCalls.endpoint' },
           { id: 'paypalCalls.status', aggregation: 'max' },
           { id: 'paypalCalls.ms', aggregation: 'max' },
+          { id: 'paypalCalls.debugId' },
         ],
       },
       sort: [{ field: { id: 'paypalCalls.at' }, direction: 'desc' }],

@@ -145,7 +145,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       {
         id: 'paypalCalls',
         name: 'PayPal API Calls',
-        description: 'Every PayPal REST call made for a milestone: method, endpoint (ids replaced), HTTP status and duration. Every POST carries a PayPal-Request-Id so a retry cannot charge twice.',
+        description: 'Every PayPal REST call made for a milestone: method, endpoint (ids replaced), HTTP status, duration and the PayPal debug id. Every POST carries a PayPal-Request-Id so a retry cannot charge twice.',
         data: data.paypalCalls,
         fields: fields([
           ['id', 'Call ID', 'textFormat', true],
@@ -158,6 +158,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
           ['ok', 'Succeeded', 'booleanFormat'],
           ['isError', 'Is Error', 'integerFormat', true],
           ['ms', 'Duration (ms)', 'integerFormat'],
+          ['debugId', 'PayPal Debug ID', 'textFormat'],
         ]),
       },
       {
