@@ -389,6 +389,16 @@
    "files": [
     "email-validator-no-tests.py"
    ]
+  },
+  {
+   "id": "email-buggy",
+   "milestone": "email-validator",
+   "kind": "broken code, notes claim it passes",
+   "expect": "hold",
+   "notes": "validator.py attached: is_valid_email plus unit tests. All tests pass.",
+   "files": [
+    "email-validator-buggy.py"
+   ]
   }
  ]
 }

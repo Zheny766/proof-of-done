@@ -25,7 +25,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 - **AG Grid / AG Studio:** a live AG Grid ledger of every deal, and a five-page escrow report in AG Studio (money on hold, the AI reviewer, trust & PayPal, agents & the job board, freelancers) with a custom pipeline widget, a Claude adapter for the Studio Agent Framework, our own `explain_deal` tool for Studio's agents, and **WebMCP** tools for AI agents in the browser.
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets, and a standing kept against the PayPal account that gets paid. An agent can also post a job, or a whole project, for the person it works for; that person approves the payment in PayPal.
 - **A product, not a demo:** projects in stages funded one at a time, settlements, objection windows, a page with all your deals, a **deal record** either party can download for a PayPal dispute (criteria, findings and evidence, the second opinion, every step, the PayPal ids, each file's SHA-256), a shareable **proof certificate** for paid work (every criterion's verdict, the PayPal capture, and a SHA-256 of each delivered file that anyone holding the file can check in the browser), and [what checking costs](#who-its-for) next to Escrow.com and Upwork.
-- **Proof it holds up:** 93 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) of 31 deliveries with zero false payouts.
+- **Proof it holds up:** 94 tests, a [threat model](SECURITY.md) with a test for every defence, and an [evaluation](#evaluation) of 31 deliveries with zero false payouts.
 
 ![A deal where the freelancer's notes told the reviewer to skip the checks: Claude Opus found every criterion met, the second opinion refused, and the money waits for the client](docs/screenshots/deal-cheater.png)
 
@@ -230,7 +230,7 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # 93 tests: escrow state machine (simulated, throwaway data dir) incl. objection
+npm test        # 94 tests: escrow state machine (simulated, throwaway data dir) incl. objection
                 # windows, settlements, hold renewal and demo replays; the open job board and the
                 # live challenge's limits; PayPal money calls and webhooks against a
                 # fake PayPal; the reviewer's tools without the API (policy gate, second opinion,

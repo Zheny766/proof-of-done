@@ -123,3 +123,13 @@ test('fetch_link only opens sites the submission links to, and only so many', as
   for (let i = 0; i < 5; i++) await tool('fetch_link')({ url: 'https://attacker.example/' });
   assert.match(await tool('fetch_link')({ url: 'https://site.example.org/' }), /at most 8 pages/);
 });
+
+test('the code sandbox is offered only when the delivery has code, and can be switched off', async () => {
+  const { deliversCode } = await import('../lib/escrow/reviewer.ts');
+  const sub = (...names: string[]) => ({ id: 's', at: '', notes: '', links: [], attachments: names.map((name, i) => ({ id: `a${i}`, name, mime: 'text/plain', size: 1, file: name })) });
+  assert.equal(deliversCode(sub('menu.pdf', 'logo.png')), false);
+  assert.equal(deliversCode(sub('README.md', 'validator.py')), true);
+  process.env.POD_CODE_EXECUTION = '0';
+  assert.equal(deliversCode(sub('validator.py')), false);
+  delete process.env.POD_CODE_EXECUTION;
+});
