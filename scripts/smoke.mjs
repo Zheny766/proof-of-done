@@ -64,6 +64,20 @@ for (const [path, text] of [
   else fail(path, `${res.status}${text && res.ok ? `, no "${text}"` : ''}`);
 }
 
+{
+  const h = (await fetch(base + '/jobs')).headers;
+  const want = {
+    'content-security-policy': /frame-ancestors 'none'/,
+    'x-frame-options': /DENY/,
+    'x-content-type-options': /nosniff/,
+    'referrer-policy': /same-origin/,
+  };
+  if (base.startsWith('https:')) want['strict-transport-security'] = /max-age=\d+/;
+  const missing = Object.entries(want).filter(([k, re]) => !re.test(h.get(k) ?? '')).map(([k]) => k);
+  if (missing.length) fail('security headers', `missing ${missing.join(', ')}`);
+  else ok('security headers', 'no framing, nosniff' + (want['strict-transport-security'] ? ', HSTS' : ''));
+}
+
 console.log('Agents');
 try {
   const { jobs } = await api('/api/jobs');

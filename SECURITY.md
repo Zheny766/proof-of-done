@@ -34,6 +34,7 @@ Sandbox only: the app talks to `api-m.sandbox.paypal.com` and nothing else.
 | **Redirecting the payout** | The freelancer confirms the payout email; invalid addresses are refused | `test/escrow-flow.test.ts` › *the freelancer sets where the payout goes; bad addresses are refused* |
 | **Funding with someone else's order**, or an order for a different amount | The order must be the one created for this milestone, and PayPal's authorized amount must match it | `test/escrow-flow.test.ts` › *each party can only do its own part*; `test/paypal-money.test.ts` › *funding refuses a denied authorization and an amount that is not the milestone amount* |
 | **A simulated order in sandbox mode** | Refused as soon as real PayPal keys are configured | `test/escrow-flow.test.ts` › *a simulated order is refused once real PayPal keys are configured* |
+| **Clickjacking**: a page that frames the deal and tricks the client into pressing *Approve & pay* or *Pay now* | No site may frame the app (`frame-ancestors 'none'`, `X-Frame-Options: DENY`), plus `nosniff` and HSTS on every response ([next.config.ts](next.config.ts)) | `npm run smoke` › *security headers* (checked against the hosted demo too) |
 | **Cross-site requests** from another site in the client's browser | Writes with `Sec-Fetch-Site: cross-site` are refused | `test/rate-limit.test.ts` › *cross-site writes are recognised* |
 
 ## Moving money twice, or money that isn't there
