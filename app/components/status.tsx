@@ -26,6 +26,9 @@ export const fmtMoney = (amount: string | number, currency: string) =>
 export const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
 
+export const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+export const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
+
 /** After a capture, what happened to the freelancer's payout, in words (PayPal says SUCCESS, PENDING, ...). */
 export function payoutText(status: string | undefined, to: string): string {
   if (!status || status === 'SUCCESS') return `PayPal captured the hold and paid ${to}.`;
