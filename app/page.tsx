@@ -6,7 +6,7 @@ import { listMilestones } from '@/lib/escrow/store';
 import { paymentMode } from '@/lib/escrow/payments';
 import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
-import { MilestonesGrid } from './components/milestones-grid';
+import { MilestonesGridLazy } from './components/milestones-grid-lazy';
 import { DemoDataButton } from './components/demo-button';
 import { isClaudeConfigured } from '@/lib/ai';
 import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
@@ -177,7 +177,7 @@ export default async function Home() {
             </div>
             {!hasDemoHistory() && <DemoDataButton />}
           </div>
-          <MilestonesGrid milestones={milestones.map(viewerMilestone)} />
+          <MilestonesGridLazy milestones={milestones.map(viewerMilestone)} />
         </section>
       </main>
     </>
