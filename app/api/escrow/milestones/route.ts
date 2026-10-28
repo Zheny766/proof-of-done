@@ -3,6 +3,7 @@ import { handle } from '@/lib/escrow/http';
 import { createMilestone } from '@/lib/escrow/service';
 import { listMilestones } from '@/lib/escrow/store';
 import { allowRequest } from '@/lib/rate-limit';
+import { criterionHint } from '@/lib/escrow/criteria-lint';
 
 export const GET = handle(async () => Response.json({ milestones: listMilestones().filter((m) => !m.demo).map(viewerMilestone) }));
 
@@ -12,7 +13,16 @@ export const POST = handle(async (request: Request) => {
   const milestone = createMilestone(await request.json());
   return Response.json(
     // A job on the open board has no freelancer yet: whoever takes it gets their own key.
-    { milestone: publicMilestone(milestone), clientKey: milestone.access!.clientKey, freelancerKey: milestone.board ? undefined : milestone.access!.freelancerKey },
+    {
+      milestone: publicMilestone(milestone),
+      clientKey: milestone.access!.clientKey,
+      freelancerKey: milestone.board ? undefined : milestone.access!.freelancerKey,
+      // Criteria the reviewer may not be able to check, for an agent that posted the job to fix.
+      criteriaHints: milestone.criteria.flatMap((c) => {
+        const h = criterionHint(c.text);
+        return h ? [`"${c.text}": "${h.word}" ${h.hint}`] : [];
+      }),
+    },
     { status: 201 },
   );
 });

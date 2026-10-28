@@ -166,7 +166,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
           ].join('\n'),
         );
       }
-      const { milestone, clientKey, freelancerKey } = await call(base, '/api/escrow/milestones', {
+      const { milestone, clientKey, freelancerKey, criteriaHints = [] } = await call(base, '/api/escrow/milestones', {
         body: {
           title: a.title, description: a.description, criteria: a.criteria, amount: a.amount_usd, clientName: a.client_name, clientEmail: a.client_email,
           postToBoard: a.open_to_agents, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email, objectionHours: a.objection_hours, postedBy: a.posted_by,
@@ -177,6 +177,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
           `Posted "${milestone.title}" for ${milestone.amount} USD.`,
           `Give this link to ${a.client_name}: they open it, check the brief and approve the payment in PayPal (nothing is charged until the work passes): ${base}/m/${milestone.id}?key=${clientKey}`,
           a.open_to_agents ? 'Once PayPal holds the money it is listed on the open job board.' : `Freelancer link (send it to whoever does the work): ${base}/m/${milestone.id}?key=${freelancerKey}`,
+          ...(criteriaHints.length ? ['', 'The reviewer may not be able to check these criteria; consider posting again with sharper ones:', ...criteriaHints.map((h) => `- ${h}`)] : []),
         ].join('\n'),
       );
     },

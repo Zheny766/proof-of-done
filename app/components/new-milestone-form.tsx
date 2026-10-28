@@ -3,6 +3,22 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from './status';
+import { criterionHint } from '@/lib/escrow/criteria-lint';
+
+/** Under a criterion the AI couldn't check: which words, and what to write instead. */
+function CriterionHints({ lines }: { lines: string[] }) {
+  const hints = lines.map((l) => [l, criterionHint(l)] as const).filter(([, h]) => h);
+  if (!hints.length) return null;
+  return (
+    <ul className="mt-1 space-y-0.5 text-xs text-amber-800">
+      {hints.map(([line, h]) => (
+        <li key={line}>
+          <b>&ldquo;{h!.word}&rdquo;</b> {h!.hint}
+        </li>
+      ))}
+    </ul>
+  );
+}
 import type { Milestone } from '@/lib/escrow/types';
 
 type Stage = { title: string; amount: string; days: string; criteria: string };
@@ -163,6 +179,7 @@ export function NewMilestoneForm() {
                   )}
                 </div>
                 <textarea className={`${field} mt-2 h-20 py-2`} value={st.criteria} onChange={(e) => setStage(i, { criteria: e.target.value })} aria-label={`Stage ${i + 1} criteria`} placeholder="Acceptance criteria, one per line" required />
+                <CriterionHints lines={st.criteria.split('\n')} />
                 <button type="button" onClick={() => draftStage(i)} disabled={draftingStage !== null || title.trim().length < 3} className="mt-1 text-xs font-semibold text-violet-700 hover:underline disabled:opacity-50">
                   {draftingStage === i ? 'Drafting…' : 'Draft criteria with AI'}
                 </button>
@@ -185,10 +202,15 @@ export function NewMilestoneForm() {
         </div>
         <ol className="mt-2 space-y-2">
           {criteria.map((c, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="w-5 text-right text-xs text-pp-muted">{i + 1}.</span>
-              <input className={field} aria-label={`Acceptance criterion ${i + 1}`} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Page is live at a public URL" />
-              <button type="button" aria-label="Remove criterion" onClick={() => setCriteria(criteria.length > 1 ? criteria.filter((_, j) => j !== i) : [''])} className="px-2 text-pp-muted hover:text-pp-danger">×</button>
+            <li key={i}>
+              <div className="flex items-center gap-2">
+                <span className="w-5 text-right text-xs text-pp-muted">{i + 1}.</span>
+                <input className={field} aria-label={`Acceptance criterion ${i + 1}`} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Page is live at a public URL" />
+                <button type="button" aria-label="Remove criterion" onClick={() => setCriteria(criteria.length > 1 ? criteria.filter((_, j) => j !== i) : [''])} className="px-2 text-pp-muted hover:text-pp-danger">×</button>
+              </div>
+              <div className="pl-7">
+                <CriterionHints lines={[c]} />
+              </div>
             </li>
           ))}
         </ol>
