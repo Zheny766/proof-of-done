@@ -117,7 +117,7 @@ const overview: AgPageState = {
         ],
       },
       sort: [{ field: { id: 'milestones.createdAt' }, direction: 'desc' }],
-      format: title('All milestones'),
+      format: title('All deals'),
     },
   },
   widgetLayout: {

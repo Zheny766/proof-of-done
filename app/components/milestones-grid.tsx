@@ -101,7 +101,7 @@ export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[
   const columns = useMemo<ColDef<Row>[]>(
     () => [
       {
-        field: 'title', headerName: 'Milestone', flex: 2, minWidth: 220,
+        field: 'title', headerName: 'Deal', flex: 2, minWidth: 220,
         cellRenderer: ({ data }: ICellRendererParams<Row>) => (
           <span className="font-semibold text-pp-navy">{data?.title}{data?.demo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo</span>}</span>
         ),

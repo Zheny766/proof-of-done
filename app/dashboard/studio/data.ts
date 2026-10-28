@@ -58,17 +58,18 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
 
   return {
     description:
-      'Proof of Done escrow data. Each milestone is a freelance job whose payment was authorized on PayPal (a hold) and is captured only ' +
+      'Proof of Done escrow data. Each deal (a milestone) is a freelance job whose payment was authorized on PayPal (a hold) and is captured only ' +
       'after an AI reviewer verifies the acceptance criteria, or the client approves. Reviews are AI verification runs; findings are the ' +
       'per-criterion verdicts with a 0-1 confidence. Money is in USD. Rows marked as demo use simulated payments.',
     sources: [
       {
         id: 'milestones',
-        description: 'One row per milestone (escrowed job). On hold = authorized but not captured yet. Hours to paid = from PayPal authorization to capture.',
+        name: 'Deals',
+        description: 'One row per deal (escrowed job, also called a milestone). On hold = authorized but not captured yet. Hours to paid = from PayPal authorization to capture.',
         data: data.milestones,
         fields: fields([
-          ['id', 'Milestone ID', 'textFormat', true],
-          ['title', 'Milestone', 'textFormat'],
+          ['id', 'Deal ID', 'textFormat', true],
+          ['title', 'Deal', 'textFormat'],
           ['category', 'Category', 'textFormat'],
           ['status', 'Status', 'textFormat'],
           ['stage', 'Stage', 'textFormat'],
