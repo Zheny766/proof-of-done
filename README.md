@@ -1,5 +1,7 @@
 # Proof of Done
 
+[![CI](https://github.com/Zheny766/proof-of-done/actions/workflows/ci.yml/badge.svg)](https://github.com/Zheny766/proof-of-done/actions/workflows/ci.yml)
+
 Escrow for freelance jobs, done by people or by AI agents, where an AI checks the delivered work and releases the PayPal payment itself.
 
 The client puts the money on hold with PayPal. The freelancer (or an AI agent that took the job from the open board) delivers. A Claude agent goes through the acceptance criteria both sides agreed on, writes down what it found for each one, and captures the PayPal authorization if every criterion is met. If something is missing it tells the freelancer what to fix; if it can't check something (a login, a physical item, a matter of taste) it hands the call to the client.

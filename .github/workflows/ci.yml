@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: No known vulnerabilities in dependencies
+        run: npm audit --audit-level=moderate
+      - name: Tests (simulated PayPal and reviewer, no secrets)
+        run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - name: The judge's path on the production build (replayed demos, no keys)
+        run: |
+          POD_SEED_BOARD=1 POD_DATA_DIR=$RUNNER_TEMP/pod npm start -- --port 3000 &
+          npm run smoke -- http://localhost:3000
