@@ -28,6 +28,9 @@ const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', curr
 export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
   const { dataMapping, widgetApi, format } = props as any;
   const [stages, setStages] = useState<Stage[]>([]);
+  // Clicking a stage filters the rest of the page to it (Studio cross-filter); this widget keeps
+  // showing every stage, with the picked one outlined.
+  const [picked, setPicked] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -44,9 +47,9 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
       const countField = { ...amount, key: `${amount.fieldId ?? amount.id}.count`, aggregation: 'count', format: undefined };
       let response: any;
       try {
-        response = await widgetApi.getData({ fields: [stage, amount, countField] });
+        response = await widgetApi.getData({ fields: [stage, amount, countField] }, { crossFilter: 'none' });
       } catch {
-        response = await widgetApi.getData({ fields: [stage, amount] });
+        response = await widgetApi.getData({ fields: [stage, amount] }, { crossFilter: 'none' });
       }
       if (!active) return;
       const rows: Record<string, any>[] = response?.results?.rows ?? [];
@@ -79,11 +82,25 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
         const color = TONES[i % TONES.length];
         const pct = Math.round((s.value / total) * 100);
         const label = s.label.replace(/^\d+\s*·\s*/, '');
+        const on = picked === s.label;
         return (
-          <div
+          <button
+            type="button"
             key={s.label}
-            title={`${label}: ${money(s.value)}`}
+            title={`${label}: ${money(s.value)}. Click to filter the page to this stage`}
+            aria-pressed={on}
+            onClick={() => {
+              widgetApi.toggleCrossFilter({ type: 'value', field: dataMapping.stage[0], value: s.label, group: 0 });
+              setPicked(on ? null : s.label);
+            }}
             style={{
+              cursor: 'pointer',
+              textAlign: 'left',
+              font: 'inherit',
+              border: 'none',
+              outline: on ? `2px solid ${color}` : 'none',
+              outlineOffset: -2,
+              opacity: picked && !on ? 0.55 : 1,
               flex: Math.max(1, s.value / total) * 4 + 1,
               minWidth: 92,
               position: 'relative',
@@ -107,7 +124,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
             {i < stages.length - 1 && (
               <span aria-hidden style={{ position: 'absolute', right: -11, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--pp-muted)' }}>›</span>
             )}
-          </div>
+          </button>
         );
       })}
     </div>

@@ -50,6 +50,7 @@ import { buildAi } from './studio/ai';
 import { buildStudioData, hasData } from './studio/data';
 import { agStudioPayPalTheme } from './studio/theme';
 import { escrowPipelineWidget } from './studio/pipeline-widget';
+import { holdsWidget, moneyFlowWidget, releaseGateWidget } from './studio/escrow-widgets';
 import { useReports } from './use-reports';
 import { dealFacts } from '@/app/components/deal-facts';
 import { WebMcpTools, type WebMcpTool } from '@/app/components/webmcp';
@@ -117,7 +118,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   const studioData = useMemo(() => buildStudioData(data), [data]);
   // Studio's built-in widgets plus our custom escrow pipeline widget.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- custom widget types live outside the default registry
-  const widgets = useMemo(() => createWidgets({ additionalTypes: [escrowPipelineWidget] } as any), []);
+  const widgets = useMemo(() => createWidgets({ additionalTypes: [escrowPipelineWidget, moneyFlowWidget, releaseGateWidget, holdsWidget] } as any), []);
   // `ai` is read once, when Studio is created.
   const ai = useMemo(() => (aiModels?.length ? buildAi(aiModels) : undefined), [aiModels]);
   const agentTools = useMemo(() => webMcpTools(data), [data]);

@@ -3,10 +3,11 @@
 // Milestones table on the home page (AG Grid), with renderers for status, amount and AI confidence. It
 // stays live: new deals slide in and a status or payment that changes flashes, so the money moving is visible.
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ClientSideRowModelModule,
+  CsvExportModule,
   NumberFilterModule,
   QuickFilterModule,
   TextFilterModule,
@@ -16,14 +17,15 @@ import {
   HighlightChangesModule,
   themeQuartz,
   type ColDef,
+  type GridApi,
   type ICellRendererParams,
 } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import type { Milestone } from '@/lib/escrow/types';
-import { api, fmtMoney, StatusBadge } from './status';
+import { api, fmtMoney, STATUS, StatusBadge } from './status';
 import { latestFindings } from '@/lib/escrow/policy';
 
-const modules = [ClientSideRowModelModule, TextFilterModule, NumberFilterModule, DateFilterModule, QuickFilterModule, CellStyleModule, RowStyleModule, HighlightChangesModule];
+const modules = [ClientSideRowModelModule, TextFilterModule, NumberFilterModule, DateFilterModule, QuickFilterModule, CellStyleModule, RowStyleModule, HighlightChangesModule, CsvExportModule];
 
 const theme = themeQuartz.withParams({
   fontFamily: 'var(--pp-font)',
@@ -73,6 +75,7 @@ function ConfidenceCell({ value }: ICellRendererParams<Row, number | null>) {
 export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[] }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const grid = useRef<GridApi<Row> | null>(null);
   const [milestones, setMilestones] = useState(initial);
   useEffect(() => {
     const tick = () => {
@@ -129,7 +132,24 @@ export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[
 
   return (
     <div className="flex flex-col gap-3">
-      <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search deals…" aria-label="Search deals" className="h-10 w-full max-w-72 rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue" />
+      <div className="flex items-center gap-2">
+        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search deals…" aria-label="Search deals" className="h-10 w-full max-w-72 rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue" />
+        {/* What's shown, as shown: the search, filters and sort apply, every column goes out. */}
+        <button
+          type="button"
+          onClick={() =>
+            grid.current?.exportDataAsCsv({
+              fileName: 'proof-of-done-deals.csv',
+              allColumns: true,
+              // The status as people read it ("Changes requested"), dates as ISO.
+              processCellCallback: ({ value, column }) => (column.getColId() === 'status' ? STATUS[value as Row['status']]?.label ?? value : value instanceof Date ? value.toISOString() : value),
+            })
+          }
+          className="h-10 shrink-0 rounded-md border border-pp-border bg-white px-3 text-sm font-semibold text-pp-ink hover:border-pp-blue"
+        >
+          Export CSV
+        </button>
+      </div>
       <div style={{ height: Math.min(560, Math.max(200, 56 + rows.length * 52 + 2)) }}>
         <AgGridProvider modules={modules}>
           <AgGridReact<Row>
@@ -139,6 +159,7 @@ export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[
             defaultColDef={{ filter: true, sortable: true }}
             quickFilterText={search}
             getRowId={({ data }) => data.id}
+            onGridReady={({ api }) => (grid.current = api)}
             onRowClicked={({ data }) => data && router.push(`/m/${data.id}`)}
             onCellKeyDown={({ data, event }) => {
               if (data && (event as KeyboardEvent | null)?.key === 'Enter') router.push(`/m/${data.id}`);

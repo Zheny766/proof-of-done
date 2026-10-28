@@ -482,6 +482,18 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
   });
 }
 
+/** What reading the deal changed against PayPal, in words, for the dashboard assistant. */
+export async function syncWithPayPal(id: string): Promise<{ id: string; status: Milestone['status']; changes: string[] }> {
+  const before = mustGet(id);
+  const after = (await readMilestone(id))!;
+  const changes: string[] = [];
+  if (after.payment.authorizationId !== before.payment.authorizationId) changes.push(`PayPal renewed the hold: authorization ${after.payment.authorizationId} replaces ${before.payment.authorizationId}, guaranteed for 3 more days`);
+  if (after.payment.reauthTriedAt && after.payment.reauthTriedAt !== before.payment.reauthTriedAt) changes.push('PayPal did not renew the hold; it is still in place but no longer guaranteed');
+  if (after.payment.payoutStatus !== before.payment.payoutStatus) changes.push(`Payout status: ${before.payment.payoutStatus ?? 'none'} -> ${after.payment.payoutStatus}`);
+  if (after.status !== before.status) changes.push(`Status: ${STATE[before.status]} -> ${STATE[after.status]}`);
+  return { id, status: after.status, changes: changes.length ? changes : ['Nothing to do: the deal already matches PayPal'] };
+}
+
 const HOLDING = ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'];
 const retryDue = (triedAt?: string) => !triedAt || Date.now() - Date.parse(triedAt) > 6 * 3_600_000;
 

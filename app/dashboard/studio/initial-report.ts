@@ -77,6 +77,11 @@ const overview: AgPageState = {
       dataMapping: { stage: [{ id: 'milestones.stage' }], amount: [sum('milestones.escrowed')] },
       format: title('Escrow pipeline: where every dollar is right now'),
     } as unknown as NonNullable<AgPageState['widgets']>[string],
+    'money-flow': {
+      type: 'escrow-money-flow',
+      dataMapping: { paid: [sum('milestones.released')], refunded: [sum('milestones.refunded')], voided: [sum('milestones.voided')], held: [sum('milestones.onHold')] },
+      format: title('Where the money went'),
+    } as unknown as NonNullable<AgPageState['widgets']>[string],
     'value-by-week': {
       type: 'column-chart-stacked',
       dataMapping: {
@@ -130,11 +135,12 @@ const overview: AgPageState = {
     'kpi-hours': at(12, 0, 4, 7),
     'created-date': at(16, 0, 8, 7),
     pipeline: at(0, 7, 24, 9),
-    'value-by-week': at(0, 16, 16, 17),
-    'auto-release': at(16, 16, 8, 17),
-    'stage-donut': at(0, 33, 12, 18),
-    'category-treemap': at(12, 33, 12, 18),
-    'milestone-grid': at(0, 51, 24, 20),
+    'money-flow': at(0, 16, 24, 9),
+    'value-by-week': at(0, 25, 16, 17),
+    'auto-release': at(16, 25, 8, 17),
+    'stage-donut': at(0, 42, 12, 18),
+    'category-treemap': at(12, 42, 12, 18),
+    'milestone-grid': at(0, 60, 24, 20),
   },
 };
 
@@ -145,6 +151,11 @@ const reviewer: AgPageState = {
     'kpi-confidence': kpi('Avg confidence', avg('findings.confidence')),
     'kpi-seconds': kpi('Review time (s)', avg('reviews.durationSec')),
     'kpi-tokens': kpi('Output tokens', sum('reviews.outputTokens')),
+    'release-gate': {
+      type: 'escrow-release-gate',
+      dataMapping: { outcome: [{ id: 'reviews.secondOpinion' }], count: [countd('reviews.id')] },
+      format: title('The release gate'),
+    } as unknown as NonNullable<AgPageState['widgets']>[string],
     decisions: {
       type: 'donut-chart',
       dataMapping: { categoryKey: [{ id: 'reviews.decision' }], valueKey: [countd('reviews.id')] },
@@ -189,8 +200,9 @@ const reviewer: AgPageState = {
     'kpi-confidence': at(6, 0, 6, 7),
     'kpi-seconds': at(12, 0, 6, 7),
     'kpi-tokens': at(18, 0, 6, 7),
-    decisions: at(0, 7, 8, 18),
-    'verdicts-by-category': at(8, 7, 16, 18),
+    'release-gate': at(0, 7, 8, 18),
+    decisions: at(8, 7, 7, 18),
+    'verdicts-by-category': at(15, 7, 9, 18),
     'confidence-pivot': at(0, 25, 8, 20),
     'weakest-findings': at(8, 25, 16, 20),
   },
@@ -306,6 +318,18 @@ const trust: AgPageState = {
     'kpi-veto-rate': kpi('Veto rate', { id: 'vetoRate' }),
     'kpi-calls': kpi('PayPal API calls', countd('paypalCalls.id'), 'calendar::week'),
     'kpi-latency': kpi('Avg PayPal call (ms)', avg('paypalCalls.ms')),
+    holds: {
+      type: 'escrow-holds',
+      dataMapping: {
+        id: [{ id: 'milestones.id' }],
+        title: [{ id: 'milestones.title' }],
+        amount: [sum('milestones.onHold')],
+        honorEndsAt: [{ id: 'milestones.honorEndsAt' }],
+        expiresAt: [{ id: 'milestones.holdExpiresAt' }],
+        renewed: [{ id: 'milestones.holdRenewed' }],
+      },
+      format: title('Holds that need attention first'),
+    } as unknown as NonNullable<AgPageState['widgets']>[string],
     'second-opinion': {
       type: 'donut-chart',
       dataMapping: { categoryKey: [{ id: 'reviews.secondOpinion' }], valueKey: [countd('reviews.id')] },
@@ -344,7 +368,8 @@ const trust: AgPageState = {
     'kpi-latency': at(18, 0, 6, 7),
     'second-opinion': at(0, 7, 9, 18),
     'calls-by-endpoint': at(9, 7, 15, 18),
-    'call-log': at(0, 25, 24, 20),
+    holds: at(0, 25, 24, 15),
+    'call-log': at(0, 40, 24, 20),
   },
 };
 

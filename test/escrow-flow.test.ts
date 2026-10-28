@@ -359,3 +359,14 @@ test('the demo history tells each deal in the order it could have happened', asy
     if (types.includes('claimed')) assert.ok(types.indexOf('authorized') < types.indexOf('claimed'), `${m.title}: taken from the board before it was funded`);
   }
 });
+
+test('sync with PayPal renews a hold past its guarantee and says what changed, and is a no-op otherwise', async () => {
+  store.deleteAll();
+  const { id } = await funded();
+  assert.deepEqual((await service.syncWithPayPal(id)).changes, ['Nothing to do: the deal already matches PayPal']);
+  const before = store.getMilestone(id)!.payment.authorizationId;
+  store.updateMilestone(id, (x) => void (x.payment.honorExpiresAt = new Date(Date.now() - 1000).toISOString()));
+  const { changes } = await service.syncWithPayPal(id);
+  assert.match(changes[0], /PayPal renewed the hold/);
+  assert.notEqual(store.getMilestone(id)!.payment.authorizationId, before);
+});

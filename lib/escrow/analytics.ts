@@ -25,6 +25,10 @@ export type MilestoneRow = {
   voided: number;
   /** Paid, then returned to the client after a complaint. */
   refunded: number;
+  /** For money on hold: when PayPal's 3-day guarantee ends, when the authorization expires, and whether it was renewed. */
+  honorEndsAt: string | null;
+  holdExpiresAt: string | null;
+  holdRenewed: boolean;
   createdAt: string;
   createdDate: string;
   fundedAt: string | null;
@@ -191,6 +195,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
     const releasedEvent = m.timeline.find((e) => e.type === 'captured');
     const autoReleased = m.status === 'released' && m.timeline.some((e) => e.type === 'verified');
     const fundedAt = m.payment.authorizedAt ?? null;
+    const onHold = ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status) && !!m.payment.authorizationId;
     const releasedAt = m.payment.capturedAt ?? releasedEvent?.at ?? null;
     mRows.push({
       id: m.id,
@@ -209,6 +214,9 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       // A settlement captures part of the hold; PayPal releases the rest back to the client.
       voided: m.status === 'cancelled' && m.payment.authorizationId ? amount : amount - (m.status === 'released' ? captured : amount),
       refunded: (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0),
+      honorEndsAt: onHold ? (m.payment.honorExpiresAt ?? null) : null,
+      holdExpiresAt: onHold ? (m.payment.expiresAt ?? null) : null,
+      holdRenewed: onHold && !!m.payment.reauthorizedAt,
       createdAt: m.createdAt,
       createdDate: m.createdAt.slice(0, 10),
       fundedAt,

@@ -19,6 +19,10 @@ const PROMPT_STARTERS: AgAiPromptStarter[] = [
     prompt: 'Add a widget listing the criterion verdicts with confidence below 80%, lowest first, with the milestone and evidence.',
   },
   {
+    label: 'Fix holds at risk',
+    prompt: 'Find the deals on hold whose PayPal guarantee has ended (Guarantee Ends before now), run sync_with_paypal on each, and tell me what changed.',
+  },
+  {
     label: 'Freelancer scorecard',
     prompt: 'Build a page that ranks freelancers by released value, average hours to get paid and how often the AI asked them for changes.',
   },
@@ -41,20 +45,39 @@ function explainDealTool(api: AgStudioApi): AgAiTool {
   });
 }
 
+// A tool that acts: bring one deal up to date with PayPal (renew a hold past its 3-day guarantee,
+// refresh a pending payout, pay out after a closed objection window). It does what opening the deal
+// page does, so it needs no key and can't move money anyone hasn't already agreed to.
+function syncTool(api: AgStudioApi): AgAiTool {
+  return api.defineAiTool({
+    name: 'sync_with_paypal',
+    description:
+      'Bring one escrow deal up to date with PayPal now and report what changed: renews a hold whose 3-day PayPal guarantee has ended (a reauthorization), refreshes a pending payout, and pays out a verified deal whose objection window has closed. Use it on the holds the dashboard flags, or when someone asks to reconcile with PayPal. Takes the milestone id (like ms_1a2b3c4d5e6f).',
+    params: (s) => s.object({ id: s.string({ description: 'The milestone id, like ms_1a2b3c4d5e6f' }) }),
+    execute: async ({ id }, ctx) => {
+      if (!/^ms_[\w-]{4,40}$/.test(id)) return ctx.error(`"${id}" is not a milestone id.`);
+      const res = await fetch(`/api/escrow/milestones/${id}/sync`, { method: 'POST' });
+      const body = (await res.json().catch(() => ({}))) as { changes?: string[]; error?: string };
+      return res.ok ? ctx.success(`${id}: ${(body.changes ?? []).join('; ')}`) : ctx.error(body.error ?? `HTTP ${res.status}`);
+    },
+  });
+}
+
 // `models` come from CLAUDE_MODELS on the server. First one is the default; the picker shows for 2+.
 export function buildAi(models: string[]): AgAiHarnessSetup {
   const adapter = claudeAdapter({ endpoint: '/api/ai/claude' });
 
   return ({ api }) => {
     const explainDeal = explainDealTool(api);
+    const sync = syncTool(api);
     return createAiHarness(api, ({ builtIn }) => ({
-      // AG's five agents on Claude; the lead and the data agent also get explain_deal.
+      // AG's five agents on Claude; the lead and the data agent also get explain_deal and sync_with_paypal.
       agents: Object.entries(builtIn).map(([id, agent]) =>
         directLlmRunner({
           ...agent,
           adapter,
           ...((id === 'lead' || id === 'data') && {
-            tools: (ctx, params) => [...(agent.tools?.(ctx, params as never) ?? []), explainDeal],
+            tools: (ctx, params) => [...(agent.tools?.(ctx, params as never) ?? []), explainDeal, sync],
           }),
         } as Parameters<typeof directLlmRunner>[0]),
       ),
