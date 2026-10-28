@@ -69,7 +69,7 @@ const overview: AgPageState = {
     },
     'kpi-on-hold': kpi('On hold', sum('milestones.onHold')),
     'kpi-released': kpi('Released', sum('milestones.released'), 'calendar::week'),
-    'kpi-milestones': kpi('Milestones', countd('milestones.id'), 'calendar::week'),
+    'kpi-milestones': kpi('Deals', countd('milestones.id'), 'calendar::week'),
     'kpi-hours': kpi('Hours to paid', avg('milestones.hoursToPaid')),
     // Custom widget (./pipeline-widget.tsx): the escrow lifecycle as a pipeline.
     pipeline: {
@@ -95,7 +95,8 @@ const overview: AgPageState = {
     'stage-donut': {
       type: 'donut-chart',
       dataMapping: { categoryKey: [{ id: 'milestones.stage' }], valueKey: [sum('milestones.escrowed')] },
-      format: { ...title('Where the money is'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } } } },
+      // Legend on the right: below the chart it fit one stage per page ("1 / 3").
+      format: { ...title('Where the money is'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } }, theme: { common: { legend: { enabled: true, position: 'right' } } } } },
     },
     'category-treemap': {
       type: 'treemap-chart',
@@ -112,7 +113,6 @@ const overview: AgPageState = {
           { id: 'milestones.client' },
           sum('milestones.amount'),
           { id: 'milestones.lowestConfidence', aggregation: 'min' },
-          { id: 'milestones.hoursToPaid', aggregation: 'max' },
           { id: 'milestones.createdAt' },
         ],
       },
@@ -129,8 +129,8 @@ const overview: AgPageState = {
     pipeline: at(0, 7, 24, 9),
     'value-by-week': at(0, 16, 16, 17),
     'auto-release': at(16, 16, 8, 17),
-    'stage-donut': at(0, 33, 10, 18),
-    'category-treemap': at(10, 33, 14, 18),
+    'stage-donut': at(0, 33, 12, 18),
+    'category-treemap': at(12, 33, 12, 18),
     'milestone-grid': at(0, 51, 24, 20),
   },
 };

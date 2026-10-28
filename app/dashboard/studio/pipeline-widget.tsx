@@ -98,7 +98,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
             <div>
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--pp-ink)' }}>{money(s.value)}</div>
               <div style={{ ...oneLine, fontSize: 11, color: 'var(--pp-muted)' }}>
-                {pct}% of escrow{showCounts && s.count ? ` · ${s.count} milestone${s.count === 1 ? '' : 's'}` : ''}
+                {pct}% of escrow{showCounts && s.count ? ` · ${s.count} deal${s.count === 1 ? '' : 's'}` : ''}
               </div>
             </div>
             {i < stages.length - 1 && (
@@ -116,7 +116,7 @@ export const escrowPipelineWidget: any = {
   label: 'Escrow pipeline',
   icon: { url: '/icon.svg' },
   dataMapping: {
-    stage: { type: 'field', supportedRoles: ['category'], requires: { cardinality: 'one' }, required: true, aiDescription: 'The escrow stage of each milestone' },
+    stage: { type: 'field', supportedRoles: ['category'], requires: { cardinality: 'one' }, required: true, aiDescription: 'The escrow stage of each deal' },
     amount: { type: 'field', supportedRoles: ['numeric'], requires: { cardinality: 'one' }, required: true, aiDescription: 'The money at each stage' },
   },
   form: (params: any) =>
