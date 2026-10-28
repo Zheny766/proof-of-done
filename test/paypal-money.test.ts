@@ -54,6 +54,32 @@ test('a settlement captures only the agreed amount, as the final capture, and pa
   assert.equal(result.capturedAmount, '60.00');
 });
 
+test('a call PayPal never answered is sent again with the same idempotency key', async () => {
+  let dropped = false;
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    if (!dropped && new URL(url).pathname.endsWith('/capture')) {
+      dropped = true;
+      calls.push({ path: new URL(url).pathname, body: null, headers: (init?.headers ?? {}) as Record<string, string> });
+      throw new TypeError('fetch failed');
+    }
+    return real(url, init);
+  }) as typeof fetch;
+  try {
+    respond = (p) =>
+      p.endsWith('/capture')
+        ? { json: { id: 'CAP9', status: 'COMPLETED', amount: { value: '100.00', currency_code: 'USD' } } }
+        : { json: { batch_header: { payout_batch_id: 'B9', batch_status: 'PENDING' } } };
+    const result = await payments.releaseFunds(milestone, 'Work accepted');
+    const tries = posted('/v2/payments/authorizations/AUTH1/capture');
+    assert.equal(tries.length, 2);
+    assert.deepEqual(tries.map((c) => c.headers['PayPal-Request-Id']), ['capture-AUTH1', 'capture-AUTH1']);
+    assert.equal(result.captureId, 'CAP9');
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
 test('a declined capture throws, and nothing is paid out', async () => {
   respond = (p) => (p.endsWith('/capture') ? { json: { id: 'CAP3', status: 'DECLINED' } } : { json: {} });
   await assert.rejects(payments.releaseFunds(milestone, 'x'), /declined the capture/);

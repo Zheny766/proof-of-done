@@ -3,6 +3,8 @@
 
 const BASE_URL = 'https://api-m.sandbox.paypal.com';
 const MAX_ATTEMPTS = 4;
+// A call that hangs would hold the deal's queue (and the person's click) forever.
+const TIMEOUT_MS = 30_000;
 
 export class PayPalApiError extends Error {
   readonly status: number;
@@ -31,6 +33,7 @@ async function accessToken(): Promise<string> {
     },
     body: 'grant_type=client_credentials',
     cache: 'no-store',
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new PayPalApiError(res.status, '/v1/oauth2/token', await res.text());
 
@@ -48,18 +51,31 @@ export const onPayPalCall = (listener: (call: PayPalCall) => void) => void (call
 
 async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
   for (let attempt = 1; ; attempt++) {
+    const token = await accessToken();
     const started = Date.now();
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${await accessToken()}`,
-        ...(method === 'POST' && { 'Content-Type': 'application/json', Prefer: 'return=representation' }),
-        // Same key on a retry -> PayPal replays the first result instead of charging twice.
-        ...(idempotencyKey && { 'PayPal-Request-Id': idempotencyKey }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store',
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(method === 'POST' && { 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+          // Same key on a retry -> PayPal replays the first result instead of charging twice.
+          ...(idempotencyKey && { 'PayPal-Request-Id': idempotencyKey }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch (error) {
+      // No answer at all (network, timeout). Sending it again is safe for the same reason as above.
+      callListener?.({ at: new Date(started).toISOString(), method, path, status: 0, ms: Date.now() - started, requestId: idempotencyKey });
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 250));
+        continue;
+      }
+      throw new PayPalApiError(0, path, `no answer (${(error as Error).message})`);
+    }
     callListener?.({
       at: new Date(started).toISOString(),
       method,
@@ -139,7 +155,8 @@ export function createAuthorizeOrder(input: {
         {
           reference_id: input.milestoneId,
           custom_id: input.milestoneId,
-          description: `Milestone: ${input.title}`.slice(0, 127),
+          // What the buyer reads in PayPal's window and in their account's activity.
+          description: `Proof of Done escrow: ${input.title}`.slice(0, 127),
           amount: { currency_code: input.currency, value: input.amount },
         },
       ],

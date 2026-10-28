@@ -69,6 +69,8 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
       if (error instanceof EscrowError) return Response.json({ error: error.message }, { status: error.status });
       if (error instanceof PayPalApiError) {
         console.error('[paypal]', error.message);
+        // Trying again is safe: each money call carries an idempotency key, so PayPal won't do it twice.
+        if (error.status === 0) return Response.json({ error: 'PayPal did not answer. Please try again in a moment.' }, { status: 504 });
         return Response.json({ error: `PayPal error (${error.status}). ${error.message.slice(0, 200)}` }, { status: 502 });
       }
       const claude = claudeErrorMessage(error);
