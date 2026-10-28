@@ -1,4 +1,5 @@
 import { roleFor } from '@/lib/escrow/access';
+import { publicOrigin } from '@/lib/origin';
 import { handle, milestoneKey } from '@/lib/escrow/http';
 import { dealRecord } from '@/lib/escrow/record';
 import { readMilestone } from '@/lib/escrow/service';
@@ -7,10 +8,11 @@ import { readMilestone } from '@/lib/escrow/service';
 export const GET = handle(async (request: Request, ctx: RouteContext<'/api/escrow/milestones/[id]/record'>) => {
   const { id } = await ctx.params;
   const m = await readMilestone(id);
-  if (!m) return Response.json({ error: 'Not found' }, { status: 404 });
+  if (!m) return Response.json({ error: 'Deal not found.' }, { status: 404 });
   const role = roleFor(m, milestoneKey(request));
   if (role === 'viewer') return Response.json({ error: 'Only the client or the freelancer can download the record.' }, { status: 403 });
-  const record = dealRecord(m, role, new URL(request.url).origin);
+  // The certificate link in the file must be the public one, not the address behind the host's proxy.
+  const record = dealRecord(m, role, publicOrigin(request));
   return new Response(JSON.stringify(record, null, 2), {
     headers: { 'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="proof-of-done-${m.id}.json"` },
   });
