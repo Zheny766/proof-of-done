@@ -37,9 +37,10 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
       )}
       <dl className="mt-3 space-y-2 text-sm">
         {rows.filter(([, v]) => v).map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-3">
-            <dt className="text-pp-muted">{k}</dt>
-            <dd suppressHydrationWarning className="min-w-0 break-all text-right font-mono text-xs leading-5">{v}</dd>
+          <div key={k} className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-3">
+            <dt className="shrink-0 text-pp-muted">{k}</dt>
+            {/* Ids wrap only where they must: break-all split "CREATED" and "UTC" mid-word on a phone. */}
+            <dd suppressHydrationWarning className="min-w-0 font-mono text-xs leading-5 [overflow-wrap:anywhere] sm:text-right">{v}</dd>
           </div>
         ))}
         {!p.orderId && <p className="text-sm text-pp-muted">No PayPal order yet.</p>}

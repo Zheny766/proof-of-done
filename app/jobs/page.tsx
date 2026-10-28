@@ -80,7 +80,8 @@ export default async function JobsPage() {
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           {jobs.map((m) => (
             <article key={m.id} className="flex flex-col rounded-2xl border border-pp-border bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
+              {/* Price under the title on a phone: side by side the title got a third of the width. */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">
                   <h3 className="font-display text-2xl leading-tight text-pp-navy">{m.title}</h3>
                   <p className="mt-1 text-sm text-pp-muted">
@@ -88,7 +89,7 @@ export default async function JobsPage() {
                     {m.postedBy && ` through ${m.postedBy}`} · <span className="font-mono text-xs">{m.id}</span>
                   </p>
                 </div>
-                <div className="shrink-0 text-right">
+                <div className="flex shrink-0 items-center gap-3 sm:block sm:text-right">
                   <div className="font-display text-4xl tabular-nums text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
                   <div className="mt-1 inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
                     {m.payment.mode === 'sandbox' ? 'on hold at PayPal (sandbox)' : 'on hold (demo, simulated)'}
@@ -117,31 +118,34 @@ export default async function JobsPage() {
               Who has worked here, agents and people alike. Built only from what the reviewer and PayPal confirmed, never from what the taker says about itself, and kept against the PayPal account that gets paid. A taker on probation (most deliveries held, or caught trying to steer the reviewer) is paid only with the client&apos;s OK and can hold one job at a time.
             </p>
             <div className="mt-5 overflow-x-auto rounded-2xl border border-pp-border bg-white">
-              <table className="w-full min-w-[560px] text-sm">
+              {/* On a phone the Held column goes, so the rest fits without scrolling sideways. */}
+              <table className="w-full text-sm sm:min-w-[560px]">
                 <thead>
                   <tr className="border-b border-pp-border text-left text-xs uppercase tracking-wide text-pp-muted">
-                    <th className="px-5 py-3 font-semibold">Name</th>
-                    <th className="px-3 py-3 text-right font-semibold">Jobs taken</th>
-                    <th className="px-3 py-3 text-right font-semibold">Paid after review</th>
-                    <th className="px-3 py-3 text-right font-semibold">Held</th>
-                    <th className="px-5 py-3 text-right font-semibold">Earned</th>
+                    <th className="px-3 py-3 font-semibold sm:px-5">Name</th>
+                    <th className="px-2 py-3 text-right font-semibold sm:px-3">Taken</th>
+                    <th className="px-2 py-3 text-right font-semibold sm:px-3">
+                      Paid<span className="hidden sm:inline"> after review</span>
+                    </th>
+                    <th className="hidden px-3 py-3 text-right font-semibold sm:table-cell">Held</th>
+                    <th className="px-3 py-3 text-right font-semibold sm:px-5">Earned</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pp-border">
                   {records.map((r) => (
                     <tr key={r.name + r.taken + r.earned}>
-                      <td className="px-5 py-3 font-medium text-pp-ink">
+                      <td className="px-3 py-3 font-medium text-pp-ink sm:px-5">
                         {r.name}
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${TIER[r.tier].tone}`}>{TIER[r.tier].label}</span>
-                        {r.demo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo history</span>}
+                        {r.demo && <span className="ml-2 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo history</span>}
                       </td>
-                      <td className="px-3 py-3 text-right tabular-nums">{r.taken}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-emerald-700">
+                      <td className="px-2 py-3 text-right tabular-nums sm:px-3">{r.taken}</td>
+                      <td className="px-2 py-3 text-right tabular-nums text-emerald-700 sm:px-3">
                         {r.paid}
-                        {r.taken - r.working > 0 && <span className="text-pp-muted"> · {Math.round((r.paid / (r.taken - r.working)) * 100)}%</span>}
+                        {r.taken - r.working > 0 && <span className="hidden text-pp-muted sm:inline"> · {Math.round((r.paid / (r.taken - r.working)) * 100)}%</span>}
                       </td>
-                      <td className="px-3 py-3 text-right tabular-nums text-pp-muted">{r.held}</td>
-                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-pp-navy">{fmtMoney(r.earned, 'USD')}</td>
+                      <td className="hidden px-3 py-3 text-right tabular-nums text-pp-muted sm:table-cell">{r.held}</td>
+                      <td className="px-3 py-3 text-right font-semibold tabular-nums text-pp-navy sm:px-5">{r.earned.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,14 +1,13 @@
 import { connection } from 'next/server';
 import Link from 'next/link';
 import { viewerMilestone } from '@/lib/escrow/access';
-import { seedDemoIfEmpty } from '@/lib/escrow/demo';
+import { hasDemoHistory, seedDemoIfEmpty } from '@/lib/escrow/demo';
 import { listMilestones } from '@/lib/escrow/store';
 import { paymentMode } from '@/lib/escrow/payments';
 import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
 import { MilestonesGrid } from './components/milestones-grid';
 import { DemoDataButton } from './components/demo-button';
-import { fmtMoney } from './components/status';
 import { isClaudeConfigured } from '@/lib/ai';
 import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
 import { modelName } from './m/[id]/ui';
@@ -158,8 +157,9 @@ export default async function Home() {
             </p>
             <div className="mt-6 grid grid-cols-3 gap-3">
               <Stat label="Deals" value={String(milestones.length)} />
-              <Stat label="On hold now" value={fmtMoney(held, 'USD')} />
-              <Stat label="Paid out" value={fmtMoney(released, 'USD')} />
+              {/* Whole dollars: "$32,422.36" ran out of its box on a phone. */}
+              <Stat label="On hold now" value={wholeDollars(held)} />
+              <Stat label="Paid out" value={wholeDollars(released)} />
             </div>
           </div>
           <div className="rounded-2xl border border-pp-border bg-white p-6 shadow-sm">
@@ -175,7 +175,7 @@ export default async function Home() {
                 Click a row to open it. <Link href="/dashboard" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Analyse everything in AG Studio →</Link>
               </p>
             </div>
-            <DemoDataButton />
+            {!hasDemoHistory() && <DemoDataButton />}
           </div>
           <MilestonesGrid milestones={milestones.map(viewerMilestone)} />
         </section>
@@ -184,11 +184,13 @@ export default async function Home() {
   );
 }
 
+const wholeDollars = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-pp-border bg-white p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-pp-muted">{label}</div>
-      <div className="mt-1 text-xl font-bold tabular-nums text-pp-navy">{value}</div>
+    <div className="min-w-0 rounded-xl border border-pp-border bg-white p-3 sm:p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-pp-muted sm:text-xs">{label}</div>
+      <div className="mt-1 text-lg font-bold tabular-nums text-pp-navy [overflow-wrap:anywhere] sm:text-xl">{value}</div>
     </div>
   );
 }

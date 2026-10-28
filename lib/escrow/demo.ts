@@ -165,6 +165,9 @@ export function seedDemo(count = 30): number {
 }
 
 /** Hosted demo (POD_SEED_DEMO=1): a server that starts empty, as on every restart there, gets the demo data. */
+/** The labelled demo history is in the store already (loading it twice doubled every number). */
+export const hasDemoHistory = () => listMilestones().some((m) => m.description.startsWith('[Demo data]'));
+
 export function seedDemoIfEmpty() {
   if (process.env.POD_SEED_DEMO === '1' && listMilestones().length === 0) seedDemo(30);
 }

@@ -15,7 +15,8 @@ export const POST = handle(async (request: Request, ctx: RouteContext<'/api/escr
     return Response.json({ error: 'Upload too large (8 files, 15 MB each at most).' }, { status: 413 });
   }
   if (!allowRequest(request, 'submit', 10)) return Response.json({ error: 'Too many submissions, try again in a minute.' }, { status: 429 });
-  const form = await request.formData();
+  const form = await request.formData().catch(() => null);
+  if (!form) return Response.json({ error: 'Send the delivery as a form (multipart/form-data): notes, links and files.' }, { status: 400 });
   const notes = String(form.get('notes') ?? '').slice(0, 10_000);
   const links = String(form.get('links') ?? '')
     .split(/\s+/)

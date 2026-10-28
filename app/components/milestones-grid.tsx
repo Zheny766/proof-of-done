@@ -3,7 +3,7 @@
 // Milestones table on the home page (AG Grid), with renderers for status, amount and AI confidence. It
 // stays live: new deals slide in and a status or payment that changes flashes, so the money moving is visible.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ClientSideRowModelModule,
@@ -49,6 +49,13 @@ type Row = {
   payment: string;
   updated: Date;
   demo: boolean;
+};
+
+const PHONE = '(max-width: 639px)';
+const subscribePhone = (onChange: () => void) => {
+  const query = window.matchMedia(PHONE);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
 };
 
 function ConfidenceCell({ value }: ICellRendererParams<Row, number | null>) {
@@ -98,29 +105,31 @@ export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[
     [milestones],
   );
 
+  // On a phone only the deal, its status and the amount: nine columns meant scrolling sideways.
+  const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false);
   const columns = useMemo<ColDef<Row>[]>(
     () => [
       {
-        field: 'title', headerName: 'Deal', flex: 2, minWidth: 220,
+        field: 'title', headerName: 'Deal', flex: 2, minWidth: phone ? 120 : 220,
         cellRenderer: ({ data }: ICellRendererParams<Row>) => (
           <span className="font-semibold text-pp-navy">{data?.title}{data?.demo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-pp-muted">demo</span>}</span>
         ),
       },
-      { field: 'status', headerName: 'Status', width: 170, enableCellChangeFlash: true, cellRenderer: ({ value }: ICellRendererParams<Row>) => <StatusBadge status={value} /> },
-      { field: 'amount', headerName: 'Amount', width: 120, type: 'rightAligned', filter: 'agNumberColumnFilter', valueFormatter: ({ value, data }) => (data ? fmtMoney(value, data.currency) : '') },
-      { field: 'payment', headerName: 'PayPal', width: 120, enableCellChangeFlash: true },
-      { field: 'criteriaMet', headerName: 'Criteria met', width: 120, enableCellChangeFlash: true },
-      { field: 'confidence', headerName: 'Lowest AI confidence', width: 180, filter: 'agNumberColumnFilter', cellRenderer: ConfidenceCell },
-      { field: 'freelancer', headerName: 'Freelancer', flex: 1, minWidth: 140 },
-      { field: 'client', headerName: 'Client', flex: 1, minWidth: 140 },
-      { field: 'updated', headerName: 'Updated', width: 150, filter: 'agDateColumnFilter', sort: 'desc', valueFormatter: ({ value }) => (value ? (value as Date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '') },
+      { field: 'status', headerName: 'Status', width: phone ? 132 : 170, enableCellChangeFlash: true, cellRenderer: ({ value }: ICellRendererParams<Row>) => <StatusBadge status={value} /> },
+      { field: 'amount', headerName: 'Amount', width: phone ? 88 : 120, type: 'rightAligned', filter: 'agNumberColumnFilter', valueFormatter: ({ value, data }) => (data ? fmtMoney(value, data.currency) : '') },
+      { field: 'payment', headerName: 'PayPal', width: 120, enableCellChangeFlash: true, hide: phone },
+      { field: 'criteriaMet', headerName: 'Criteria met', width: 120, enableCellChangeFlash: true, hide: phone },
+      { field: 'confidence', headerName: 'Lowest AI confidence', width: 180, filter: 'agNumberColumnFilter', cellRenderer: ConfidenceCell, hide: phone },
+      { field: 'freelancer', headerName: 'Freelancer', flex: 1, minWidth: 140, hide: phone },
+      { field: 'client', headerName: 'Client', flex: 1, minWidth: 140, hide: phone },
+      { field: 'updated', headerName: 'Updated', width: 150, filter: 'agDateColumnFilter', sort: 'desc', hide: phone, valueFormatter: ({ value }) => (value ? (value as Date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '') },
     ],
-    [],
+    [phone],
   );
 
   return (
     <div className="flex flex-col gap-3">
-      <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search deals…" aria-label="Search deals" className="h-10 w-72 rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue" />
+      <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search deals…" aria-label="Search deals" className="h-10 w-full max-w-72 rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue" />
       <div style={{ height: Math.min(560, Math.max(200, 56 + rows.length * 52 + 2)) }}>
         <AgGridProvider modules={modules}>
           <AgGridReact<Row>

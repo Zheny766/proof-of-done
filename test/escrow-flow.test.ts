@@ -340,3 +340,11 @@ test('demo deals are throwaways: gone after two days', () => {
   assert.equal(store.getMilestone(old.id), undefined);
   assert.ok(store.getMilestone(fresh.id));
 });
+
+test('the demo history is recognised once loaded, so the button that loads it can stay away', async () => {
+  const { hasDemoHistory, seedDemo } = await import('../lib/escrow/demo.ts');
+  store.deleteAll();
+  assert.equal(hasDemoHistory(), false);
+  seedDemo(5);
+  assert.equal(hasDemoHistory(), true);
+});

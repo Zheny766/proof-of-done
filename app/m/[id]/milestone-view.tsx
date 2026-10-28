@@ -214,11 +214,13 @@ export function MilestoneView({
 
       <MoneyJourney m={m} />
 
-      {/* minmax(0, ...) on phones too: a long word in the evidence (is_valid_email(...)) must not widen the page. */}
+      {/* minmax(0, ...) on phones too: a long word in the evidence (is_valid_email(...)) must not widen the page.
+          On a phone the two columns become one list (display: contents) ordered by what matters: what to
+          do, then the verdict, and the PayPal details and the timeline last. */}
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div className="space-y-6">
+        <div className="contents lg:block lg:space-y-6">
           {role !== 'viewer' && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-pp-border bg-white px-4 py-2.5 text-sm">
+            <div className="order-1 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-pp-border bg-white px-4 py-2.5 text-sm">
               <span>
                 You are the <b>{role}</b> ({role === 'client' ? m.client.name : m.freelancer.name})
               </span>
@@ -240,26 +242,60 @@ export function MilestoneView({
           )}
 
           {/* The half-done demo is about settling, so its offer comes first; elsewhere fixing the work does. */}
-          {settleFirst && <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />}
+          {settleFirst && (
+            <div className="order-2">
+              <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />
+            </div>
+          )}
 
-          <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={setM} waitForStage={waitForStage} />
+          <div className="order-3">
+            <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={setM} waitForStage={waitForStage} />
+          </div>
 
-          {canSettle && !settleFirst && <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />}
+          {canSettle && !settleFirst && (
+            <div className="order-6">
+              <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />
+            </div>
+          )}
 
-          {m.status === 'released' && role !== 'viewer' && m.payment.captureId && <AfterPayment m={m} role={role} milestoneKey={key} onChange={setM} />}
+          {m.status === 'released' && role !== 'viewer' && m.payment.captureId && (
+            <div className="order-4">
+              <AfterPayment m={m} role={role} milestoneKey={key} onChange={setM} />
+            </div>
+          )}
 
-          {m.board && <BoardStatus m={m} />}
+          {m.board && (
+            <div className="order-9">
+              <BoardStatus m={m} />
+            </div>
+          )}
 
-          {role === 'client' && !m.board && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
+          {role === 'client' && !m.board && keys.share && !['released', 'cancelled'].includes(m.status) && (
+            <div className="order-12">
+              <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />
+            </div>
+          )}
 
-          <PaymentDetails m={m} milestoneKey={key} />
-          <Timeline m={m} />
+          <div className="order-10">
+            <PaymentDetails m={m} milestoneKey={key} />
+          </div>
+          <div className="order-11">
+            <Timeline m={m} />
+          </div>
         </div>
 
-        <div className="space-y-6">
-          <Verdict m={m} />
-          <AgentLog entries={review?.log ?? []} live={m.status === 'reviewing'} role={role} reviewed={!!review} />
-          {role !== 'viewer' && <Submissions m={m} fileKey={key} />}
+        <div className="contents lg:block lg:space-y-6">
+          <div className="order-5">
+            <Verdict m={m} />
+          </div>
+          <div className="order-7">
+            <AgentLog entries={review?.log ?? []} live={m.status === 'reviewing'} role={role} reviewed={!!review} />
+          </div>
+          {role !== 'viewer' && (
+            <div className="order-8">
+              <Submissions m={m} fileKey={key} />
+            </div>
+          )}
         </div>
       </div>
     </main>

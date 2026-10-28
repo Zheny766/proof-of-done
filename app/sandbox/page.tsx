@@ -52,7 +52,9 @@ function Run({ run }: { run: SandboxRun }) {
     ['Money on hold (authorization)', p.previousAuthorizationId ?? p.authorizationId ?? null, p.authorizedAt],
     ...(p.previousAuthorizationId ? [['Hold renewed after the 3-day honor period', p.authorizationId, p.reauthorizedAt] as [string, string, string | null]] : []),
     ...(p.captureId ? [[`Captured ${fmtMoney(p.capturedAmount ?? run.amount, run.currency)}`, p.captureId, p.capturedAt] as [string, string, string | null]] : []),
-    ...(p.payoutBatchId ? [[`Paid out to the freelancer${p.payoutStatus ? ` (${p.payoutStatus})` : ''}`, p.payoutBatchId, null] as [string, string, string | null]] : []),
+    ...(p.payoutBatchId
+      ? [[`Paid out to the freelancer${p.payoutStatus === 'SUCCESS' ? ': arrived' : p.payoutStatus ? ` (${p.payoutStatus.toLowerCase()})` : ''}`, p.payoutBatchId, null] as [string, string, string | null]]
+      : []),
     ...(p.voidedAt ? [['Hold voided', null, p.voidedAt] as [string, null, string]] : []),
   ];
   const met = run.criteria.filter((c) => c.status === 'met').length;

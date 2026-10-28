@@ -1,5 +1,5 @@
 import { handle } from '@/lib/escrow/http';
-import { seedDemo } from '@/lib/escrow/demo';
+import { hasDemoHistory, seedDemo } from '@/lib/escrow/demo';
 import { deleteAll, listMilestones } from '@/lib/escrow/store';
 import { allowRequest } from '@/lib/rate-limit';
 
@@ -13,6 +13,8 @@ export const POST = handle(async (request: Request) => {
       return Response.json({ error: 'Reset is disabled in production.' }, { status: 403 });
     }
     deleteAll();
+  } else if (hasDemoHistory()) {
+    return Response.json({ error: 'The demo history is already loaded.' }, { status: 409 });
   }
   const added = seedDemo(30);
   return Response.json({ added, total: listMilestones().length });

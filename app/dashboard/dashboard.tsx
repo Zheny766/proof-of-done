@@ -74,6 +74,17 @@ const noSubscription = () => () => {};
 // An empty pivot cell (no deal in that stage for that freelancer) read "N/A", like an error.
 const LOCALE_TEXT = { valueNotApplicable: '—' };
 
+// On a phone Studio squeezed the 24-column page into the screen: KPI values turned into "...". There
+// it keeps a desktop-like width and scrolls sideways inside its box instead.
+const PHONE = '(max-width: 767px)';
+const LAYOUT = { widgetBorderEnabled: true };
+const PHONE_LAYOUT = { widgetBorderEnabled: true, minWidth: 980 };
+const subscribePhone = (onChange: () => void) => {
+  const query = window.matchMedia(PHONE);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+
 export function Dashboard(props: DashboardProps) {
   // Saved reports live in localStorage, which only exists in the browser.
   const inBrowser = useSyncExternalStore(
@@ -85,6 +96,7 @@ export function Dashboard(props: DashboardProps) {
 }
 
 function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
+  const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false);
   const { store, latest, update, editReport } = useReports();
   const apiRef = useRef<AgStudioApi | null>(null);
 
@@ -270,7 +282,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
             <AgStudio
               style={{ height: '100%', width: '100%' }}
               theme={agStudioPayPalTheme}
-              layout={{ widgetBorderEnabled: true }}
+              layout={phone ? PHONE_LAYOUT : LAYOUT}
               localeText={LOCALE_TEXT}
               data={studioData}
               widgets={widgets}
