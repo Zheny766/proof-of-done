@@ -39,7 +39,10 @@ function save(db: DbShape) {
 }
 
 export const newId = (prefix: string) => `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
-export const nowIso = () => new Date().toISOString();
+// Strictly increasing, so what happened later always sorts later, even within one millisecond
+// (a review started after the terms changed, an overdue notice after a new deadline).
+let lastMs = 0;
+export const nowIso = () => new Date((lastMs = Math.max(Date.now(), lastMs + 1))).toISOString();
 
 export function listMilestones(): Milestone[] {
   return load().milestones.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -62,6 +65,8 @@ export function updateMilestone(id: string, mutate: (m: Milestone) => void): Mil
   const m = db.milestones.find((x) => x.id === id);
   if (!m) throw new Error(`Milestone ${id} not found`);
   mutate(m);
+  // An offer of new terms only stands while the terms can still change (not under review, paid or cancelled).
+  if (m.termsChange && !['awaiting_funding', 'funded', 'changes_requested', 'escalated'].includes(m.status)) m.termsChange = undefined;
   m.updatedAt = nowIso();
   save(db);
   return m;

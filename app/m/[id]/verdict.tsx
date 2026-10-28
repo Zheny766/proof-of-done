@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { AgentLogEntry, Audit, CriterionFinding, Milestone, Role } from '@/lib/escrow/types';
-import { latestFindings } from '@/lib/escrow/policy';
+import { currentReview, latestFindings } from '@/lib/escrow/policy';
 import { fmtMoney } from '@/app/components/status';
 import { card, h2, modelName } from './ui';
 
@@ -10,7 +10,9 @@ const seconds = (from: string, to: string) => Math.max(1, Math.round((+new Date(
 
 /** The criteria with the reviewer's findings, the second opinion and what was decided. */
 export function Verdict({ m }: { m: Milestone }) {
-  const review = m.reviews.at(-1);
+  // A review from before the terms changed judged other criteria: show the new ones unchecked.
+  const review = currentReview(m);
+  const stale = !review && m.reviews.length > 0;
   const findings = review ? latestFindings(m.criteria, review.findings) : m.criteria.map(() => undefined);
   const who =
     review?.engine === 'claude'
@@ -41,6 +43,7 @@ export function Verdict({ m }: { m: Milestone }) {
       <p className="mt-1 text-sm text-pp-muted">
         Every criterion has to be met with at least {Math.round(m.releaseThreshold * 100)}% confidence, and a second model has to agree, before any money moves.
       </p>
+      {stale && <p className="mt-3 rounded-lg bg-pp-highlight px-3 py-2 text-sm text-pp-navy">The terms changed after the last review: the next delivery is checked against these criteria.</p>}
       <ul className="mt-5 space-y-3">
         {m.criteria.map((c, i) => (
           <CriterionRow key={c.id} n={i + 1} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} />
@@ -129,7 +132,7 @@ function SecondOpinion({ audit, m }: { audit: Audit; m: Milestone }) {
 // Follows the milestone's status, not just the reviewer's decision: after an escalation the
 // client may have paid, asked for changes or cancelled.
 function DecisionBanner({ m }: { m: Milestone }) {
-  const review = m.reviews.at(-1);
+  const review = currentReview(m);
   const byAgent = review?.decision;
   const aiReleased = m.timeline.some((e) => e.type === 'verified');
   const settled = m.payment.capturedAmount;

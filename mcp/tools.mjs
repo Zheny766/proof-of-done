@@ -38,7 +38,10 @@ async function call(origin, p, { key, body, form } = {}) {
 const text = (s) => ({ content: [{ type: 'text', text: s }] });
 
 function describe(m, role, origin) {
-  const review = m.reviews?.at(-1);
+  // A review made before the terms last changed was against the old criteria: it no longer counts.
+  const last = m.reviews?.at(-1);
+  const review = last && (!m.termsChangedAt || last.startedAt > m.termsChangedAt) ? last : undefined;
+  const offer = m.termsChange;
   const verdicts = (review?.findings ?? []).reduce((acc, f) => ({ ...acc, [f.criterionId]: f }), {});
   return [
     `${m.title}: ${m.amount} ${m.currency}, ${m.client.name} pays ${m.freelancer.name}. You are the ${role}.`,
@@ -52,6 +55,8 @@ function describe(m, role, origin) {
     }),
     review?.audit && `Second opinion: ${review.audit.agreed ? 'confirmed' : `refused (${[...review.audit.disputed.map((d) => `${d.criterionId}: ${d.reason}`), ...review.audit.redFlags].join('; ')})`}.`,
     review?.feedback && `Reviewer feedback: ${review.feedback}`,
+    offer &&
+      `Open offer to change the terms, from the ${offer.by}${offer.by === role ? ' (you; the other side accepts or declines)' : ' (accept or decline it with change_terms)'}: amount ${offer.to.amount} ${m.currency}, deadline ${offer.to.dueDays ? `${offer.to.dueDays} days after the hold` : 'none'}, criteria:\n${offer.to.criteria.map((c) => `  - ${c}`).join('\n')}${offer.note ? `\n  Why: ${offer.note}` : ''}`,
     m.complaint && `After the payment the client reported a problem and asks for ${m.complaint.amount} ${m.currency} back (${m.complaint.status})${m.complaint.text ? `: ${m.complaint.text}` : ''}.`,
     m.payment.refunds?.length && `PayPal refunded to the client: ${m.payment.refunds.map((r) => `${r.amount} ${m.currency}`).join(', ')}.`,
     m.status === 'released' && origin && `Proof certificate (shareable): ${origin}/m/${m.id}/proof`,
@@ -239,6 +244,34 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       }
       await call(origin, `/api/escrow/milestones/${id}/submit`, { key, form });
       return text('Delivered. The AI reviewer is checking it now; call wait_for_verdict with the same link.');
+    },
+  );
+
+  server.registerTool(
+    'change_terms',
+    {
+      title: 'Change the terms',
+      description:
+        'Offer the other side new terms on a deal (new acceptance criteria, a lower amount, another deadline), or accept or decline their offer. Nothing changes until the other side accepts. Once PayPal holds the money the amount can only go down: PayPal captures the new amount and the rest of the hold goes back to the client. Possible before the work is delivered, or after a review asked for changes.',
+      inputSchema: {
+        link: z.string().describe('Your client or freelancer link'),
+        action: z.enum(['propose', 'accept', 'decline']).describe('decline also withdraws your own offer'),
+        criteria: z.array(z.string().min(3).max(300)).min(1).max(12).optional().describe('propose: the full new list of acceptance criteria (default: unchanged)'),
+        amount: z.number().min(1).max(10000).optional().describe('propose: the new amount in USD (default: unchanged)'),
+        due_days: z.number().int().min(1).max(25).optional().describe('propose: deadline in days after PayPal holds the money (default: unchanged)'),
+        note: z.string().max(500).optional().describe('propose: why the terms change'),
+      },
+    },
+    async ({ link, action, criteria, amount, due_days, note }) => {
+      const { origin, id, key } = dealLink(link);
+      let body = { action };
+      if (action === 'propose') {
+        const { milestone: now } = await call(origin, `/api/escrow/milestones/${id}`, { key });
+        body = { action, criteria: criteria ?? now.criteria.map((c) => c.text), amount: amount ?? Number(now.amount), dueDays: due_days ?? now.dueDays, note };
+      }
+      const { milestone } = await call(origin, `/api/escrow/milestones/${id}/terms`, { key, body });
+      const { role } = await call(origin, `/api/escrow/milestones/${id}`, { key });
+      return text(describe(milestone, role, origin));
     },
   );
 

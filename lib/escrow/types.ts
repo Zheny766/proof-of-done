@@ -109,8 +109,23 @@ export interface PaymentState {
   previousAuthorizationId?: string;
   /** Last failed reauthorization attempt, so a poll doesn't retry it every few seconds. */
   reauthTriedAt?: string;
+  /** What PayPal authorized, when the deal's amount was later lowered by agreement (the capture then names its amount). */
+  authorizedAmount?: string;
   /** Money PayPal returned to the client from the capture after the deal was paid, oldest first. */
   refunds?: { id: string; amount: string; status: string; at: string }[];
+}
+
+/** The terms a deal is judged and paid by, and an offer from one side to change them. */
+export interface Terms {
+  criteria: string[];
+  amount: string;
+  dueDays?: number;
+}
+export interface TermsChange {
+  by: 'client' | 'freelancer';
+  to: Terms;
+  note: string;
+  at: string;
 }
 
 /** The client's report of a problem after the payment, and what the freelancer did about it. */
@@ -185,6 +200,10 @@ export interface Milestone {
   settlement?: SettlementOffer;
   /** After the payment: the client reported a problem (the latest one; earlier ones are in the timeline). */
   complaint?: Complaint;
+  /** An open offer to change the criteria, lower the amount or move the deadline; the other side accepts. */
+  termsChange?: TermsChange;
+  /** When the terms were last changed by agreement (a review before that judged the old ones). */
+  termsChangedAt?: string;
   /** Every PayPal REST call made for this milestone (newest last, capped). */
   paypalCalls?: { at: string; method: string; path: string; status: number; ms: number; requestId?: string; debugId?: string }[];
   /** PayPal webhook events already applied, so a redelivery is a no-op. */

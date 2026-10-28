@@ -9,6 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
+import { isOverdue } from './policy.ts';
 import { sniffType } from './evidence.ts';
 import { cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
@@ -19,7 +20,7 @@ import { deleteWhere, getMilestone, insertMilestone, listMilestones, newId, nowI
 import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
 
 export { CLAIM_LIMIT, trustFor, type Trust, type TrustTier } from './trust.ts';
-import type { Attachment, Milestone, MilestoneStatus, Review, Role } from './types.ts';
+import type { Attachment, Milestone, MilestoneStatus, Review, Role, Terms } from './types.ts';
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
@@ -70,10 +71,17 @@ function requireRole(m: Milestone, key: string | null, role: Exclude<Role, 'view
   }
 }
 
+// The same criterion twice (a paste, a slip) would be checked twice: keep the first of each.
+const Criteria = z
+  .array(z.string().trim().min(3).max(300))
+  .min(1)
+  .max(12)
+  .transform((list) => list.filter((c, i) => list.findIndex((d) => d.toLowerCase() === c.toLowerCase()) === i));
+
 export const CreateMilestoneInput = z.object({
   title: z.string().trim().min(3).max(120),
   description: z.string().trim().max(4000).default(''),
-  criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
+  criteria: Criteria,
   // At least $1: anything smaller rounds to 0.00, which PayPal refuses.
   amount: z.coerce.number().min(1).max(10_000),
   // USD only for now: the dashboard and the home page totals add amounts up as dollars.
@@ -144,7 +152,7 @@ export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, am
       z.object({
         title: z.string().trim().min(3).max(120),
         amount: z.coerce.number().min(1).max(10_000),
-        criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
+        criteria: Criteria,
         // The plan: how long the stage should take, which is also its deadline once it is funded. Each
         // stage starts when the one before is paid; at most 25 days, as PayPal holds money for 29.
         days: z.coerce.number().int().min(1).max(25).default(7),
@@ -311,6 +319,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     }
     x.submissions.push({ id: submissionId, at: nowIso(), notes: input.notes.trim(), links: input.links, attachments });
     x.settlement = undefined;
+    if (x.termsChange) pushEvent(x, 'system', 'terms_lapsed', 'The offer of new terms lapsed: the work was delivered, so it is checked against the current terms');
     x.reviews.push({
       id: reviewId,
       submissionId,
@@ -400,7 +409,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
             mergeRelease(x, payment);
             x.status = 'released';
             pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
-            pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
+            pushEvent(x, 'paypal', 'captured', capturedText(x, payment.captureId));
             pushPayoutEvent(x, payment);
           });
           return {};
@@ -477,7 +486,7 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
   if (m.status === 'verified' && m.releaseAt && Date.parse(m.releaseAt) <= Date.now()) return releaseWhenDue(id);
   // The deadline passed with no delivery that passed review: say so once, so the client knows they
   // can stop waiting.
-  if (m.dueAt && Date.parse(m.dueAt) <= Date.now() && ['funded', 'changes_requested'].includes(m.status) && !m.timeline.some((e) => e.type === 'overdue')) {
+  if (m.dueAt && Date.parse(m.dueAt) <= Date.now() && ['funded', 'changes_requested'].includes(m.status) && !isOverdue(m)) {
     return updateMilestone(id, (x) =>
       pushEvent(x, 'system', 'overdue', `The deadline passed without a delivery that passed review. ${x.client.name} can keep waiting, or cancel and void the hold: nothing is charged.`),
     );
@@ -544,7 +553,7 @@ function releaseWhenDue(id: string): Promise<Milestone> {
         x.status = 'released';
         x.releaseAt = undefined;
         pushEvent(x, 'system', 'window_closed', `${x.client.name} did not object within ${x.objectionHours} h, so the payment goes out`);
-        pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
+        pushEvent(x, 'paypal', 'captured', capturedText(x, payment.captureId));
         pushPayoutEvent(x, payment);
       });
     } catch (error) {
@@ -579,7 +588,7 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
       x.releaseAt = undefined;
       x.settlement = undefined;
       pushEvent(x, 'client', 'approved', `${x.client.name} approved the work and released the payment${note ? `: ${note}` : ''}`);
-      pushEvent(x, 'paypal', 'captured', `PayPal captured ${money(Number(x.amount), x.currency)} (capture ${payment.captureId})`);
+      pushEvent(x, 'paypal', 'captured', capturedText(x, payment.captureId));
       pushPayoutEvent(x, payment);
     });
   }
@@ -669,6 +678,99 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
       `PayPal captured ${money(Number(offer.amount), x.currency)} (capture ${payment.captureId}); the other ${money(rest, x.currency)} of the hold went back to ${x.client.name}`,
     );
     pushPayoutEvent(x, payment);
+  });
+}
+
+/** The capture event; after terms that lowered the amount, PayPal releases the rest of the hold. */
+function capturedText(m: Milestone, captureId: string | undefined): string {
+  const rest = Number(m.payment.authorizedAmount ?? m.amount) - Number(m.amount);
+  return `PayPal captured ${money(Number(m.amount), m.currency)} (capture ${captureId})${rest > 0 ? `; the other ${money(rest, m.currency)} of the hold went back to ${m.client.name}` : ''}`;
+}
+
+// Changing the terms: either side offers new criteria, a lower amount or another deadline, and only the
+// other side can accept. The amount can't go above what PayPal holds (that would need the client to
+// approve a new payment); a lower one makes the capture name its amount, and PayPal releases the rest.
+const TERMS_STATES = ['awaiting_funding', 'funded', 'changes_requested', 'escalated'];
+
+export const TermsInput = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('propose'),
+    criteria: Criteria,
+    amount: z.coerce.number().min(1).max(10_000),
+    dueDays: z.coerce.number().int().min(1).max(25).optional(),
+    note: z.string().trim().max(500).optional(),
+  }),
+  z.object({ action: z.literal('accept') }),
+  z.object({ action: z.literal('decline') }),
+]);
+
+const termsOf = (m: Milestone): Terms => ({ criteria: m.criteria.map((c) => c.text), amount: m.amount, ...(m.dueDays && { dueDays: m.dueDays }) });
+
+const criteriaCount = (n: number) => `${n} ${n === 1 ? 'criterion' : 'criteria'}`;
+
+/** The change in words: "2 criteria added, 1 removed; amount 100.00 -> 80.00 USD; deadline 7 -> 10 days". */
+export function describeTermsChange(from: Terms, to: Terms, currency: string): string {
+  const added = to.criteria.filter((c) => !from.criteria.includes(c)).length;
+  const removed = from.criteria.filter((c) => !to.criteria.includes(c)).length;
+  const parts = [
+    (added || removed) && [added && `${criteriaCount(added)} added`, removed && `${added ? removed : criteriaCount(removed)} removed`].filter(Boolean).join(', '),
+    from.amount !== to.amount && `amount ${from.amount} -> ${to.amount} ${currency}`,
+    from.dueDays !== to.dueDays && `deadline ${from.dueDays ? `${from.dueDays} days` : 'none'} -> ${to.dueDays ? `${to.dueDays} days` : 'none'}`,
+  ].filter(Boolean);
+  return parts.join('; ') || 'no change';
+}
+
+export const changeTerms = (id: string, raw: unknown, key: string | null) => exclusive(id, () => changeTermsNow(id, TermsInput.parse(raw), key));
+async function changeTermsNow(id: string, input: z.infer<typeof TermsInput>, key: string | null): Promise<Milestone> {
+  const m = mustGet(id);
+  const role = roleFor(m, key);
+  if (role === 'viewer') throw new EscrowError('Only the client or the freelancer can change the terms - open your link.', 403);
+  const name = role === 'client' ? m.client.name : m.freelancer.name;
+  if (!TERMS_STATES.includes(m.status)) throw new EscrowError(`The terms can't change now: ${dealIs(m)}.`);
+  if (m.board && !m.board.claimedAt) throw new EscrowError('Nobody has taken this job yet: there is no one to agree new terms with.');
+
+  if (input.action === 'propose') {
+    if (m.termsChange) throw new EscrowError('There is already an open offer to change the terms.');
+    const to: Terms = { criteria: input.criteria, amount: input.amount.toFixed(2), ...(input.dueDays && { dueDays: input.dueDays }) };
+    // PayPal holds what the client approved; more than that is a new payment.
+    const held = m.payment.authorizationId ? Number(m.payment.authorizedAmount ?? m.amount) : Infinity;
+    if (Number(to.amount) > held) throw new EscrowError(`The amount can't go above the ${money(held, m.currency)} PayPal holds. For more, the client approves a new payment: settle this deal or cancel it and create a new one.`);
+    const change = describeTermsChange(termsOf(m), to, m.currency);
+    if (change === 'no change') throw new EscrowError('These are the current terms: change a criterion, the amount or the deadline.');
+    const note = (input.note ?? '').slice(0, 500);
+    return updateMilestone(id, (x) => {
+      x.termsChange = { by: role, to, note, at: nowIso() };
+      pushEvent(x, role, 'terms_offer', `${name} offered new terms (${change})${note ? `: ${note}` : ''}`);
+    });
+  }
+
+  const offer = m.termsChange;
+  if (!offer) throw new EscrowError('There is no open offer to change the terms.');
+  if (input.action === 'decline') {
+    return updateMilestone(id, (x) => {
+      x.termsChange = undefined;
+      pushEvent(x, role, 'terms_declined', offer.by === role ? `${name} withdrew the offer of new terms` : `${name} declined the new terms`);
+    });
+  }
+  if (offer.by === role) throw new EscrowError('The other party has to accept your offer.', 403);
+  // Offered before the client funded the deal: PayPal may now hold less than the offer.
+  if (m.payment.authorizationId && Number(offer.to.amount) > Number(m.payment.authorizedAmount ?? m.amount)) {
+    throw new EscrowError(`PayPal now holds ${money(Number(m.payment.authorizedAmount ?? m.amount), m.currency)}, less than this offer. Decline it and offer again.`);
+  }
+  const change = describeTermsChange(termsOf(m), offer.to, m.currency);
+  return updateMilestone(id, (x) => {
+    if (x.payment.authorizationId) x.payment.authorizedAmount ??= x.amount;
+    // A PayPal order made for the old amount can't fund the deal any more: the client starts a new one.
+    else x.payment.orderId = undefined;
+    x.criteria = offer.to.criteria.map((text, i) => ({ id: `c${i + 1}`, text }));
+    x.amount = offer.to.amount;
+    x.dueDays = offer.to.dueDays;
+    // The deadline still counts from when PayPal took the hold.
+    x.dueAt = x.dueDays && x.payment.authorizedAt ? new Date(Date.parse(x.payment.authorizedAt) + x.dueDays * 86_400_000).toISOString() : undefined;
+    x.settlement = undefined;
+    x.termsChange = undefined;
+    x.termsChangedAt = nowIso();
+    pushEvent(x, role, 'terms_changed', `${name} accepted the new terms (${change}); the next delivery is checked against them`);
   });
 }
 

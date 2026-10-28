@@ -60,6 +60,7 @@ export function viewerMilestone(m: Milestone): Milestone {
       audit: r.audit && { ...r.audit, summary: '', disputed: r.audit.disputed.map((d) => ({ ...d, reason: '' })), redFlags: [] },
     })),
     settlement: undefined,
+    termsChange: undefined,
     // That there was a complaint and how it ended is public; what it said is not.
     complaint: p.complaint && { ...p.complaint, text: '', reply: undefined },
     timeline: p.timeline.map((e) => ({ ...e, text: viewerEventText(e) })),

@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
 import { api, fmtDate, fmtMoney, keyHeader, payoutText } from '@/app/components/status';
 import { PayPalFundButton } from '@/app/components/paypal-fund-button';
+import { isOverdue } from '@/lib/escrow/policy';
 import { btn, card, currentMinute, field, h2, noSubscribe } from './ui';
 
 type Party = Exclude<Role, 'viewer'>;
@@ -274,7 +275,7 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
         {fmtMoney(m.amount, m.currency)} is on hold at PayPal. When every criterion checks out, you get paid without anyone having to click approve.
         {m.dueAt && (
           <b suppressHydrationWarning className="mt-1 block text-pp-ink">
-            {m.timeline.some((e) => e.type === 'overdue') ? `The deadline was ${fmtDate(m.dueAt)}: deliver as soon as you can, the client may cancel.` : `Deliver by ${fmtDate(m.dueAt)}.`}
+            {isOverdue(m) ? `The deadline was ${fmtDate(m.dueAt)}: deliver as soon as you can, the client may cancel.` : `Deliver by ${fmtDate(m.dueAt)}.`}
           </b>
         )}
       </p>
@@ -328,7 +329,7 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   const lastSubmitted = m.submissions.at(-1)?.at ?? '';
   const probation = m.timeline.findLast((e) => e.type === 'probation' && e.at >= lastSubmitted);
   const vetoed = m.reviews.at(-1)?.audit?.agreed === false;
-  const overdue = !onBoard && m.timeline.some((e) => e.type === 'overdue') && ['funded', 'changes_requested'].includes(m.status);
+  const overdue = !onBoard && isOverdue(m);
   const title = overdue ? 'The deadline passed' : verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
@@ -662,6 +663,147 @@ export function AfterPayment({ m, role, milestoneKey, onChange }: { m: Milestone
           </div>
         </form>
       )}
+      {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
+    </section>
+  );
+}
+
+const TERMS_STATES = ['awaiting_funding', 'funded', 'changes_requested', 'escalated'];
+
+/**
+ * Changing the terms: either side offers new criteria, a lower amount or another deadline, and only
+ * the other side can accept. Shows the offer as what changes.
+ */
+export function TermsCard({ m, role, milestoneKey, onChange }: { m: Milestone; role: Party; milestoneKey: string | null; onChange: (m: Milestone) => void }) {
+  const offer = m.termsChange;
+  const held = m.payment.authorizationId ? Number(m.payment.authorizedAmount ?? m.amount) : null;
+  const [open, setOpen] = useState(false);
+  const [criteria, setCriteria] = useState(() => m.criteria.map((c) => c.text).join('\n'));
+  const [amount, setAmount] = useState(m.amount);
+  const [dueDays, setDueDays] = useState(m.dueDays ?? 0);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!TERMS_STATES.includes(m.status) || (m.board && !m.board.claimedAt)) return null;
+  const other = role === 'client' ? m.freelancer.name : m.client.name;
+
+  async function send(body: Record<string, unknown>) {
+    setBusy(true);
+    setError('');
+    try {
+      const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/terms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
+        body: JSON.stringify(body),
+      });
+      onChange(milestone);
+      setOpen(false);
+      setNote('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (offer) {
+    const now = m.criteria.map((c) => c.text);
+    const added = offer.to.criteria.filter((c) => !now.includes(c));
+    const removed = now.filter((c) => !offer.to.criteria.includes(c));
+    const mine = offer.by === role;
+    return (
+      <section className={`${card} ${mine ? '' : 'border-pp-blue ring-2 ring-pp-highlight'}`}>
+        <h2 className={h2}>New terms</h2>
+        <p className="mt-2 text-[15px] text-pp-ink">{mine ? `You offered new terms. Waiting for ${other} to accept or decline.` : `${other} offers new terms:`}</p>
+        <ul className="mt-3 space-y-1.5 text-sm">
+          {added.map((c) => (
+            <li key={`+${c}`} className="text-emerald-800 [overflow-wrap:anywhere]">+ {c}</li>
+          ))}
+          {removed.map((c) => (
+            <li key={`-${c}`} className="text-pp-danger line-through [overflow-wrap:anywhere]">− {c}</li>
+          ))}
+          {offer.to.amount !== m.amount && (
+            <li>
+              Amount: {fmtMoney(m.amount, m.currency)} → <b>{fmtMoney(offer.to.amount, m.currency)}</b>
+              {held !== null && Number(offer.to.amount) < held ? ' (PayPal captures only this, the rest of the hold goes back)' : ''}
+            </li>
+          )}
+          {(offer.to.dueDays ?? 0) !== (m.dueDays ?? 0) && (
+            <li>
+              Deadline: {m.dueDays ? `${m.dueDays} days` : 'none'} → <b>{offer.to.dueDays ? `${offer.to.dueDays} days` : 'none'}</b> after the hold
+            </li>
+          )}
+        </ul>
+        {offer.note && <p className="mt-2 text-sm text-pp-muted [overflow-wrap:anywhere]">&ldquo;{offer.note}&rdquo;</p>}
+        <div className="mt-4 flex gap-2">
+          {!mine && (
+            <button onClick={() => send({ action: 'accept' })} disabled={busy} className={btn.primary}>
+              Accept the new terms
+            </button>
+          )}
+          <button onClick={() => send({ action: 'decline' })} disabled={busy} className={btn.ghost}>
+            {mine ? 'Withdraw' : 'Decline'}
+          </button>
+        </div>
+        {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
+      </section>
+    );
+  }
+
+  if (!open) {
+    return (
+      <section className={card}>
+        <h2 className={h2}>The terms</h2>
+        <p className="mt-2 text-[15px] leading-relaxed text-pp-muted">
+          The job changed? Offer {other} new criteria, a lower amount{held === null ? ' or a different one' : ''} or another deadline. Nothing changes until they accept.
+        </p>
+        <button onClick={() => setOpen(true)} className={`${btn.ghost} mt-4`}>
+          Change the terms
+        </button>
+      </section>
+    );
+  }
+  return (
+    <section className={card}>
+      <h2 className={h2}>Change the terms</h2>
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send({ action: 'propose', criteria: criteria.split('\n').map((c) => c.trim()).filter(Boolean), amount: Number(amount), ...(dueDays && { dueDays }), ...(note && { note }) });
+        }}
+      >
+        <label className="block text-xs font-medium text-pp-muted">
+          Acceptance criteria, one per line
+          <textarea value={criteria} onChange={(e) => setCriteria(e.target.value)} required className={`${field} mt-1 h-28 py-2 text-pp-ink`} />
+        </label>
+        <div className="grid grid-cols-2 items-end gap-3">
+          <label className="block text-xs font-medium text-pp-muted">
+            Amount (USD){held !== null ? `, at most ${fmtMoney(held, m.currency)}` : ''}
+            <input type="number" min={1} max={held ?? 10000} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} required className={`${field} mt-1 h-11 text-pp-ink`} />
+          </label>
+          <label className="block text-xs font-medium text-pp-muted">
+            Deadline after the hold
+            <select value={dueDays} onChange={(e) => setDueDays(Number(e.target.value))} className={`${field} mt-1 h-11 text-pp-ink`}>
+              <option value={0}>None</option>
+              {[...new Set([3, 7, 10, 14, 21, ...(m.dueDays ? [m.dueDays] : [])])].sort((a, b) => a - b).map((d) => (
+                <option key={d} value={d}>
+                  {d} days
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="Why (optional)" aria-label="Why the terms change" className={`${field} h-11`} />
+        <div className="flex gap-2">
+          <button disabled={busy} className={btn.primary}>
+            Offer these terms
+          </button>
+          <button type="button" onClick={() => setOpen(false)} className={btn.ghost}>
+            Back
+          </button>
+        </div>
+      </form>
       {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
     </section>
   );

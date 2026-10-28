@@ -1,7 +1,7 @@
 // Release rule, enforced in code: money is captured only if every criterion has a "met" finding at
 // or above the milestone's threshold. Whatever the model says, it can't get around this.
 
-import type { Criterion, CriterionFinding } from './types.ts';
+import type { Criterion, CriterionFinding, Milestone, Review } from './types.ts';
 
 export interface PolicyResult {
   ok: boolean;
@@ -25,3 +25,13 @@ export function checkReleasePolicy(criteria: Criterion[], findings: CriterionFin
   });
   return { ok: reasons.length === 0, reasons };
 }
+
+/** The latest review, unless the terms changed after it: then it judged criteria that no longer apply. */
+export const currentReview = (m: Milestone): Review | undefined => {
+  const r = m.reviews.at(-1);
+  return r && (!m.termsChangedAt || r.startedAt > m.termsChangedAt) ? r : undefined;
+};
+
+/** The deadline passed with nothing that passed review (an overdue event since the terms last changed). */
+export const isOverdue = (m: Milestone) =>
+  ['funded', 'changes_requested'].includes(m.status) && m.timeline.some((e) => e.type === 'overdue' && (!m.termsChangedAt || e.at > m.termsChangedAt));

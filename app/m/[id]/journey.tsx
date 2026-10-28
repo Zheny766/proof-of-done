@@ -1,7 +1,7 @@
 'use client';
 
 import type { Milestone } from '@/lib/escrow/types';
-import { latestFindings } from '@/lib/escrow/policy';
+import { currentReview, latestFindings } from '@/lib/escrow/policy';
 import { fmtMoney } from '@/app/components/status';
 import { card } from './ui';
 
@@ -17,8 +17,10 @@ export function MoneyJourney({ m }: { m: Milestone }) {
   // Index of the step in progress; 4 means every step is done.
   const stage = { awaiting_funding: 0, funded: 1, reviewing: 2, changes_requested: 2, escalated: 2, verified: 3, released: 4, cancelled: -1 }[m.status];
   const amount = fmtMoney(m.amount, m.currency);
+  // The terms lowered the amount after the hold: PayPal holds more than it will capture.
+  const held = m.payment.authorizedAmount && Number(m.payment.authorizedAmount) > Number(m.amount) ? fmtMoney(m.payment.authorizedAmount, m.currency) : null;
   const settled = m.payment.capturedAmount;
-  const review = m.reviews.at(-1);
+  const review = currentReview(m);
   const findings = review ? latestFindings(m.criteria, review.findings) : [];
   const met = findings.filter((f) => f?.status === 'met' && f.confidence >= m.releaseThreshold).length;
   // A client can approve (or both sides settle) without the AI verifying; say so instead of a tick.
@@ -44,8 +46,21 @@ export function MoneyJourney({ m }: { m: Milestone }) {
     { icon: ICONS.fund, title: 'Client funds', sub: m.client.name },
     {
       icon: ICONS.hold,
-      title: stage >= 1 ? `PayPal holds ${amount}` : 'PayPal holds the money',
-      sub: stage === 4 ? (settled ? `captured ${fmtMoney(settled, m.currency)} by agreement` : aiSkipped ? 'captured when the client approved' : 'captured once the work checked out') : stage >= 1 ? 'on hold, nothing charged yet' : 'nothing on hold yet',
+      title: stage >= 1 ? `PayPal holds ${held ?? amount}` : 'PayPal holds the money',
+      sub:
+        stage === 4
+          ? settled
+            ? `captured ${fmtMoney(settled, m.currency)} by agreement`
+            : held
+              ? `captured ${amount}, the new terms`
+              : aiSkipped
+                ? 'captured when the client approved'
+                : 'captured once the work checked out'
+          : stage >= 1
+            ? held
+              ? `only ${amount} will be captured (new terms)`
+              : 'on hold, nothing charged yet'
+            : 'nothing on hold yet',
     },
     { icon: ICONS.check, title: 'Two AIs check the work', sub: checkSub },
     {

@@ -23,7 +23,7 @@ import {
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import type { Milestone } from '@/lib/escrow/types';
 import { api, fmtMoney, STATUS, StatusBadge } from './status';
-import { latestFindings } from '@/lib/escrow/policy';
+import { currentReview, latestFindings } from '@/lib/escrow/policy';
 
 const modules = [ClientSideRowModelModule, TextFilterModule, NumberFilterModule, DateFilterModule, QuickFilterModule, CellStyleModule, RowStyleModule, HighlightChangesModule, CsvExportModule];
 
@@ -87,7 +87,7 @@ export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[
   const rows = useMemo<Row[]>(
     () =>
       milestones.map((m) => {
-        const review = m.reviews.at(-1);
+        const review = currentReview(m);
         const latest = review ? latestFindings(m.criteria, review.findings) : [];
         const found = latest.filter(Boolean);
         return {

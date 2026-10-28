@@ -54,6 +54,20 @@ test('a settlement captures only the agreed amount, as the final capture, and pa
   assert.equal(result.capturedAmount, '60.00');
 });
 
+test('an amount lowered by agreement after the hold is captured as that amount, the final capture', async () => {
+  respond = (p) =>
+    p.endsWith('/capture')
+      ? { json: { id: 'CAP3', status: 'COMPLETED', amount: { value: '90.00', currency_code: 'USD' } } }
+      : { json: { batch_header: { payout_batch_id: 'B2', batch_status: 'PENDING' } } };
+  const lowered = { ...milestone, amount: '90.00', payment: { ...milestone.payment, authorizedAmount: '120.00' } } as Milestone;
+  const result = await payments.releaseFunds(lowered, 'Work accepted');
+  const capture = posted('/v2/payments/authorizations/AUTH1/capture')[0].body;
+  assert.deepEqual(capture.amount, { currency_code: 'USD', value: '90.00' });
+  assert.equal(capture.final_capture, true);
+  assert.equal(posted('/v1/payments/payouts')[0].body.items[0].amount.value, '90.00');
+  assert.equal(result.capturedAmount, undefined, 'the deal amount is what was captured');
+});
+
 test('a call PayPal never answered is sent again with the same idempotency key', async () => {
   let dropped = false;
   const real = globalThis.fetch;

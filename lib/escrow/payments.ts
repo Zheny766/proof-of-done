@@ -86,7 +86,7 @@ export async function renewHold(m: Milestone): Promise<Partial<PaymentState> | n
   if (!holdNeedsRenewal(p)) return null;
   const reauthorizedAt = new Date().toISOString();
   if (p.mode === 'simulated') {
-    return { authorizationId: fakeId('AUTH'), authorizationStatus: 'CREATED', previousAuthorizationId: p.authorizationId, reauthorizedAt, honorExpiresAt: days(3) };
+    return { authorizationId: fakeId('AUTH'), authorizationStatus: 'CREATED', previousAuthorizationId: p.authorizationId, reauthorizedAt, honorExpiresAt: days(3), ...(p.authorizedAmount && { authorizedAmount: m.amount }) };
   }
   const auth = await reauthorizeAuthorization(p.authorizationId!, { currency_code: m.currency, value: m.amount });
   if (auth.status === 'DENIED' || auth.status === 'VOIDED') throw new Error(`PayPal ${auth.status.toLowerCase()} the reauthorization (${auth.id}).`);
@@ -97,6 +97,8 @@ export async function renewHold(m: Milestone): Promise<Partial<PaymentState> | n
     reauthorizedAt,
     honorExpiresAt: days(3),
     expiresAt: auth.expiration_time ?? p.expiresAt,
+    // The new hold is for the current amount (lower, if the terms changed).
+    ...(p.authorizedAmount && { authorizedAmount: m.amount }),
   };
 }
 
@@ -108,6 +110,9 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
   if (!authId) throw new Error('No PayPal authorization to capture');
   // What the result carries besides the capture: the renewal, and the amount when it's a settlement.
   const extra: Partial<PaymentState> = { ...renewed, ...(amount !== m.amount && { capturedAmount: amount }) };
+  // Less than PayPal authorized (a settlement, or an amount lowered by agreement): the capture names
+  // its amount, and being the final capture, PayPal releases the rest of the hold.
+  const partial = Number(amount) < Number(m.payment.authorizedAmount ?? m.amount);
 
   if (m.payment.mode === 'simulated') {
     return {
@@ -120,7 +125,7 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     };
   }
 
-  const capture = await captureAuthorization(authId, note, extra.capturedAmount ? { currency_code: m.currency, value: amount } : undefined);
+  const capture = await captureAuthorization(authId, note, partial ? { currency_code: m.currency, value: amount } : undefined);
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);

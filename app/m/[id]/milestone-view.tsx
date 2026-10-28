@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { Milestone, Role } from '@/lib/escrow/types';
 import type { StageSummary } from '@/lib/escrow/service';
 import { api, fmtDay, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
-import { AfterPayment, NextStep, Settlement, ShareLink } from './actions';
+import { AfterPayment, NextStep, Settlement, ShareLink, TermsCard } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
 import { card, h2, initials } from './ui';
 import { AgentLog, Verdict } from './verdict';
 import { describeDeal } from '@/app/components/deal-facts';
+import { isOverdue } from '@/lib/escrow/policy';
 import { WebMcpTools, type WebMcpTool } from '@/app/components/webmcp';
 import dynamic from 'next/dynamic';
 
@@ -150,7 +151,7 @@ export function MilestoneView({
 
   const review = m.reviews.at(-1);
   const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
-  const overdue = m.timeline.some((e) => e.type === 'overdue') && ['funded', 'changes_requested'].includes(m.status);
+  const overdue = isOverdue(m);
   const both = !!(keys.client && keys.freelancer);
   // A later stage is funded only once the one before it is paid (or cancelled).
   const before = m.project && m.project.stage > 1 ? stages?.[m.project.stage - 2] : undefined;
@@ -277,6 +278,12 @@ export function MilestoneView({
           {m.status === 'released' && role !== 'viewer' && m.payment.captureId && (
             <div className="order-4">
               <AfterPayment m={m} role={role} milestoneKey={key} onChange={setM} />
+            </div>
+          )}
+
+          {role !== 'viewer' && (
+            <div className="order-6">
+              <TermsCard m={m} role={role} milestoneKey={key} onChange={setM} />
             </div>
           )}
 
