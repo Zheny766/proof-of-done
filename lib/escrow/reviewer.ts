@@ -114,7 +114,7 @@ function evidenceBlocks(m: Milestone, s: Submission, closing = 'Review this subm
     `Submission ${s.id}, received ${s.at}.`,
     `Freelancer's notes:\n${fence('notes', s.notes || '(none)')}`,
     s.links.length ? `Links provided:\n${fence('links', s.links.map((l) => `- ${l}`).join('\n'))}` : 'No links provided.',
-    s.attachments.length ? `${s.attachments.length} attachment(s) follow.` : 'No attachments.',
+    s.attachments.length ? `${s.attachments.length === 1 ? '1 attachment follows' : `${s.attachments.length} attachments follow`}.` : 'No attachments.',
     closing,
   ].join('\n\n');
   return [{ type: 'text', text: intro }, ...blocks];

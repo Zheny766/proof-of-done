@@ -14,7 +14,7 @@ export function describeDeal(m: Milestone): string {
     ...(m.project ? [`Stage ${m.project.stage} of ${m.project.stageIds.length} of the project "${m.project.title}"; each stage is funded after the one before it is paid.`] : []),
     ...(m.board ? [m.board.claimedAt ? `Taken from the open job board by ${m.board.claimedBy}.` : 'On the open job board, not taken yet.'] : []),
     ...(m.postedBy ? [`Posted for the client by the AI agent ${m.postedBy}.`] : []),
-    ...(m.disputes?.length ? [`PayPal dispute(s): ${m.disputes.map((d) => `${d.id} (${d.reason}, ${d.status})`).join('; ')}.`] : []),
+    ...(m.disputes?.length ? [`PayPal ${m.disputes.length === 1 ? 'dispute' : 'disputes'}: ${m.disputes.map((d) => `${d.id} (${d.reason}, ${d.status})`).join('; ')}.`] : []),
     ...(m.timeline.some((e) => e.type === 'probation') ? ['The AI verified the work, but the payee is on probation (a poor record), so the client approves the payment.'] : []),
     `Criteria (release needs every one met at ${Math.round(m.releaseThreshold * 100)}% or more):`,
     ...m.criteria.map((c, i) => {
@@ -28,7 +28,7 @@ export function describeDeal(m: Milestone): string {
       lines.push(
         review.audit.agreed
           ? `Second opinion (${review.audit.model ?? 'simulated'}): confirmed every criterion.`
-          : `Second opinion (${review.audit.model ?? 'simulated'}): refused the release${review.audit.redFlags.length ? ` (${review.audit.redFlags.length} red flag(s): someone tried to steer the reviewer)` : ''}${review.audit.disputed.length ? `, disputed ${review.audit.disputed.map((d) => d.criterionId).join(', ')}` : ''}.`,
+          : `Second opinion (${review.audit.model ?? 'simulated'}): refused the release${review.audit.redFlags.length ? ` (${review.audit.redFlags.length} red ${review.audit.redFlags.length === 1 ? 'flag' : 'flags'}: someone tried to steer the reviewer)` : ''}${review.audit.disputed.length ? `, disputed ${review.audit.disputed.map((d) => d.criterionId).join(', ')}` : ''}.`,
       );
     }
   }

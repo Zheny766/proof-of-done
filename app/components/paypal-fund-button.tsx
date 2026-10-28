@@ -125,7 +125,7 @@ export function PayPalFundButton({
           <paypal-button type="pay" className="block w-full" />
         </div>
       ) : (
-        <button onClick={simulate} disabled={state === 'working'} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#ffc439] text-sm font-bold text-[#003087] hover:brightness-95 disabled:opacity-60">
+        <button onClick={simulate} disabled={state === 'working'} aria-label={state === 'working' ? 'Placing hold' : 'Pay with PayPal: authorize (simulated)'} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#ffc439] text-sm font-bold text-[#003087] hover:brightness-95 disabled:opacity-60">
           {state === 'working' ? 'Placing hold…' : <><span className="italic">Pay</span><span className="italic text-[#009cde]">Pal</span><span className="font-medium"> · authorize (simulated)</span></>}
         </button>
       )}

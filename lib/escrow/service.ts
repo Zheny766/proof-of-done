@@ -21,6 +21,8 @@ import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
 export { CLAIM_LIMIT, trustFor, type Trust, type TrustTier } from './trust.ts';
 import type { Attachment, Milestone, Review, Role } from './types.ts';
 
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
 export class EscrowError extends Error {
   readonly status: number;
   constructor(message: string, status = 400) {
@@ -263,7 +265,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
       log: [],
     });
     x.status = 'reviewing';
-    pushEvent(x, 'freelancer', 'submitted', `${x.freelancer.name} submitted the work (${attachments.length} file(s), ${input.links.length} link(s))`);
+    pushEvent(x, 'freelancer', 'submitted', `${x.freelancer.name} submitted the work (${count(attachments.length, 'file')}, ${count(input.links.length, 'link')})`);
     pushEvent(x, 'agent', 'review_started', 'The AI reviewer started checking the work against the acceptance criteria');
   });
   return { milestone, reviewId };

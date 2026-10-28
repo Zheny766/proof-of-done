@@ -274,6 +274,13 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
   const s = m.demo!.scenario;
   const other = role === 'client' ? 'freelancer' : 'client';
   const arena = s === 'arena';
+  // An open offer is the next thing to act on, whichever side made it.
+  const offer = m.settlement && ['changes_requested', 'escalated'].includes(m.status) ? m.settlement : null;
+  const offerTip = offer
+    ? offer.by === role
+      ? `You offered ${fmtMoney(offer.amount, m.currency)}. Switch to the ${other} to accept it.`
+      : `The ${other} offered to settle for ${fmtMoney(offer.amount, m.currency)}. Accept it and PayPal captures only that; the rest of the hold goes back to the client.`
+    : null;
   const tip = arena
     ? m.status === 'funded'
       ? 'Write your trick in the notes and hand in the draft. A live Claude review decides, and a second model has to agree before anything is paid.'
@@ -288,6 +295,8 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
         : 'Switch to the freelancer (left column) and hand in the work.'
       : m.status === 'reviewing'
         ? 'The AI is reviewing it now. This is a replay of a real Claude Opus run: the findings fill in as it works, and the audit log shows every step.'
+        : offerTip
+          ? offerTip
         : m.status === 'escalated'
           ? role === 'client'
             ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
