@@ -21,12 +21,10 @@ jobs:
         run: npm test
       - run: npm run lint
       - run: npm run typecheck
-      # The Bryntum Gantt makes the production build large; private-repo runners have little memory.
-      - name: More swap for the build
-        run: sudo fallocate -l 8G /swapfile-build && sudo chmod 600 /swapfile-build && sudo mkswap /swapfile-build && sudo swapon /swapfile-build && free -m
-      - run: npm run build
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Build (memory logged every 5 s, capped so a runaway build fails instead of freezing the runner)
+        run: |
+          (while true; do echo "[mem] $(free -m | awk '/Mem:/ {print $3" MB used"}') top: $(ps -eo rss,comm --sort=-rss | sed -n 2,3p | awk '{printf "%s %d MB; ", $2, $1/1024}')"; sleep 5; done) &
+          systemd-run --user --scope -p MemoryMax=6G -p MemorySwapMax=0 npm run build || (echo "build failed with $?"; exit 1)
       - name: The judge's path on the production build (replayed demos, no keys)
         run: |
           POD_SEED_BOARD=1 POD_DATA_DIR=$RUNNER_TEMP/pod npm start -- --port 3000 &
