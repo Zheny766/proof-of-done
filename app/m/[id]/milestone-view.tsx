@@ -11,6 +11,13 @@ import { card, h2, initials } from './ui';
 import { AgentLog, Verdict } from './verdict';
 import { describeDeal } from '@/app/components/deal-facts';
 import { WebMcpTools, type WebMcpTool } from '@/app/components/webmcp';
+import dynamic from 'next/dynamic';
+
+// Bryntum Gantt is big and browser-only: it loads with the project timeline, never on other deals.
+const ProjectTimeline = dynamic(() => import('./project-timeline').then((m) => m.ProjectTimeline), {
+  ssr: false,
+  loading: () => <div className="h-48 animate-pulse rounded-xl border border-pp-border bg-pp-canvas/60" aria-label="Loading the timeline" />,
+});
 
 type Party = Exclude<Role, 'viewer'>;
 type SavedKeys = { client?: string; freelancer?: string; share?: string };
@@ -311,7 +318,29 @@ function Person({ name, tone }: { name: string; tone: string }) {
   );
 }
 
-const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', code: 'Code that doesn’t work', arena: 'Try to fool it' };
+const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', code: 'Code that doesn’t work', arena: 'Try to fool it', project: 'A project in stages' };
+
+/** The project demo's own tips; null where the general ones fit. */
+function projectTip(m: Milestone, role: Role): string | null {
+  const stage = m.project?.stage ?? 1;
+  if (m.status === 'released' && stage === 1 && !m.complaint) return 'Stage 1: the AI verified the mockup and PayPal paid Diego. Open stage 2 above to carry on.';
+  if (m.status === 'funded') {
+    return role === 'freelancer'
+      ? `Stage ${stage - 1} was verified and paid, and PayPal now holds the money for stage ${stage}. Deliver it below; the timeline shows the plan (grey) under what happened.`
+      : `PayPal holds the money for stage ${stage} only, after stage ${stage - 1} was paid. Switch to the freelancer to deliver it.`;
+  }
+  if (m.status === 'awaiting_funding') return `Stage ${stage} is funded once stage ${stage - 1} is paid, so the client never has more on hold than the current stage.`;
+  if (m.status === 'reviewing') return 'The AI reviewer is checking this stage against its criteria.';
+  if (m.status === 'escalated') {
+    return role === 'client'
+      ? 'The reviewer couldn’t clear this stage on its own, so you decide: read the verdict, then pay, ask for changes or cancel.'
+      : 'The reviewer handed this stage to the client. Switch to the client to decide.';
+  }
+  if (m.status === 'changes_requested') return 'The AI asked for changes on this stage and the money stays on hold. Fix it and resubmit as the freelancer.';
+  const total = m.project?.stageIds.length ?? stage;
+  if (m.status === 'released' && !m.complaint) return stage < total ? `Stage ${stage} is paid, so stage ${stage + 1} can be funded now: open it above.` : 'Every stage is paid.';
+  return null;
+}
 
 /** What to click next in a demo deal. */
 function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
@@ -325,7 +354,7 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
       ? `You offered ${fmtMoney(offer.amount, m.currency)}. Switch to the ${other} to accept it.`
       : `The ${other} offered to settle for ${fmtMoney(offer.amount, m.currency)}. Accept it and PayPal captures only that; the rest of the hold goes back to the client.`
     : null;
-  const tip = arena
+  const tip = (s === 'project' && projectTip(m, role)) || (arena
     ? m.status === 'funded'
       ? 'Write your trick in the notes and hand in the draft. A live Claude review decides, and a second model has to agree before anything is paid.'
       : m.status === 'reviewing'
@@ -342,9 +371,13 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
         : offerTip
           ? offerTip
         : m.status === 'escalated'
-          ? role === 'client'
-            ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
-            : 'The second model refused to confirm the release. Switch to the client to make the call.'
+          ? m.reviews.at(-1)?.audit?.agreed === false
+            ? role === 'client'
+              ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
+              : 'The second model refused to confirm the release. Switch to the client to make the call.'
+            : role === 'client'
+              ? 'The reviewer couldn’t verify everything on its own, so the money waits for you. Read the verdict, then decide.'
+              : 'The reviewer handed the call to the client. Switch to the client to decide.'
           : m.status === 'changes_requested' && s === 'code'
             ? 'The notes said all tests pass. The AI ran them in Anthropic’s sandbox, one failed, so it asked for a fix and kept the money on hold. Open the audit log to see the commands it ran.'
             : m.status === 'changes_requested'
@@ -361,7 +394,7 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
                 ? m.payment.capturedAmount
                   ? 'Settled: PayPal captured only the agreed amount, and the rest of the hold went back to the client.'
                   : `Done: PayPal captured the hold and paid the freelancer, and nobody clicked approve.${role === 'client' && !m.complaint ? ' If the work turns out wrong later, report a problem below and ask for money back.' : ''}`
-                : 'Cancelled: the hold was voided, nothing was charged.';
+                : 'Cancelled: the hold was voided, nothing was charged.');
   return (
     <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -437,6 +470,10 @@ function ProjectStages({ m, stages }: { m: Milestone; stages: StageSummary[] }) 
           </li>
         ))}
       </ol>
+      <h3 className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">Timeline · the plan (grey) under what happened</h3>
+      <div className="mt-3">
+        <ProjectTimeline stages={stages} currency={m.currency} />
+      </div>
     </section>
   );
 }

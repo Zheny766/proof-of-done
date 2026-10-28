@@ -18,7 +18,9 @@ export function Verdict({ m }: { m: Milestone }) {
       : review?.engine === 'replay'
         ? `Replay of a real ${modelName(review.model)} run`
         : review
-          ? m.demo
+          ? m.demo?.scenario === 'project' && !review.log.length
+            ? 'Simulated reviewer (demo history)'
+            : m.demo
             ? 'Simulated reviewer (live reviews on demo deals are capped per day)'
             : 'Simulated reviewer'
           : null;

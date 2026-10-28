@@ -72,3 +72,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pod-pulse { animation: none; }
 }
+
+/* Bryntum Gantt in the site's type and colours. */
+.pod-gantt .b-gantt,
+.pod-gantt .b-grid-header,
+.pod-gantt .b-sch-header-text {
+  font-family: var(--pp-font);
+}

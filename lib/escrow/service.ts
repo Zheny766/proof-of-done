@@ -141,6 +141,8 @@ export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, am
         title: z.string().trim().min(3).max(120),
         amount: z.coerce.number().min(1).max(10_000),
         criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
+        // The plan: how long the stage should take. Each stage starts when the one before is paid.
+        days: z.coerce.number().int().min(1).max(180).default(7),
       }),
     )
     .min(2)
@@ -160,7 +162,7 @@ export function createProject(raw: unknown): Milestone[] {
   return stages.map((m, i) =>
     updateMilestone(m.id, (x) => {
       x.access = { ...access };
-      x.project = { id: projectId, title: input.title, stage: i + 1, stageIds };
+      x.project = { id: projectId, title: input.title, stage: i + 1, stageIds, days: input.stages[i].days };
       x.timeline = [];
       pushEvent(
         x,
@@ -172,7 +174,22 @@ export function createProject(raw: unknown): Milestone[] {
   );
 }
 
-export type StageSummary = { id: string; stage: number; title: string; amount: string; currency: string; status: Milestone['status']; paid?: string };
+export type StageSummary = {
+  id: string;
+  stage: number;
+  title: string;
+  amount: string;
+  currency: string;
+  status: Milestone['status'];
+  paid?: string;
+  /** For the timeline: the planned length and what actually happened when. */
+  days: number;
+  createdAt: string;
+  fundedAt?: string;
+  deliveredAt?: string;
+  paidAt?: string;
+  cancelledAt?: string;
+};
 
 /** Every stage of the project this milestone belongs to, in order (what anyone with the page sees). */
 export function projectStages(m: Milestone): StageSummary[] | null {
@@ -181,7 +198,24 @@ export function projectStages(m: Milestone): StageSummary[] | null {
     const x = getMilestone(sid);
     // A stage settled for part of the money paid only that part.
     const paid = x?.status === 'released' ? (x.payment.capturedAmount ?? x.amount) : undefined;
-    return x ? [{ id: x.id, stage: i + 1, title: x.title.replace(`${m.project!.title}: `, ''), amount: x.amount, currency: x.currency, status: x.status, ...(paid && { paid }) }] : [];
+    if (!x) return [];
+    return [
+      {
+        id: x.id,
+        stage: i + 1,
+        title: x.title.replace(`${m.project!.title}: `, ''),
+        amount: x.amount,
+        currency: x.currency,
+        status: x.status,
+        ...(paid && { paid }),
+        days: x.project?.days ?? 7,
+        createdAt: x.createdAt,
+        fundedAt: x.payment.authorizedAt,
+        deliveredAt: x.submissions[0]?.at,
+        paidAt: x.status === 'released' ? x.payment.capturedAt : undefined,
+        cancelledAt: x.status === 'cancelled' ? x.payment.voidedAt ?? x.updatedAt : undefined,
+      },
+    ];
   });
 }
 
@@ -820,13 +854,16 @@ const DEMO_FREELANCERS: Record<string, [string, string]> = {
 const DEMO_KEEP_MS = 2 * 86_400_000;
 const DEMO_DAILY = 300;
 
+const openedAt = (m: Milestone) => Date.parse(m.demo?.openedAt ?? m.createdAt);
+
 export function startDemo(scenario: string): Milestone {
   // The challenge's attempts stay (they are the scoreboard, and capped per day anyway).
-  deleteWhere((m) => !!m.demo && !['board', 'arena'].includes(m.demo.scenario) && Date.now() - Date.parse(m.createdAt) > DEMO_KEEP_MS);
+  deleteWhere((m) => !!m.demo && !['board', 'arena'].includes(m.demo.scenario) && Date.now() - openedAt(m) > DEMO_KEEP_MS);
   const since = Date.now() - 86_400_000;
-  if (listMilestones().filter((m) => m.demo && m.demo.scenario !== 'board' && Date.parse(m.createdAt) > since).length >= DEMO_DAILY) {
+  if (listMilestones().filter((m) => m.demo && m.demo.scenario !== 'board' && openedAt(m) > since).length >= DEMO_DAILY) {
     throw new EscrowError('The demo is very busy today. Try again tomorrow, or run it locally.', 429);
   }
+  if (scenario === 'project') return startProjectDemo();
   if (scenario === 'arena') arenaCheck();
   // The arena reuses the half-done brunch menu's brief; its delivery is the visitor's own words.
   const replay = loadReplay(scenario === 'arena' ? 'partial' : scenario);
@@ -860,6 +897,79 @@ export function startDemo(scenario: string): Milestone {
     x.status = 'funded';
     pushEvent(x, 'paypal', 'authorized', `PayPal authorized ${money(100, x.currency)}: the money is on hold, nothing has been charged yet (demo: simulated hold)`);
   });
+}
+
+// A project in stages, part-way through: stage 1 was verified by the AI and paid, stage 2 is funded and
+// waiting for the delivery, stage 3 starts once stage 2 is paid. Its history is dated over the past
+// few days (simulated holds, labelled as demo), so the timeline has something to show.
+function startProjectDemo(): Milestone {
+  const [s1, s2, s3] = createProject({
+    title: 'Website for a bakery',
+    description: 'Crumb & Co needs a one-page site with the menu and opening hours, built in three stages.',
+    clientName: 'Crumb & Co',
+    clientEmail: 'maya@crumb.example',
+    freelancerName: 'Diego Alvarez',
+    freelancerEmail: 'diego@studio.example',
+    releaseThreshold: 0.8,
+    stages: [
+      { title: 'Design mockup', amount: 120, days: 3, criteria: ['A homepage mockup is delivered as a PNG', 'The mockup shows the menu and the opening hours'] },
+      { title: 'Live site', amount: 380, days: 5, criteria: ['The page is live at a public URL', 'The menu lists at least 6 items with prices', 'The opening hours are on the page'] },
+      { title: 'SEO and launch', amount: 150, days: 3, criteria: ['The page has a title and a meta description', 'A sitemap.xml is reachable'] },
+    ],
+  });
+  const ago = (days: number, hours = 0) => new Date(Date.now() - days * 86_400_000 - hours * 3_600_000).toISOString();
+  const tag = crypto.randomBytes(5).toString('hex').toUpperCase();
+  const hold = (n: number, at: string) => ({
+    mode: 'simulated' as const,
+    orderId: `ORDER-DEMO-${tag}-${n}`,
+    authorizationId: `AUTH-DEMO-${tag}-${n}`,
+    authorizationStatus: 'CREATED',
+    authorizedAt: at,
+    honorExpiresAt: new Date(Date.parse(at) + 3 * 86_400_000).toISOString(),
+    expiresAt: new Date(Date.parse(at) + 29 * 86_400_000).toISOString(),
+    payerEmail: 'buyer@sandbox.example',
+  });
+  const event = (at: string, actor: Milestone['timeline'][number]['actor'], type: string, text: string) => ({ at, actor, type, text });
+  const opened = { scenario: 'project', openedAt: nowIso() };
+  updateMilestone(s1.id, (x) => {
+    const sub = newId('sub');
+    x.demo = opened;
+    x.createdAt = ago(5, 2);
+    x.payment = { ...hold(1, ago(5, 1)), authorizationStatus: 'CAPTURED', captureId: `CAPTURE-DEMO-${tag}-1`, capturedAt: ago(2, 3), payoutBatchId: `PAYOUT-DEMO-${tag}-1`, payoutStatus: 'SUCCESS' };
+    x.submissions = [{ id: sub, at: ago(3, 5), notes: 'Homepage mockup attached as a PNG: the menu is in the middle, the opening hours in the footer.', links: [], attachments: [] }];
+    x.reviews = [
+      {
+        id: newId('rev'), submissionId: sub, startedAt: ago(3, 5), finishedAt: ago(3, 5), engine: 'simulated', decision: 'release', summary: 'The mockup shows the menu and the opening hours.',
+        findings: x.criteria.map((c) => ({ criterionId: c.id, status: 'met' as const, confidence: 0.92, evidence: 'Seen in the delivered mockup (demo).' })),
+        log: [], audit: { engine: 'simulated', agreed: true, summary: 'Confirmed (demo).', disputed: [], redFlags: [] },
+      },
+    ];
+    x.status = 'released';
+    x.timeline = [
+      event(ago(5, 2), 'client', 'created', 'Crumb & Co created stage 1 of 3 of "Website for a bakery" for 120.00 USD'),
+      event(ago(5, 1), 'paypal', 'authorized', 'PayPal authorized 120.00 USD: the money is on hold, nothing has been charged yet (demo: simulated hold)'),
+      event(ago(3, 5), 'freelancer', 'submitted', 'Diego Alvarez submitted the work: notes only'),
+      event(ago(3, 5), 'agent', 'verified', 'AI reviewer verified every criterion: the mockup shows the menu and the opening hours'),
+      event(ago(2, 3), 'paypal', 'captured', 'PayPal captured 120.00 USD (demo)'),
+      event(ago(2, 3), 'paypal', 'payout', 'Payout sent to diego@studio.example (demo)'),
+    ];
+  });
+  const current = updateMilestone(s2.id, (x) => {
+    x.demo = opened;
+    x.createdAt = ago(5, 2);
+    x.payment = hold(2, ago(2, 2));
+    x.status = 'funded';
+    x.timeline = [
+      event(ago(5, 2), 'client', 'created', 'Crumb & Co created stage 2 of 3 of "Website for a bakery" for 380.00 USD'),
+      event(ago(2, 2), 'paypal', 'authorized', 'PayPal authorized 380.00 USD once stage 1 was paid: the money is on hold (demo: simulated hold)'),
+    ];
+  });
+  updateMilestone(s3.id, (x) => {
+    x.demo = opened;
+    x.createdAt = ago(5, 2);
+    x.timeline = [event(ago(5, 2), 'client', 'created', 'Crumb & Co created stage 3 of 3 of "Website for a bakery" for 150.00 USD')];
+  });
+  return current;
 }
 
 // "Try to fool it": the delivery is a draft that clearly misses the brief (6 items, no logo), and the

@@ -146,6 +146,8 @@ export interface ProjectStage {
   /** 1-based position, and every stage's milestone id in order. */
   stage: number;
   stageIds: string[];
+  /** How many days this stage is planned to take, from the project plan (the timeline draws it). */
+  days?: number;
 }
 
 export interface JobBoardState {
@@ -185,7 +187,7 @@ export interface Milestone {
   /** PayPal webhook events already applied, so a redelivery is a no-op. */
   webhookEvents?: string[];
   /** Created by "Try it in 60 seconds": a simulated hold and a prepared delivery whose review is a replay. */
-  demo?: { scenario: string };
+  demo?: { scenario: string; /** When it was opened, for a demo whose history is dated earlier (the project). */ openedAt?: string };
   /** Posted on the open job board: once funded, any AI agent (or person) can take it. */
   board?: JobBoardState;
   /** The AI agent that wrote and posted the job for the client (through MCP). The client still approves the payment. */

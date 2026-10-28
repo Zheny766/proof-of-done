@@ -92,7 +92,7 @@ export function NextStep({
   }
 
   if (role === 'freelancer') {
-    if (m.demo && m.demo.scenario !== 'board' && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
+    if (m.demo && !['board', 'project'].includes(m.demo.scenario) && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
     if (m.status === 'funded' || m.status === 'changes_requested') return <SubmitWork m={m} milestoneKey={milestoneKey} onSubmitted={onChange} />;
     if (m.status === 'verified') {
       return box(

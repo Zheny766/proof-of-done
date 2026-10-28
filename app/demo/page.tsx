@@ -42,6 +42,14 @@ const SCENARIOS = [
     see: 'The AI copies his Python file into Anthropic’s code execution sandbox and runs it: one of four tests fails. It names the bug, asks for a fix, and the money stays on hold.',
     tone: 'border-violet-200',
   },
+  {
+    id: 'project',
+    n: '5',
+    title: 'A project in stages',
+    who: 'A bakery’s website in three stages, part-way through.',
+    see: 'Stage 1 was verified and paid; PayPal holds the money for stage 2 only. A Bryntum Gantt shows the plan under what happened. Deliver stage 2 and watch the next one unlock.',
+    tone: 'border-emerald-200',
+  },
 ];
 
 export default async function DemoPage() {
@@ -53,11 +61,11 @@ export default async function DemoPage() {
       <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Try it in 60 seconds</p>
-        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Four real situations, and one live challenge. You play both sides.</h1>
+        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Five real situations, and one live challenge. You play both sides.</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-pp-muted">
-          Each one opens a private deal with $100 already on hold. Hand in the prepared delivery as the freelancer, watch the AI decide, then switch to the client. The AI reviews are replays of real Claude runs, so the demo costs nothing and works without keys; the money is a simulated PayPal hold.
+          Each one opens a private deal with the money already on hold. Hand in the delivery as the freelancer, watch the AI decide, then switch to the client. The first four AI reviews are replays of real Claude runs, so the demo costs nothing and works without keys; the money is a simulated PayPal hold.
         </p>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SCENARIOS.map((s) => (
             <section key={s.id} className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${s.tone}`}>
               <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>

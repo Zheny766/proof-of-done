@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from './status';
 import type { Milestone } from '@/lib/escrow/types';
 
-type Stage = { title: string; amount: string; criteria: string };
+type Stage = { title: string; amount: string; days: string; criteria: string };
 
 const field = 'h-10 w-full rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue focus:ring-2 focus:ring-pp-highlight';
 
@@ -25,8 +25,8 @@ export function NewMilestoneForm() {
   // A project in stages, each with its own amount and criteria, funded and paid one by one.
   const [staged, setStaged] = useState(false);
   const [stages, setStages] = useState<Stage[]>([
-    { title: 'First draft', amount: '100', criteria: '' },
-    { title: 'Final files', amount: '150', criteria: '' },
+    { title: 'First draft', amount: '100', days: '5', criteria: '' },
+    { title: 'Final files', amount: '150', days: '7', criteria: '' },
   ]);
   const [draftingStage, setDraftingStage] = useState<number | null>(null);
   const setStage = (i: number, patch: Partial<Stage>) => setStages(stages.map((st, j) => (j === i ? { ...st, ...patch } : st)));
@@ -95,7 +95,7 @@ export function NewMilestoneForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title, description, currency: 'USD', clientName, clientEmail, freelancerName, freelancerEmail, releaseThreshold: threshold, objectionHours,
-            stages: stages.map((st) => ({ title: st.title, amount: st.amount, criteria: st.criteria.split('\n').map((c) => c.trim()).filter(Boolean) })),
+            stages: stages.map((st) => ({ title: st.title, amount: st.amount, days: st.days, criteria: st.criteria.split('\n').map((c) => c.trim()).filter(Boolean) })),
           }),
         });
         router.push(`/m/${milestones[0].id}?key=${clientKey}`);
@@ -144,15 +144,19 @@ export function NewMilestoneForm() {
 
       {staged ? (
         <div>
-          <span className="text-sm font-medium">Stages <span className="font-normal text-pp-muted">· each is funded when it starts and paid when the AI verifies its criteria</span></span>
+          <span className="text-sm font-medium">Stages <span className="font-normal text-pp-muted">· amount, planned days and criteria for each; a stage is funded when it starts and paid when the AI verifies it</span></span>
           <ol className="mt-2 space-y-3">
             {stages.map((st, i) => (
               <li key={i} className="rounded-lg border border-pp-border p-3">
                 <div className="flex items-center gap-2">
                   <span className="w-14 shrink-0 text-xs font-semibold text-pp-muted">Stage {i + 1}</span>
                   <input className={`${field} min-w-0 flex-1`} value={st.title} onChange={(e) => setStage(i, { title: e.target.value })} aria-label={`Stage ${i + 1} name`} required minLength={3} />
-                  <span className="w-28 shrink-0">
-                    <input className={field} type="number" min="1" max="10000" step="0.01" value={st.amount} onChange={(e) => setStage(i, { amount: e.target.value })} aria-label={`Stage ${i + 1} amount`} required />
+                  <span className="w-24 shrink-0">
+                    <input className={field} type="number" min="1" max="10000" step="0.01" value={st.amount} onChange={(e) => setStage(i, { amount: e.target.value })} aria-label={`Stage ${i + 1} amount`} title="Amount (USD)" required />
+                  </span>
+                  <span className="flex w-24 shrink-0 items-center gap-1 text-xs text-pp-muted">
+                    <input className={field} type="number" min="1" max="180" step="1" value={st.days} onChange={(e) => setStage(i, { days: e.target.value })} aria-label={`Stage ${i + 1} planned days`} title="Planned length in days" required />
+                    days
                   </span>
                   {stages.length > 2 && (
                     <button type="button" aria-label={`Remove stage ${i + 1}`} onClick={() => setStages(stages.filter((_, j) => j !== i))} className="px-1 text-pp-muted hover:text-pp-danger">×</button>
@@ -166,7 +170,7 @@ export function NewMilestoneForm() {
             ))}
           </ol>
           {stages.length < 6 && (
-            <button type="button" onClick={() => setStages([...stages, { title: `Stage ${stages.length + 1}`, amount: '100', criteria: '' }])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">
+            <button type="button" onClick={() => setStages([...stages, { title: `Stage ${stages.length + 1}`, amount: '100', days: '7', criteria: '' }])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">
               + Add stage
             </button>
           )}

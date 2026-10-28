@@ -142,7 +142,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
         freelancer_email: z.string().email().optional().describe('Where the payout goes; the freelancer can change it when delivering'),
         objection_hours: z.number().int().min(0).max(48).default(0).describe('Hours the client gets to object after the AI verifies, before the money moves'),
         stages: z
-          .array(z.object({ title: z.string().min(3).max(120), amount_usd: z.number().min(1).max(10000), criteria: z.array(z.string().min(3).max(300)).min(1).max(12) }))
+          .array(z.object({ title: z.string().min(3).max(120), amount_usd: z.number().min(1).max(10000), days: z.number().int().min(1).max(180).default(7).describe('Planned length of the stage in days'), criteria: z.array(z.string().min(3).max(300)).min(1).max(12) }))
           .min(2)
           .max(6)
           .optional()
@@ -154,7 +154,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
         const { milestones, clientKey, freelancerKey } = await call(base, '/api/escrow/projects', {
           body: {
             title: a.title, description: a.description, clientName: a.client_name, clientEmail: a.client_email, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email,
-            objectionHours: a.objection_hours, postedBy: a.posted_by, stages: a.stages.map((st) => ({ title: st.title, amount: st.amount_usd, criteria: st.criteria })),
+            objectionHours: a.objection_hours, postedBy: a.posted_by, stages: a.stages.map((st) => ({ title: st.title, amount: st.amount_usd, days: st.days, criteria: st.criteria })),
           },
         });
         const first = milestones[0];

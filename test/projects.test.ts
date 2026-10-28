@@ -45,10 +45,25 @@ test('a project is one milestone per stage, sharing the two links, each with its
   const [a, b, c] = stages;
   assert.deepEqual([a.amount, b.amount, c.amount], ['100.00', '300.00', '50.00']);
   assert.equal(b.title, 'Website for a bakery: Build');
-  assert.deepEqual(b.project, { id: a.project!.id, title: 'Website for a bakery', stage: 2, stageIds: stages.map((m) => m.id) });
+  // No plan given: a stage is planned at 7 days.
+  assert.deepEqual(b.project, { id: a.project!.id, title: 'Website for a bakery', stage: 2, stageIds: stages.map((m) => m.id), days: 7 });
   assert.equal(access.roleFor(c, a.access!.clientKey), 'client');
   assert.equal(access.roleFor(c, a.access!.freelancerKey), 'freelancer');
   assert.deepEqual(service.projectStages(b)!.map((x) => [x.stage, x.title, x.status]), [[1, 'Design', 'awaiting_funding'], [2, 'Build', 'awaiting_funding'], [3, 'Launch', 'awaiting_funding']]);
+});
+
+test('the timeline gets each stage\'s plan and what happened when', async () => {
+  store.deleteAll();
+  const [a, b] = service.createProject({ ...project, stages: project.stages.map((st, i) => ({ ...st, days: [3, 10, 2][i] })) });
+  const { clientKey } = a.access!;
+  await fund(a.id, clientKey);
+  await service.clientDecision(a.id, 'approve', '', clientKey);
+  const [s1, s2, s3] = service.projectStages(store.getMilestone(b.id)!)!;
+  assert.deepEqual([s1.days, s2.days, s3.days], [3, 10, 2]);
+  assert.ok(s1.fundedAt && s1.paidAt, 'stage 1: held, then paid');
+  assert.equal(s1.paid, '100.00');
+  assert.equal(s2.fundedAt, undefined);
+  assert.equal(s2.paidAt, undefined);
 });
 
 test('a stage is funded only after the one before it is paid', async () => {
@@ -77,4 +92,17 @@ test('a cancelled stage lets the next one start; projects stay off the open boar
 test('a long project title and stage name still fit a deal title', () => {
   const stages = service.createProject({ ...project, title: 'P'.repeat(110), stages: project.stages.slice(0, 2).map((st) => ({ ...st, title: 'Stage name that is long' })) });
   assert.ok(stages.every((m) => m.title.length <= 120));
+});
+
+test('the project demo opens part-way through: stage 1 paid, stage 2 held, stage 3 waiting', () => {
+  store.deleteAll();
+  const m = service.startDemo('project');
+  const stages = service.projectStages(m)!;
+  assert.deepEqual(stages.map((s) => s.status), ['released', 'funded', 'awaiting_funding']);
+  assert.equal(m.project?.stage, 2, 'the visitor lands on the stage in work');
+  assert.ok(Date.parse(stages[0].paidAt!) < Date.parse(stages[1].fundedAt!), 'stage 2 was funded after stage 1 was paid');
+  for (const s of stages) assert.equal(access.roleFor(store.getMilestone(s.id)!, m.access!.freelancerKey), 'freelancer');
+  // Dated in the past, but opened now: it isn't swept away as an old demo by the next one.
+  service.startDemo('honest');
+  assert.ok(store.getMilestone(m.id));
 });

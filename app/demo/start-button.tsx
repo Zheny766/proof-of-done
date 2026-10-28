@@ -16,14 +16,14 @@ export function StartDemo({ scenario, label }: { scenario: string; label: string
           setBusy(true);
           setError('');
           try {
-            const { id, clientKey, freelancerKey } = await api<{ id: string; clientKey: string; freelancerKey: string }>('/api/demo/start', {
+            const { id, clientKey, freelancerKey, stageIds } = await api<{ id: string; clientKey: string; freelancerKey: string; stageIds: string[] }>('/api/demo/start', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ scenario }),
             });
             // Same storage the deal page uses: with both keys saved, it offers the role switch.
             try {
-              localStorage.setItem(`pod:keys:${id}`, JSON.stringify({ client: clientKey, freelancer: freelancerKey, share: freelancerKey }));
+              for (const sid of stageIds ?? [id]) localStorage.setItem(`pod:keys:${sid}`, JSON.stringify({ client: clientKey, freelancer: freelancerKey, share: freelancerKey }));
             } catch {}
             router.push(`/m/${id}?key=${freelancerKey}`);
           } catch (e) {
