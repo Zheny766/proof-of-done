@@ -51,6 +51,8 @@ function describe(m, role, origin) {
     }),
     review?.audit && `Second opinion: ${review.audit.agreed ? 'confirmed' : `refused (${[...review.audit.disputed.map((d) => `${d.criterionId}: ${d.reason}`), ...review.audit.redFlags].join('; ')})`}.`,
     review?.feedback && `Reviewer feedback: ${review.feedback}`,
+    m.complaint && `After the payment the client reported a problem and asks for ${m.complaint.amount} ${m.currency} back (${m.complaint.status})${m.complaint.text ? `: ${m.complaint.text}` : ''}.`,
+    m.payment.refunds?.length && `PayPal refunded to the client: ${m.payment.refunds.map((r) => `${r.amount} ${m.currency}`).join(', ')}.`,
     m.status === 'released' && origin && `Proof certificate (shareable): ${origin}/m/${m.id}/proof`,
   ]
     .filter(Boolean)

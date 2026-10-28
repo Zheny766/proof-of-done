@@ -26,7 +26,9 @@ export function trustFor(email: string, exceptId?: string, all: Milestone[] = li
     if (finished.some((r) => r.audit?.redFlags.length && Date.parse(r.finishedAt!) > since)) flagged++;
     if (!finished.length || !['released', 'changes_requested', 'escalated', 'cancelled'].includes(m.status)) continue;
     decided++;
-    if (m.status === 'released') paid++;
+    // Work the client got all their money back for is no paid delivery.
+    const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
+    if (m.status === 'released' && refunded < Number(m.payment.capturedAmount ?? m.amount)) paid++;
   }
   const held = decided - paid;
   if (flagged) return { tier: 'probation', decided, paid, flagged, reason: `the second opinion flagged an attempt to steer the reviewer in the last ${RED_FLAG_DAYS} days` };

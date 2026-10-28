@@ -81,6 +81,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
           ['onHold', 'On Hold', 'currencyFormat'],
           ['released', 'Released', 'currencyFormat'],
           ['voided', 'Voided', 'currencyFormat'],
+          ['refunded', 'Refunded', 'currencyFormat'],
           ['createdAt', 'Created At', 'dateTimeFormat'],
           ['createdDate', 'Created', 'dateFormat'],
           ['fundedAt', 'Funded At', 'dateTimeFormat'],

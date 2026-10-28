@@ -51,6 +51,7 @@ export function NextStep({
         {settled
           ? `PayPal captured ${fmtMoney(settled, m.currency)} for ${m.freelancer.name}; the other ${fmtMoney(Number(m.amount) - Number(settled), m.currency)} of the hold went back to ${m.client.name}.`
           : payoutText(m.payment.payoutStatus, m.freelancer.name)}
+        {!!m.payment.refunds?.length && ` Later PayPal refunded ${fmtMoney(refundedSoFar(m), m.currency)} of it to ${m.client.name}.`}
         <br />
         {certificate}
       </>,
@@ -503,6 +504,157 @@ export function ShareLink({ id, shareKey, name }: { id: string; shareKey: string
           Open
         </a>
       </div>
+    </section>
+  );
+}
+
+const COMPLAINT_DAYS = 30;
+const refundedSoFar = (m: Milestone) => (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
+
+/**
+ * After the payment: the client can report a problem and ask for all or part of the money back; the
+ * freelancer refunds it (PayPal returns it from the capture) or declines.
+ */
+export function AfterPayment({ m, role, milestoneKey, onChange }: { m: Milestone; role: Party; milestoneKey: string | null; onChange: (m: Milestone) => void }) {
+  const left = Math.round((Number(m.payment.capturedAmount ?? m.amount) - refundedSoFar(m)) * 100) / 100;
+  const c = m.complaint;
+  const open = c?.status === 'open' ? c : undefined;
+  const [writing, setWriting] = useState(false);
+  const [text, setText] = useState('');
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const minute = useSyncExternalStore(noSubscribe, currentMinute, () => 0);
+  const windowOpen = !minute || minute * 60_000 - Date.parse(m.payment.capturedAt ?? m.updatedAt) < COMPLAINT_DAYS * 86_400_000;
+
+  async function send(body: Record<string, unknown>) {
+    setBusy(true);
+    setError('');
+    setConfirming(false);
+    try {
+      const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/complaint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
+        body: JSON.stringify(body),
+      });
+      onChange(milestone);
+      setWriting(false);
+      setText('');
+      setAmount('');
+      setNote('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const closed =
+    c && c.status !== 'open' ? (
+      <p className="text-[15px] leading-relaxed text-pp-muted">
+        {c.status === 'refunded'
+          ? `${role === 'client' ? 'You reported a problem' : `${m.client.name} reported a problem`}, and ${role === 'freelancer' ? 'you' : m.freelancer.name} refunded ${fmtMoney(m.payment.refunds?.at(-1)?.amount ?? c.amount, m.currency)}: PayPal returned it to ${role === 'client' ? 'you' : m.client.name}.`
+          : c.status === 'declined'
+            ? `${role === 'freelancer' ? 'You' : m.freelancer.name} declined the refund${c.reply ? `: “${c.reply}”` : '.'} ${role === 'client' ? 'You can still open a dispute with PayPal; the full record (PayPal panel) is your evidence.' : `${m.client.name} can still open a dispute with PayPal.`}`
+            : `${role === 'client' ? 'You' : m.client.name} withdrew the complaint.`}
+      </p>
+    ) : null;
+
+  if (role === 'freelancer') {
+    if (!open) return closed && <section className={card}><h2 className={h2}>After the payment</h2><div className="mt-3">{closed}</div></section>;
+    const value = Number(amount || open.amount);
+    return (
+      <section className={`${card} border-orange-300 ring-2 ring-orange-100`}>
+        <h2 className={h2}>After the payment</h2>
+        <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{m.client.name} asks for {fmtMoney(open.amount, m.currency)} back</p>
+        <p className="mt-3 border-l-2 border-orange-300 pl-3 text-[15px] leading-relaxed text-pp-ink [overflow-wrap:anywhere]">“{open.text}”</p>
+        <div className="mt-4 space-y-3">
+          <input type="number" min={0.01} max={left} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount to refund" placeholder={`Refund ${fmtMoney(open.amount, m.currency)}, or another amount up to ${fmtMoney(left, m.currency)}`} className={`${field} h-11`} />
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Note to the client" placeholder="Note to the client (optional)" className={`${field} h-11`} />
+          {confirming ? (
+            <div role="alertdialog" aria-label="Confirm" className="rounded-xl bg-pp-canvas p-4 text-sm">
+              <p>PayPal returns {fmtMoney(value, m.currency)} to {m.client.name} from the payment. This can&apos;t be undone.</p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => send({ action: 'refund', ...(amount && { amount: value }), ...(note && { note }) })} autoFocus className={btn.pay}>
+                  Yes, refund
+                </button>
+                <button onClick={() => setConfirming(false)} className={btn.ghost}>
+                  Back
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setConfirming(true)} disabled={busy || !(value > 0 && value <= left)} className={btn.pay}>
+                {busy ? '…' : `Refund ${fmtMoney(value > 0 ? value : open.amount, m.currency)}`}
+              </button>
+              <button onClick={() => send({ action: 'decline', ...(note && { note }) })} disabled={busy} className={btn.ghost}>
+                Decline
+              </button>
+            </div>
+          )}
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-pp-muted">
+          In this prototype the platform&apos;s PayPal account returns the money, since your payout already went out; a live marketplace would take it back from your next payout.
+        </p>
+        {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
+      </section>
+    );
+  }
+
+  // The client.
+  if (open) {
+    return (
+      <section className={card}>
+        <h2 className={h2}>After the payment</h2>
+        <p className="mt-2 text-[15px] leading-relaxed text-pp-ink">
+          You reported a problem and asked for <b>{fmtMoney(open.amount, m.currency)}</b> back. {m.freelancer.name} refunds it or declines.
+        </p>
+        <p className="mt-2 border-l-2 border-pp-border pl-3 text-sm text-pp-muted [overflow-wrap:anywhere]">“{open.text}”</p>
+        <button onClick={() => send({ action: 'withdraw' })} disabled={busy} className={`${btn.ghost} mt-4`}>
+          Withdraw the complaint
+        </button>
+        {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
+      </section>
+    );
+  }
+  if (left <= 0 || !windowOpen) return closed && <section className={card}><h2 className={h2}>After the payment</h2><div className="mt-3">{closed}</div></section>;
+  return (
+    <section className={card}>
+      <h2 className={h2}>After the payment</h2>
+      {closed && <div className="mt-3">{closed}</div>}
+      {!writing ? (
+        <>
+          <p className="mt-3 text-[15px] leading-relaxed text-pp-muted">
+            Something wrong with the work after all? For {COMPLAINT_DAYS} days after the payment you can report it and ask for all or part of the money back. {m.freelancer.name} refunds it through PayPal or declines.
+          </p>
+          <button onClick={() => setWriting(true)} className={`${btn.ghost} mt-4`}>
+            Report a problem
+          </button>
+        </>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send({ action: 'complain', text, ...(amount && { amount: Number(amount) }) });
+          }}
+          className="mt-3 space-y-3"
+        >
+          <textarea required minLength={3} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} aria-label="What is wrong" placeholder="What is wrong with the work?" className={`${field} h-24 py-2.5`} />
+          <input type="number" min={0.01} max={left} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount to ask back" placeholder={`Amount to ask back (all of it: ${fmtMoney(left, m.currency)})`} className={`${field} h-11`} />
+          <div className="flex gap-2">
+            <button disabled={busy} className={btn.warn}>
+              {busy ? '…' : `Ask for ${fmtMoney(amount ? Number(amount) : left, m.currency)} back`}
+            </button>
+            <button type="button" onClick={() => setWriting(false)} className={btn.ghost}>
+              Back
+            </button>
+          </div>
+        </form>
+      )}
+      {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
     </section>
   );
 }

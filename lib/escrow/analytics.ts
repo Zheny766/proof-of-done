@@ -23,6 +23,8 @@ export type MilestoneRow = {
   onHold: number;
   released: number;
   voided: number;
+  /** Paid, then returned to the client after a complaint. */
+  refunded: number;
   createdAt: string;
   createdDate: string;
   fundedAt: string | null;
@@ -206,6 +208,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
       released: m.status === 'released' ? captured : 0,
       // A settlement captures part of the hold; PayPal releases the rest back to the client.
       voided: m.status === 'cancelled' && m.payment.authorizationId ? amount : amount - (m.status === 'released' ? captured : amount),
+      refunded: (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0),
       createdAt: m.createdAt,
       createdDate: m.createdAt.slice(0, 10),
       fundedAt,

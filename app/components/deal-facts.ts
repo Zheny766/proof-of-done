@@ -14,6 +14,8 @@ export function describeDeal(m: Milestone): string {
     ...(m.project ? [`Stage ${m.project.stage} of ${m.project.stageIds.length} of the project "${m.project.title}"; each stage is funded after the one before it is paid.`] : []),
     ...(m.board ? [m.board.claimedAt ? `Taken from the open job board by ${m.board.claimedBy}.` : 'On the open job board, not taken yet.'] : []),
     ...(m.postedBy ? [`Posted for the client by the AI agent ${m.postedBy}.`] : []),
+    ...(m.complaint ? [`After the payment the client reported a problem and asked for ${m.complaint.amount} ${m.currency} back; ${m.complaint.status === 'open' ? 'the freelancer has not answered yet' : m.complaint.status}.`] : []),
+    ...(m.payment.refunds?.length ? [`PayPal refunds to the client: ${m.payment.refunds.map((r) => `${r.amount} ${m.currency} (${r.status.toLowerCase()})`).join(', ')}.`] : []),
     ...(m.disputes?.length ? [`PayPal ${m.disputes.length === 1 ? 'dispute' : 'disputes'}: ${m.disputes.map((d) => `${d.id} (${d.reason}, ${d.status})`).join('; ')}.`] : []),
     ...(m.timeline.some((e) => e.type === 'probation') ? ['The AI verified the work, but the payee is on probation (a poor record), so the client approves the payment.'] : []),
     `Criteria (release needs every one met at ${Math.round(m.releaseThreshold * 100)}% or more):`,

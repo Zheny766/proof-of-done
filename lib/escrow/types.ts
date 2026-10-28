@@ -109,6 +109,20 @@ export interface PaymentState {
   previousAuthorizationId?: string;
   /** Last failed reauthorization attempt, so a poll doesn't retry it every few seconds. */
   reauthTriedAt?: string;
+  /** Money PayPal returned to the client from the capture after the deal was paid, oldest first. */
+  refunds?: { id: string; amount: string; status: string; at: string }[];
+}
+
+/** The client's report of a problem after the payment, and what the freelancer did about it. */
+export interface Complaint {
+  text: string;
+  /** What the client asks back, at most what was captured and not refunded yet. */
+  amount: string;
+  at: string;
+  status: 'open' | 'refunded' | 'declined' | 'withdrawn';
+  /** The freelancer's answer when declining, or a note with the refund. */
+  reply?: string;
+  closedAt?: string;
 }
 
 /** An open offer to close the milestone for part of the money. The other party accepts or declines. */
@@ -164,6 +178,8 @@ export interface Milestone {
   /** When a verified milestone's payment goes out, unless the client objects first. */
   releaseAt?: string;
   settlement?: SettlementOffer;
+  /** After the payment: the client reported a problem (the latest one; earlier ones are in the timeline). */
+  complaint?: Complaint;
   /** Every PayPal REST call made for this milestone (newest last, capped). */
   paypalCalls?: { at: string; method: string; path: string; status: number; ms: number; requestId?: string; debugId?: string }[];
   /** PayPal webhook events already applied, so a redelivery is a no-op. */

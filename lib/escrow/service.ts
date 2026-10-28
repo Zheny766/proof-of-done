@@ -10,7 +10,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
 import { sniffType } from './evidence.ts';
-import { cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, releaseFunds, renewHold, startFunding } from './payments.ts';
+import { cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { onPayPalCall } from '../paypal.ts';
 import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
@@ -610,6 +610,77 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
       `PayPal captured ${money(Number(offer.amount), x.currency)} (capture ${payment.captureId}); the other ${money(rest, x.currency)} of the hold went back to ${x.client.name}`,
     );
     pushPayoutEvent(x, payment);
+  });
+}
+
+// After the payment: the client can report a problem for a while, and ask for all or part of the
+// money back. The freelancer refunds it (PayPal returns it from the capture) or declines, and then a
+// PayPal dispute is still open to the client, with the deal's record as evidence.
+export const COMPLAINT_DAYS = 30;
+
+export const AfterPaymentInput = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('complain'), text: z.string().trim().min(3).max(1000), amount: z.coerce.number().positive().optional() }),
+  z.object({ action: z.literal('withdraw') }),
+  z.object({ action: z.literal('refund'), amount: z.coerce.number().positive().optional(), note: z.string().trim().max(500).optional() }),
+  z.object({ action: z.literal('decline'), note: z.string().trim().max(500).optional() }),
+]);
+
+export const afterPayment = (id: string, raw: unknown, key: string | null) => exclusive(id, () => afterPaymentNow(id, AfterPaymentInput.parse(raw), key));
+async function afterPaymentNow(id: string, input: z.infer<typeof AfterPaymentInput>, key: string | null): Promise<Milestone> {
+  const m = mustGet(id);
+  const open = m.complaint?.status === 'open' ? m.complaint : undefined;
+  const left = refundable(m);
+  const cents = (n: number) => Math.round(n * 100) / 100;
+
+  if (input.action === 'complain') {
+    requireRole(m, key, 'client');
+    if (m.status !== 'released' || !m.payment.captureId) throw new EscrowError('You can report a problem once the deal is paid.');
+    if (open) throw new EscrowError('There is already an open complaint on this deal.');
+    if (left <= 0) throw new EscrowError('Everything paid on this deal has already been refunded.');
+    if (Date.now() - Date.parse(m.payment.capturedAt ?? m.updatedAt) > COMPLAINT_DAYS * 86_400_000) {
+      throw new EscrowError(`Problems can be reported within ${COMPLAINT_DAYS} days of the payment. You can still open a dispute with PayPal.`);
+    }
+    const amount = cents(input.amount ?? left);
+    if (amount > left) throw new EscrowError(`You can ask for at most ${money(left, m.currency)} back.`);
+    return updateMilestone(id, (x) => {
+      x.complaint = { text: input.text, amount: amount.toFixed(2), at: nowIso(), status: 'open' };
+      pushEvent(x, 'client', 'complaint', `${x.client.name} reported a problem after the payment and asks for ${money(amount, x.currency)} back: ${input.text}`);
+    });
+  }
+
+  if (!open) throw new EscrowError('There is no open complaint on this deal.');
+  if (input.action === 'withdraw') {
+    requireRole(m, key, 'client');
+    return updateMilestone(id, (x) => {
+      x.complaint = { ...open, status: 'withdrawn', closedAt: nowIso() };
+      pushEvent(x, 'client', 'complaint_withdrawn', `${x.client.name} withdrew the complaint`);
+    });
+  }
+
+  requireRole(m, key, 'freelancer');
+  if (input.action === 'decline') {
+    return updateMilestone(id, (x) => {
+      x.complaint = { ...open, status: 'declined', reply: input.note, closedAt: nowIso() };
+      pushEvent(x, 'freelancer', 'refund_declined', `${x.freelancer.name} declined the refund${input.note ? `: ${input.note}` : ''}`);
+      pushEvent(x, 'system', 'dispute_possible', `${x.client.name} can still open a dispute with PayPal; the deal's record (download it below) is the evidence`);
+    });
+  }
+
+  const amount = cents(input.amount ?? Number(open.amount));
+  if (amount > left) throw new EscrowError(`At most ${money(left, m.currency)} can be refunded on this deal.`);
+  const refund = await refundToClient(m, amount, input.note || `Refund for: ${m.title}`);
+  return updateMilestone(id, (x) => {
+    x.payment.refunds = [...(x.payment.refunds ?? []), refund];
+    x.complaint = { ...open, status: 'refunded', reply: input.note, closedAt: nowIso() };
+    pushEvent(x, 'freelancer', 'refund_agreed', `${x.freelancer.name} agreed to refund ${money(amount, x.currency)}${input.note ? `: ${input.note}` : ''}`);
+    pushEvent(
+      x,
+      'paypal',
+      'refunded',
+      refund.status === 'COMPLETED'
+        ? `PayPal refunded ${money(amount, x.currency)} to ${x.client.name} (refund ${refund.id})`
+        : `PayPal accepted the refund of ${money(amount, x.currency)} to ${x.client.name}; it is ${refund.status.toLowerCase()} (refund ${refund.id})`,
+    );
   });
 }
 

@@ -126,6 +126,15 @@ for (const { scenario, deal, m, error } of runs) {
     const record = await api(`/api/escrow/milestones/${deal.id}/record`, { key: deal.clientKey }).catch((e) => ({ error: e.message }));
     if (record.error) fail('deal record download', record.error);
     else ok('deal record download');
+    try {
+      await api(`/api/escrow/milestones/${deal.id}/complaint`, { key: deal.clientKey, body: { action: 'complain', text: 'Smoke test: one price is wrong', amount: 20 } });
+      const { milestone } = await api(`/api/escrow/milestones/${deal.id}/complaint`, { key: deal.freelancerKey, body: { action: 'refund', amount: 15 } });
+      const back = milestone.payment.refunds?.at(-1);
+      if (milestone.complaint?.status === 'refunded' && back?.amount === '15.00') ok('honest: refund after a complaint', `${back.amount} of ${m.amount} ${m.currency}`);
+      else fail('honest: refund after a complaint', `complaint ${milestone.complaint?.status}`);
+    } catch (e) {
+      fail('honest: refund after a complaint', e.message);
+    }
   }
   if (scenario === 'partial' && m?.status === 'changes_requested') {
     try {

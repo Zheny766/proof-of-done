@@ -200,6 +200,20 @@ export function reauthorizeAuthorization(authorizationId: string, amount: Money)
   return post<Authorization>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/reauthorize`, { amount }, `reauth-${authorizationId}`);
 }
 
+export type Refund = { id: string; status: 'CANCELLED' | 'FAILED' | 'PENDING' | 'COMPLETED'; amount?: Money; create_time?: string };
+
+/**
+ * Give the client back money from a completed capture (all of it, or part). `n` numbers the refunds
+ * on one capture, so a retry of the same refund replays it and a second refund is a new one.
+ */
+export function refundCapture(captureId: string, amount: Money, note: string, n: number): Promise<Refund> {
+  return post<Refund>(
+    `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
+    { amount, note_to_payer: note.slice(0, 255) },
+    `refund-${captureId}-${n}`,
+  );
+}
+
 /** Release the hold without charging anything. */
 export function voidAuthorization(authorizationId: string): Promise<unknown> {
   return post<unknown>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/void`, undefined, `void-${authorizationId}`);

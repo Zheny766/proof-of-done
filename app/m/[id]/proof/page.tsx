@@ -29,6 +29,8 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
   const aiPaid = m.timeline.some((e) => e.type === 'verified');
   const captured = m.payment.capturedAmount ?? m.amount;
   const files = m.submissions.at(-1)?.attachments ?? [];
+  // A certificate that hid a refund would vouch for more than happened.
+  const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
   const how = m.payment.capturedAmount
     ? `Settled by agreement for ${fmtMoney(captured, m.currency)} of ${fmtMoney(m.amount, m.currency)}.`
     : aiPaid
@@ -69,6 +71,12 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
                 <Fact label="PayPal capture" value={m.payment.captureId ?? '-'} mono note={m.payment.mode === 'sandbox' ? 'PayPal sandbox' : 'simulated'} />
               </dl>
               <p className="mt-4 text-[15px] leading-relaxed text-pp-ink">{how}</p>
+              {refunded > 0 && (
+                <p className="mt-3 rounded-xl bg-orange-50 px-4 py-3 text-[15px] text-orange-900 ring-1 ring-inset ring-orange-200">
+                  After the payment {m.client.name} reported a problem, and {fmtMoney(refunded, m.currency)}
+                  {refunded >= Number(captured) ? ', the whole payment,' : ''} was refunded through PayPal.
+                </p>
+              )}
             </>
           )}
 

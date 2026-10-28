@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { Milestone, Role } from '@/lib/escrow/types';
 import type { StageSummary } from '@/lib/escrow/service';
 import { api, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
-import { NextStep, Settlement, ShareLink } from './actions';
+import { AfterPayment, NextStep, Settlement, ShareLink } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
 import { card, h2, initials } from './ui';
@@ -142,6 +142,7 @@ export function MilestoneView({
   }, [m.status, settled, refresh]);
 
   const review = m.reviews.at(-1);
+  const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
   const both = !!(keys.client && keys.freelancer);
   // A later stage is funded only once the one before it is paid (or cancelled).
   const before = m.project && m.project.stage > 1 ? stages?.[m.project.stage - 2] : undefined;
@@ -172,6 +173,10 @@ export function MilestoneView({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={m.status} />
+            {!!refunded && (
+              <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-inset ring-orange-200">Refunded {fmtMoney(refunded, m.currency)}</span>
+            )}
+            {m.complaint?.status === 'open' && <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-inset ring-orange-200">Problem reported</span>}
             {m.objectionHours ? <span className="text-xs text-pp-muted">{m.objectionHours} h objection window</span> : null}
           </div>
           <h1 className="mt-2 font-display text-4xl leading-tight text-pp-navy sm:text-[44px]">{m.title}</h1>
@@ -241,6 +246,8 @@ export function MilestoneView({
 
           {canSettle && !settleFirst && <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />}
 
+          {m.status === 'released' && role !== 'viewer' && m.payment.captureId && <AfterPayment m={m} role={role} milestoneKey={key} onChange={setM} />}
+
           {m.board && <BoardStatus m={m} />}
 
           {role === 'client' && !m.board && keys.share && !['released', 'cancelled'].includes(m.status) && <ShareLink id={m.id} shareKey={keys.share} name={m.freelancer.name} />}
@@ -308,10 +315,16 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
             ? `The AI asked for changes and the money stays on hold. Offer a settlement (say $60), then switch to the ${other} to accept it.`
             : m.status === 'verified'
               ? 'Verified. Switch to the client to pay now or object.'
+              : m.status === 'released' && m.complaint?.status === 'open'
+                ? role === 'client'
+                  ? 'Switch to the freelancer to refund or decline.'
+                  : `The client asks for ${fmtMoney(m.complaint.amount, m.currency)} back. Refund it (PayPal returns it from the payment) or decline.`
+              : m.status === 'released' && m.complaint?.status === 'refunded'
+                ? 'Refunded: PayPal returned the money to the client from the payment, and the deal record shows every step.'
               : m.status === 'released'
                 ? m.payment.capturedAmount
                   ? 'Settled: PayPal captured only the agreed amount, and the rest of the hold went back to the client.'
-                  : 'Done: PayPal captured the hold and paid the freelancer, and nobody clicked approve.'
+                  : `Done: PayPal captured the hold and paid the freelancer, and nobody clicked approve.${role === 'client' && !m.complaint ? ' If the work turns out wrong later, report a problem below and ask for money back.' : ''}`
                 : 'Cancelled: the hold was voided, nothing was charged.';
   return (
     <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">

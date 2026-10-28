@@ -12,6 +12,7 @@ import {
   isPayPalConfigured,
   PayPalApiError,
   reauthorizeAuthorization,
+  refundCapture,
   voidAuthorization,
 } from '../paypal.ts';
 import type { Milestone, PaymentState } from './types.ts';
@@ -160,6 +161,22 @@ async function sendPayout(m: Milestone, amount: string, note: string): Promise<P
 /** A held payout, once PayPal reports the capture completed. */
 export function payOutHeld(m: Milestone): Promise<Partial<PaymentState>> {
   return sendPayout(m, m.payment.capturedAmount ?? m.amount, 'Work accepted: the capture completed');
+}
+
+/** What PayPal captured for this deal and has not refunded yet. */
+export function refundable(m: Milestone): number {
+  if (!m.payment.captureId) return 0;
+  const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
+  return Math.round((Number(m.payment.capturedAmount ?? m.amount) - refunded) * 100) / 100;
+}
+
+/** Return `amount` of the captured money to the client. Throws when PayPal refuses it. */
+export async function refundToClient(m: Milestone, amount: number, note: string): Promise<NonNullable<PaymentState['refunds']>[number]> {
+  const value = amount.toFixed(2);
+  if (m.payment.mode === 'simulated') return { id: fakeId('REFUND'), amount: value, status: 'COMPLETED', at: new Date().toISOString() };
+  const refund = await refundCapture(m.payment.captureId!, { currency_code: m.currency, value }, note, (m.payment.refunds ?? []).length + 1);
+  if (refund.status === 'FAILED' || refund.status === 'CANCELLED') throw new Error(`PayPal ${refund.status.toLowerCase()} the refund (${refund.id}). Nothing was returned.`);
+  return { id: refund.id, amount: value, status: refund.status, at: new Date(refund.create_time ?? Date.now()).toISOString() };
 }
 
 export async function cancelFunding(m: Milestone): Promise<Partial<PaymentState>> {
