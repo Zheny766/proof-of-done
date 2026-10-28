@@ -6,6 +6,7 @@ import { api, fmtDate, fmtMoney, keyHeader, payoutText } from '@/app/components/
 import { PayPalFundButton } from '@/app/components/paypal-fund-button';
 import { isOverdue } from '@/lib/escrow/policy';
 import { btn, card, currentMinute, field, h2, noSubscribe } from './ui';
+import { DownloadRecord } from './details';
 
 type Party = Exclude<Role, 'viewer'>;
 
@@ -806,5 +807,60 @@ export function TermsCard({ m, role, milestoneKey, onChange }: { m: Milestone; r
       </form>
       {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
     </section>
+  );
+}
+
+/**
+ * A buyer's PayPal dispute: where it stands, whether the deal's evidence went to PayPal (it goes by
+ * itself when PayPal takes evidence), and for the freelancer a way to send it now.
+ */
+export function Disputes({ m, role, milestoneKey, onChange }: { m: Milestone; role: Role; milestoneKey: string | null; onChange: (m: Milestone) => void }) {
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  if (!m.disputes?.length) return null;
+  async function send(disputeId: string) {
+    setBusy(disputeId);
+    setError('');
+    try {
+      const { milestone } = await api<{ milestone: Milestone }>(`/api/escrow/milestones/${m.id}/dispute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...keyHeader(milestoneKey) },
+        body: JSON.stringify({ disputeId }),
+      });
+      onChange(milestone);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  }
+  return (
+    <div role="alert" className="mt-6 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-4 text-[15px] text-rose-950">
+      {m.disputes.map((d) => (
+        <div key={d.id} className="mb-2 last:mb-0">
+          <p className="[overflow-wrap:anywhere]">
+            <b>PayPal dispute {d.id}</b> · {d.reason}
+            {d.amount && ` · ${d.amount}`} · {d.status.toLowerCase().replace(/_/g, ' ')}
+          </p>
+          {d.evidenceSentAt ? (
+            <p className="mt-1 text-sm text-emerald-800">✓ The deal’s evidence went to PayPal on {fmtDate(d.evidenceSentAt)}: the criteria, the delivery and its file hashes, the AI review and the PayPal ids.</p>
+          ) : (
+            <p className="mt-1 text-sm text-rose-900">{d.evidenceNote ?? 'The deal’s evidence goes to PayPal as soon as PayPal takes it.'}</p>
+          )}
+          {role === 'freelancer' && !d.evidenceSentAt && d.status !== 'RESOLVED' && (
+            <button onClick={() => send(d.id)} disabled={!!busy} className={`${btn.primary} mt-3`}>
+              {busy === d.id ? 'Sending to PayPal…' : 'Send the evidence to PayPal now'}
+            </button>
+          )}
+        </div>
+      ))}
+      <p className="mt-2 text-sm text-rose-900">
+        The buyer disputed this payment with PayPal, and PayPal decides on evidence. {role === 'viewer' ? 'Both parties have the deal’s record for it.' : 'This is what PayPal gets:'}
+      </p>
+      {role !== 'viewer' && milestoneKey && (
+        <DownloadRecord id={m.id} milestoneKey={milestoneKey} pdf className="mt-2 text-sm font-semibold text-pp-blue underline underline-offset-2 disabled:opacity-60" />
+      )}
+      {error && <p className="mt-2 rounded-lg bg-white px-3 py-2 text-xs text-pp-danger">{error}</p>}
+    </div>
   );
 }

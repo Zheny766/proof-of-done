@@ -2,11 +2,12 @@
 // in a dispute. What was agreed, what was delivered (with each file's SHA-256), what the reviewer found
 // and why, what the second opinion said, every step and who took it, and the PayPal ids.
 
-import { latestFindings } from './policy.ts';
+import { currentReview, latestFindings } from './policy.ts';
 import type { Milestone, Role } from './types.ts';
 
 export function dealRecord(m: Milestone, role: Exclude<Role, 'viewer'>, origin: string) {
-  const review = m.reviews.at(-1);
+  // A review made before the terms changed was against the old criteria.
+  const review = currentReview(m);
   return {
     kind: 'Proof of Done deal record',
     generatedAt: new Date().toISOString(),
@@ -27,6 +28,8 @@ export function dealRecord(m: Milestone, role: Exclude<Role, 'viewer'>, origin: 
       steps: r.log,
     })),
     settlement: m.settlement ?? null,
+    termsChangedAt: m.termsChangedAt ?? null,
+    disputes: m.disputes ?? [],
     paypal: { ...m.payment, calls: m.paypalCalls ?? [] },
     timeline: m.timeline,
     certificate: m.status === 'released' ? `${origin}/m/${m.id}/proof` : null,

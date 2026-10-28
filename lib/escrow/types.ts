@@ -141,6 +141,20 @@ export interface Complaint {
 }
 
 /** An open offer to close the milestone for part of the money. The other party accepts or declines. */
+/** A PayPal dispute on the deal's capture, and whether the deal's evidence went to PayPal. */
+export interface Dispute {
+  id: string;
+  reason: string;
+  status: string;
+  amount?: string;
+  openedAt: string;
+  updatedAt: string;
+  /** When PayPal took the deal's evidence (notes plus the record as a PDF). */
+  evidenceSentAt?: string;
+  /** Why it could not be sent (yet), in words. */
+  evidenceNote?: string;
+}
+
 export interface SettlementOffer {
   by: 'client' | 'freelancer';
   amount: string;
@@ -217,7 +231,7 @@ export interface Milestone {
   /** One stage of a project: stages are funded and paid one by one, in order, with the same two links. */
   project?: ProjectStage;
   /** PayPal disputes the buyer opened on this deal's capture, as PayPal's webhooks reported them. */
-  disputes?: { id: string; reason: string; status: string; amount?: string; openedAt: string; updatedAt: string }[];
+  disputes?: Dispute[];
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

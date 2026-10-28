@@ -49,6 +49,7 @@ function rng(seed: number) {
 export function seedDemo(count = 30): number {
   const rand = rng(20261026);
   let vetoes = 0;
+  let disputed = 0;
   // The PayPal calls a deal like this makes (labelled demo data, like everything here).
   const call = (m: Milestone, at: string, method: string, path: string, status: number, requestId?: string) =>
     (m.paypalCalls ??= []).push({ at, method, path, status, ms: 250 + Math.floor(rand() * 700), requestId });
@@ -152,6 +153,22 @@ export function seedDemo(count = 30): number {
         call(m, at(deliveredMin + 2), 'POST', `/v2/payments/authorizations/AUTH-DEMO-${i}/capture`, 201, `capture-AUTH-DEMO-${i}`);
         call(m, at(deliveredMin + 2), 'POST', '/v1/payments/payouts', 201, `payout-${m.id}`);
         call(m, at(deliveredMin + 3), 'GET', `/v1/payments/payouts/PAYOUT-DEMO-${i}`, 200);
+        // One paid deal the buyer later disputed with PayPal: it was answered with the deal's evidence.
+        if (m.timeline.some((e) => e.type === 'verified') && !disputed++) {
+          const id = `PP-D-DEMO-${i}`;
+          const opened = at(deliveredMin + 2 * 1440);
+          const answered = at(deliveredMin + 2 * 1440 + 1);
+          m.disputes = [{ id, reason: 'merchandise or service not as described', status: 'UNDER_REVIEW', amount: `${amount} USD`, openedAt: opened, updatedAt: answered, evidenceSentAt: answered }];
+          m.timeline.push({ at: opened, actor: 'paypal', type: 'dispute_created', text: `The buyer opened PayPal dispute ${id} (merchandise or service not as described, ${amount} USD) (demo)` });
+          m.timeline.push({
+            at: answered,
+            actor: 'system',
+            type: 'dispute_evidence',
+            text: `The deal's evidence went to PayPal for dispute ${id}: proof the service was delivered, with the criteria, the delivery and its file hashes, the AI review and the PayPal ids (proof-of-done-${m.id}.pdf) (demo)`,
+          });
+          call(m, answered, 'GET', `/v1/customer/disputes/${id}`, 200);
+          call(m, answered, 'POST', `/v1/customer/disputes/${id}/provide-evidence`, 200, `evidence-${id}-1`);
+        }
       }
     }
     if (status === 'cancelled') {

@@ -11,7 +11,8 @@ import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
 import { isOverdue } from './policy.ts';
 import { sniffType } from './evidence.ts';
-import { cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
+import { disputeEvidence } from './disputes.ts';
+import { answerDisputeOnPayPal, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { onPayPalCall } from '../paypal.ts';
 import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
@@ -1197,7 +1198,7 @@ function milestoneForEvent(e: WebhookEvent): Milestone | undefined {
   );
 }
 
-export async function applyWebhook(e: WebhookEvent): Promise<'applied' | 'duplicate' | 'ignored'> {
+export async function applyWebhook(e: WebhookEvent, origin = process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || ''): Promise<'applied' | 'duplicate' | 'ignored'> {
   const found = milestoneForEvent(e);
   if (!found) return 'ignored';
   return exclusive(found.id, async () => {
@@ -1261,11 +1262,55 @@ export async function applyWebhook(e: WebhookEvent): Promise<'applied' | 'duplic
         pushEvent(x, 'system', 'payout_failed', `The PayPal payout was ${outcome.toLowerCase()} ${via}`);
       };
     }
-    updateMilestone(m.id, (x) => {
+    const saved = updateMilestone(m.id, (x) => {
       x.webhookEvents = [...(x.webhookEvents ?? []), e.id].slice(-100);
       effect?.(x);
     });
+    // A dispute that still needs the deal's evidence gets it right after this event is saved.
+    const dispute = saved.disputes?.find((d) => d.id === e.resource?.dispute_id);
+    if (dispute && !dispute.evidenceSentAt && dispute.status !== 'RESOLVED') {
+      setTimeout(() => void answerDispute(m.id, dispute.id, origin).catch(() => {}), 0);
+    }
     return effect ? 'applied' : 'ignored';
+  });
+}
+
+// A buyer's PayPal dispute is answered with the deal's own record: the criteria, the delivery with each
+// file's SHA-256, what the reviewer and the second model found, and the PayPal ids, as a note and a PDF.
+// Sent by itself when the dispute arrives (and again when PayPal starts taking evidence), or by the
+// freelancer from the deal page.
+export const answerDispute = (id: string, disputeId: string, origin: string, key?: string | null) => exclusive(id, () => answerDisputeNow(id, disputeId, origin, key));
+async function answerDisputeNow(id: string, disputeId: string, origin: string, key?: string | null): Promise<Milestone> {
+  const m = mustGet(id);
+  if (key !== undefined) requireRole(m, key, 'freelancer');
+  const d = m.disputes?.find((x) => x.id === disputeId);
+  if (!d) throw new EscrowError('There is no such PayPal dispute on this deal.', 404);
+  if (d.evidenceSentAt) return m;
+  if (d.status === 'RESOLVED') throw new EscrowError('PayPal has already resolved this dispute.');
+  const { evidences, files } = disputeEvidence(m, origin);
+  let outcome: Awaited<ReturnType<typeof answerDisputeOnPayPal>>;
+  try {
+    outcome = await answerDisputeOnPayPal(m, d.id, evidences, files);
+  } catch (error) {
+    const reason = (error as Error).message.slice(0, 300);
+    updateMilestone(id, (x) => {
+      const it = x.disputes!.find((y) => y.id === d.id)!;
+      it.evidenceNote = `PayPal refused the evidence: ${reason}`;
+    });
+    throw new EscrowError(`PayPal refused the evidence: ${reason}`, 502);
+  }
+  return updateMilestone(id, (x) => {
+    const it = x.disputes!.find((y) => y.id === d.id)!;
+    if (outcome.status) it.status = outcome.status;
+    it.updatedAt = nowIso();
+    if (!outcome.sent) {
+      it.evidenceNote = outcome.note;
+      return;
+    }
+    it.evidenceSentAt = nowIso();
+    it.evidenceNote = undefined;
+    const kinds = evidences.length > 1 ? 'proof the service was delivered and proof of the refund' : 'proof the service was delivered';
+    pushEvent(x, 'system', 'dispute_evidence', `The deal's evidence went to PayPal for dispute ${d.id}: ${kinds}, with the criteria, the delivery and its file hashes, the AI review and the PayPal ids (${files[0].name})`);
   });
 }
 

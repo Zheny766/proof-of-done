@@ -1,5 +1,6 @@
 import { isPayPalConfigured, verifyWebhookSignature } from '@/lib/paypal';
 import { applyWebhook, type WebhookEvent } from '@/lib/escrow/service';
+import { publicOrigin } from '@/lib/origin';
 
 // PayPal webhooks. Nothing is trusted until PayPal itself confirms the signature for our webhook id
 // (PAYPAL_WEBHOOK_ID); then the event is applied once to the milestone it belongs to.
@@ -16,5 +17,5 @@ export async function POST(request: Request) {
   if (!event?.id || !event.event_type) return Response.json({ error: 'Not a PayPal event.' }, { status: 400 });
   const genuine = await verifyWebhookSignature(request.headers, event, webhookId).catch(() => false);
   if (!genuine) return Response.json({ error: 'Signature not verified by PayPal.' }, { status: 401 });
-  return Response.json({ result: await applyWebhook(event) });
+  return Response.json({ result: await applyWebhook(event, publicOrigin(request)) });
 }

@@ -58,6 +58,7 @@ function describe(m, role, origin) {
     offer &&
       `Open offer to change the terms, from the ${offer.by}${offer.by === role ? ' (you; the other side accepts or declines)' : ' (accept or decline it with change_terms)'}: amount ${offer.to.amount} ${m.currency}, deadline ${offer.to.dueDays ? `${offer.to.dueDays} days after the hold` : 'none'}, criteria:\n${offer.to.criteria.map((c) => `  - ${c}`).join('\n')}${offer.note ? `\n  Why: ${offer.note}` : ''}`,
     m.complaint && `After the payment the client reported a problem and asks for ${m.complaint.amount} ${m.currency} back (${m.complaint.status})${m.complaint.text ? `: ${m.complaint.text}` : ''}.`,
+    ...(m.disputes ?? []).map((d) => `PayPal dispute ${d.id} (${d.reason}, ${d.status.toLowerCase().replace(/_/g, ' ')}): ${d.evidenceSentAt ? `the deal's evidence went to PayPal on ${d.evidenceSentAt.slice(0, 10)}` : (d.evidenceNote ?? 'evidence not sent yet')}.`),
     m.payment.refunds?.length && `PayPal refunded to the client: ${m.payment.refunds.map((r) => `${r.amount} ${m.currency}`).join(', ')}.`,
     m.status === 'released' && origin && `Proof certificate (shareable): ${origin}/m/${m.id}/proof`,
   ]

@@ -78,7 +78,7 @@ export default async function DemoPage() {
         </div>
         <section className="mt-6 grid gap-6 rounded-2xl border-2 border-pp-navy bg-white p-6 shadow-sm lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
           <div>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">5</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">{SCENARIOS.length + 1}</span>
             <h2 className="mt-4 font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
             <p className="mt-2 text-[15px] font-medium text-pp-ink">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
             <p className="mt-2 text-sm leading-relaxed text-pp-muted">

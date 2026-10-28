@@ -14,8 +14,12 @@ import '@bryntum/gantt/fontawesome/css/solid.css';
 import type { StageSummary } from '@/lib/escrow/service';
 import { fmtMoney } from '@/app/components/status';
 
+// A getter, not `static fields = [...]`: the production build compiles class fields to assignments,
+// and Bryntum's base class defines `fields` as a getter only.
 class StageTask extends TaskModel {
-  static override fields = [{ name: 'amount' }, { name: 'state' }];
+  static override get fields() {
+    return [{ name: 'amount' }, { name: 'state' }];
+  }
 }
 
 const DAY = 86_400_000;

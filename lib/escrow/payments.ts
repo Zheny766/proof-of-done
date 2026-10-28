@@ -6,6 +6,9 @@ import crypto from 'node:crypto';
 import {
   authorizeOrder,
   captureAuthorization,
+  getDispute,
+  provideDisputeEvidence,
+  type EvidenceFile,
   createAuthorizeOrder,
   createPayout,
   getPayoutBatch,
@@ -208,4 +211,21 @@ export async function refreshPayoutStatus(m: Milestone): Promise<string | null> 
   } catch {
     return null;
   }
+}
+
+/**
+ * Answer a buyer's PayPal dispute with the deal's evidence, when PayPal takes evidence on it now (the
+ * dispute's links say so; in an inquiry it may only take messages). Returns what happened.
+ */
+export async function answerDisputeOnPayPal(m: Milestone, disputeId: string, evidences: unknown[], files: EvidenceFile[]): Promise<{ sent: boolean; status?: string; note?: string }> {
+  if (m.payment.mode === 'simulated') return { sent: true };
+  const dispute = await getDispute(disputeId);
+  const open = dispute.links?.some((l) => /provide[-_]?evidence/i.test(l.rel) || /\/provide-evidence$/.test(l.href));
+  const words = (s: string) => s.toLowerCase().replace(/_/g, ' ');
+  if (!open) {
+    const stage = dispute.dispute_life_cycle_stage ? `, ${words(dispute.dispute_life_cycle_stage)} stage` : '';
+    return { sent: false, status: dispute.status, note: `PayPal isn't taking evidence on this dispute yet (${words(dispute.status)}${stage}). It goes to PayPal as soon as PayPal asks for it.` };
+  }
+  await provideDisputeEvidence(disputeId, evidences, files, Date.now());
+  return { sent: true, status: dispute.status };
 }

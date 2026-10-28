@@ -49,6 +49,17 @@ let callListener: ((call: PayPalCall) => void) | undefined;
 /** Called after every PayPal request (not the token requests), retries included. */
 export const onPayPalCall = (listener: (call: PayPalCall) => void) => void (callListener = listener);
 
+/** A multipart body (disputes take evidence as a JSON part plus files), sent as built. */
+class Multipart {
+  readonly boundary = `pod-${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  readonly bytes: Buffer;
+  constructor(parts: { name: string; type: string; filename?: string; bytes: Buffer }[]) {
+    const head = (p: (typeof parts)[number]) =>
+      `--${this.boundary}\r\nContent-Disposition: form-data; name="${p.name}"${p.filename ? `; filename="${p.filename}"` : ''}\r\nContent-Type: ${p.type}\r\n\r\n`;
+    this.bytes = Buffer.concat([...parts.flatMap((p) => [Buffer.from(head(p)), p.bytes, Buffer.from('\r\n')]), Buffer.from(`--${this.boundary}--\r\n`)]);
+  }
+}
+
 async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     const token = await accessToken();
@@ -59,11 +70,11 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, 
         method,
         headers: {
           Authorization: `Bearer ${token}`,
-          ...(method === 'POST' && { 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+          ...(method === 'POST' && { 'Content-Type': body instanceof Multipart ? `multipart/form-data; boundary=${body.boundary}` : 'application/json', Prefer: 'return=representation' }),
           // Same key on a retry -> PayPal replays the first result instead of charging twice.
           ...(idempotencyKey && { 'PayPal-Request-Id': idempotencyKey }),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : body instanceof Multipart ? new Uint8Array(body.bytes) : JSON.stringify(body),
         cache: 'no-store',
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
@@ -217,6 +228,28 @@ export function refundCapture(captureId: string, amount: Money, note: string, n:
 /** Release the hold without charging anything. */
 export function voidAuthorization(authorizationId: string): Promise<unknown> {
   return post<unknown>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/void`, undefined, `void-${authorizationId}`);
+}
+
+/** A buyer's PayPal dispute, as the seller sees it; `links` say what the seller may do now. */
+export type Dispute = {
+  dispute_id: string;
+  status: string;
+  reason?: string;
+  dispute_life_cycle_stage?: string;
+  seller_response_due_date?: string;
+  links?: { rel: string; href: string; method?: string }[];
+};
+export type EvidenceFile = { name: string; type: string; bytes: Buffer };
+
+export const getDispute = (disputeId: string) => get<Dispute>(`/v1/customer/disputes/${encodeURIComponent(disputeId)}`);
+
+/** Answer a dispute with evidence: the evidence list as the `input` JSON part, then the files. */
+export function provideDisputeEvidence(disputeId: string, evidences: unknown[], files: EvidenceFile[], n: number): Promise<unknown> {
+  const body = new Multipart([
+    { name: 'input', type: 'application/json', bytes: Buffer.from(JSON.stringify({ evidences })) },
+    ...files.map((f, i) => ({ name: `file${i + 1}`, type: f.type, filename: f.name, bytes: f.bytes })),
+  ]);
+  return post(`/v1/customer/disputes/${encodeURIComponent(disputeId)}/provide-evidence`, body, `evidence-${disputeId}-${n}`);
 }
 
 export type PayoutBatch = { batch_header: { payout_batch_id: string; batch_status: string } };

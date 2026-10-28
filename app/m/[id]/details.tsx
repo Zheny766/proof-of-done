@@ -75,8 +75,8 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
   );
 }
 
-/** The deal's whole record as a JSON file, for a PayPal dispute or anyone else who needs to see it. */
-function DownloadRecord({ id, milestoneKey }: { id: string; milestoneKey: string }) {
+/** The deal's whole record as a JSON file or the PDF PayPal gets in a dispute, for either party. */
+export function DownloadRecord({ id, milestoneKey, pdf = false, className }: { id: string; milestoneKey: string; pdf?: boolean; className?: string }) {
   const [busy, setBusy] = useState(false);
   return (
     <button
@@ -84,20 +84,20 @@ function DownloadRecord({ id, milestoneKey }: { id: string; milestoneKey: string
       onClick={async () => {
         setBusy(true);
         try {
-          const res = await fetch(`/api/escrow/milestones/${id}/record`, { headers: { 'x-milestone-key': milestoneKey } });
+          const res = await fetch(`/api/escrow/milestones/${id}/record${pdf ? '?format=pdf' : ''}`, { headers: { 'x-milestone-key': milestoneKey } });
           if (!res.ok) return;
           const url = URL.createObjectURL(await res.blob());
-          const a = Object.assign(document.createElement('a'), { href: url, download: `proof-of-done-${id}.json` });
+          const a = Object.assign(document.createElement('a'), { href: url, download: `proof-of-done-${id}.${pdf ? 'pdf' : 'json'}` });
           a.click();
           URL.revokeObjectURL(url);
         } finally {
           setBusy(false);
         }
       }}
-      className="mt-4 w-full rounded-xl border border-pp-border px-3 py-2 text-left text-xs font-semibold text-pp-blue hover:border-pp-blue disabled:opacity-60"
+      className={className ?? 'mt-4 w-full rounded-xl border border-pp-border px-3 py-2 text-left text-xs font-semibold text-pp-blue hover:border-pp-blue disabled:opacity-60'}
     >
-      {busy ? 'Preparing…' : 'Download the full record (for a PayPal dispute)'}
-      <span className="block font-normal text-pp-muted">Criteria, findings and evidence, the second opinion, every step, the PayPal ids and each file’s SHA-256</span>
+      {busy ? 'Preparing…' : pdf ? 'Download the evidence PDF' : 'Download the full record (for a PayPal dispute)'}
+      {!pdf && <span className="block font-normal text-pp-muted">Criteria, findings and evidence, the second opinion, every step, the PayPal ids and each file’s SHA-256</span>}
     </button>
   );
 }

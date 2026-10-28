@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { Milestone, Role } from '@/lib/escrow/types';
 import type { StageSummary } from '@/lib/escrow/service';
 import { api, fmtDay, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
-import { AfterPayment, NextStep, Settlement, ShareLink, TermsCard } from './actions';
+import { AfterPayment, Disputes, NextStep, Settlement, ShareLink, TermsCard } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
 import { card, h2, initials } from './ui';
@@ -215,19 +215,7 @@ export function MilestoneView({
 
       {m.project && stages && <ProjectStages m={m} stages={stages} />}
 
-      {!!m.disputes?.length && (
-        <div role="alert" className="mt-6 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-4 text-[15px] text-rose-950">
-          {m.disputes.map((d) => (
-            <p key={d.id}>
-              <b>PayPal dispute {d.id}</b> · {d.reason}
-              {d.amount && ` · ${d.amount}`} · {d.status.toLowerCase().replace(/_/g, ' ')}
-            </p>
-          ))}
-          <p className="mt-1 text-sm text-rose-900">
-            The buyer disputed this payment with PayPal. {role === 'viewer' ? 'Both parties can answer it with the deal’s record.' : 'Download the full record below (PayPal panel) and attach it to your answer in PayPal.'}
-          </p>
-        </div>
-      )}
+      <Disputes m={m} role={role} milestoneKey={key} onChange={setM} />
 
       <MoneyJourney m={m} />
 
