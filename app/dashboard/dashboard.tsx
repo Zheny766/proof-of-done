@@ -71,6 +71,9 @@ const NO_HISTORY: StudioHistory = { canUndo: false, canRedo: false };
 
 const noSubscription = () => () => {};
 
+// An empty pivot cell (no deal in that stage for that freelancer) read "N/A", like an error.
+const LOCALE_TEXT = { valueNotApplicable: '—' };
+
 export function Dashboard(props: DashboardProps) {
   // Saved reports live in localStorage, which only exists in the browser.
   const inBrowser = useSyncExternalStore(
@@ -147,7 +150,6 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
       state: current,
       updatedAt: new Date().toISOString(),
     }));
-    console.log('[AG Studio] saved report', saved.name, current);
   };
   const discard = () =>
     load(saved, reportState.pageToSelect(saved.state, state.selectedPageId));
@@ -269,6 +271,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
               style={{ height: '100%', width: '100%' }}
               theme={agStudioPayPalTheme}
               layout={{ widgetBorderEnabled: true }}
+              localeText={LOCALE_TEXT}
               data={studioData}
               widgets={widgets}
               ai={ai}
@@ -277,13 +280,8 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
               onApiReady={(event) => {
                 apiRef.current = event.api;
               }}
-              onStudioReady={(event) => {
-                const current = event.api.getState();
-                console.log('[AG Studio] initial state', current);
-                setStudioState(current);
-              }}
+              onStudioReady={(event) => setStudioState(event.api.getState())}
               onStateUpdated={(event) => {
-                console.log('[AG Studio] state updated', event.state);
                 const { undo, redo } = event.api.getHistory();
                 setStudioState(event.state);
                 setHistory({ canUndo: undo.length > 0, canRedo: redo.length > 0 });

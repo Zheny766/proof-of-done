@@ -104,7 +104,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       {
         id: 'reviews',
         name: 'AI Reviews',
-        description: 'One row per AI verification run of a submission. Decision is Pay, Ask for changes, Hand to the client or In progress; Second Opinion is Confirmed, Refused (red flag or evidence) or Not asked.',
+        description: 'One row per AI verification run of a submission. Decision is Pay, Changes (sent back for changes), To the client (escalated) or In progress; Second Opinion is Confirmed, Refused (red flag or evidence) or Not asked.',
         data: data.reviews,
         fields: fields([
           ['id', 'Review ID', 'textFormat', true],

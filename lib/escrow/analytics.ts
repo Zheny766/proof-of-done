@@ -158,7 +158,8 @@ const categoryOf = (description: string, title: string) => {
 };
 
 // Rows carry the words people read in the dashboard's legends and tables, not the code's values.
-const DECISION: Record<ReviewDecision, string> = { release: 'Pay', request_changes: 'Ask for changes', escalate: 'Hand to the client' };
+// Short, so a chart legend fits all three on one line.
+const DECISION: Record<ReviewDecision, string> = { release: 'Pay', request_changes: 'Changes', escalate: 'To the client' };
 const VERDICT: Record<CriterionStatus, string> = { met: 'Met', not_met: 'Not met', unclear: 'Unclear' };
 const STANDING: Record<TrustTier, string> = { new: 'New', regular: 'Regular', trusted: 'Trusted', probation: 'On probation' };
 
