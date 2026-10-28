@@ -192,7 +192,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   // Studio leaves page navigation to the host, and its state has no page names. Page names are
   // saved as soon as they change; new pages are numbered until they're named.
   const selectPage = (id: string, pageId: string) => {
-    if (id === saved.id) updateState((s) => reportState.selectPage(s, pageId));
+    if (id === saved.id) updateState((s) => reportState.withFiltersPanelFor(mode, reportState.selectPage(s, pageId)));
     else {
       const report = findReport(reports, id);
       if (report) guard(() => load(report, pageId));

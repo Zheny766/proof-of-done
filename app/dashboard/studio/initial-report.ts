@@ -41,6 +41,14 @@ const kpi = (text: string, value: { id: string; aggregation?: 'sum' | 'avg' | 'c
 
 const legend = { theme: { common: { legend: { enabled: true } } } };
 
+// Lists of rows: columns sized to their content, long headers wrapped, and no total row (a total of
+// HTTP statuses or of every job's amount reads as nonsense).
+// Not for a column of long text (the reviewer's evidence), which autosizing stretches out of view.
+const list = (text: string, autoSize = true) => ({
+  ...title(text),
+  style: { ...(autoSize && { columnAutoSize: true, headerRow: { wrapText: true } }), grandTotalRow: { enabled: false } },
+});
+
 const overview: AgPageState = {
   id: 'overview',
   // The date filter starts set (it read "Last 3 [Select]" unset), so it also shows in the filters panel.
@@ -150,9 +158,10 @@ const reviewer: AgPageState = {
     },
     'confidence-pivot': {
       type: 'pivot-grid',
+      // One row per verdict: three columns of verdicts didn't fit this tile.
       dataMapping: {
-        rows: [{ id: 'milestones.category' }],
-        columns: [{ id: 'findings.status' }],
+        rows: [{ id: 'findings.status' }],
+        columns: [],
         values: [avg('findings.confidence')],
       },
       format: { ...title('Average confidence by verdict'), style: { grandTotalRow: { enabled: true } } },
@@ -169,7 +178,7 @@ const reviewer: AgPageState = {
         ],
       },
       sort: [{ field: { id: 'findings.confidence', aggregation: 'min' }, direction: 'asc' }],
-      format: title('Least confident verdicts first: where a human should look'),
+      format: list('Least confident verdicts first: where a human should look', false),
     },
   },
   widgetLayout: {
@@ -247,14 +256,15 @@ const agents: AgPageState = {
       dataMapping: { categoryKey: [{ id: 'boardJobs.outcome' }], valueKey: [countd('boardJobs.id')] },
       format: { ...title('How board jobs ended'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } } } },
     },
+    // A chart rather than a pivot, which printed "(Blanks)" where a standing had no jobs of an outcome.
     'standing-pivot': {
-      type: 'pivot-grid',
+      type: 'bar-chart-stacked',
       dataMapping: {
-        rows: [{ id: 'boardJobs.takerStanding' }],
-        columns: [{ id: 'boardJobs.outcome' }],
-        values: [countd('boardJobs.id')],
+        categoryKey: [{ id: 'boardJobs.takerStanding' }],
+        valueKey: [countd('boardJobs.id')],
+        legendKey: [{ id: 'boardJobs.outcome' }],
       },
-      format: { ...title('Outcomes by the taker’s standing'), style: { totalColumns: true, totalColumnsPlacement: 'before', grandTotalRow: { enabled: true } } },
+      format: { ...title('Outcomes by the taker’s standing'), style: legend },
     },
     'board-log': {
       type: 'grid',
@@ -270,7 +280,7 @@ const agents: AgPageState = {
         ],
       },
       sort: [{ field: { id: 'boardJobs.postedAt' }, direction: 'desc' }],
-      format: title('Every board job, newest first'),
+      format: list('Every board job, newest first'),
     },
   },
   widgetLayout: {
@@ -289,7 +299,7 @@ const agents: AgPageState = {
 const trust: AgPageState = {
   id: 'trust',
   widgets: {
-    'kpi-vetoes': kpi('Releases the second opinion refused', sum('reviews.isVeto')),
+    'kpi-vetoes': kpi('Releases vetoed', sum('reviews.isVeto')),
     'kpi-veto-rate': kpi('Veto rate', { id: 'vetoRate' }),
     'kpi-calls': kpi('PayPal API calls', countd('paypalCalls.id'), 'calendar::week'),
     'kpi-latency': kpi('Avg PayPal call (ms)', avg('paypalCalls.ms')),
@@ -321,7 +331,7 @@ const trust: AgPageState = {
         ],
       },
       sort: [{ field: { id: 'paypalCalls.at' }, direction: 'desc' }],
-      format: title('Every PayPal call, newest first'),
+      format: list('Every PayPal call, newest first'),
     },
   },
   widgetLayout: {

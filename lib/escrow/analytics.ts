@@ -5,7 +5,8 @@ import { redactEmails } from './access.ts';
 import { paymentMode } from './payments.ts';
 import { latestFindings } from './policy.ts';
 import { listMilestones } from './store.ts';
-import { trustFor } from './trust.ts';
+import { trustFor, type TrustTier } from './trust.ts';
+import type { CriterionStatus, ReviewDecision } from './types.ts';
 
 export type MilestoneRow = {
   id: string;
@@ -156,6 +157,11 @@ const categoryOf = (description: string, title: string) => {
   return 'Other';
 };
 
+// Rows carry the words people read in the dashboard's legends and tables, not the code's values.
+const DECISION: Record<ReviewDecision, string> = { release: 'Pay', request_changes: 'Ask for changes', escalate: 'Hand to the client' };
+const VERDICT: Record<CriterionStatus, string> = { met: 'Met', not_met: 'Not met', unclear: 'Unclear' };
+const STANDING: Record<TrustTier, string> = { new: 'New', regular: 'Regular', trusted: 'Trusted', probation: 'On probation' };
+
 export function getEscrowDashboardData(): EscrowDashboardData {
   // Demo deals stay out, except board jobs a visitor's agent took: that is real agent activity, on a simulated hold.
   const milestones = listMilestones().filter((m) => !m.demo || (m.demo.scenario === 'board' && m.board?.claimedAt));
@@ -170,7 +176,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
   const all = listMilestones();
   const standings = new Map<string, string>();
   const standing = (email: string) => {
-    if (!standings.has(email)) standings.set(email, email ? trustFor(email, undefined, all).tier : 'none');
+    if (!standings.has(email)) standings.set(email, email ? STANDING[trustFor(email, undefined, all).tier] : 'None');
     return standings.get(email)!;
   };
 
@@ -237,7 +243,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
         isPaid: m.status === 'released' ? 1 : 0,
         isDecided: decided ? 1 : 0,
         hoursToPaid: takenAt && releasedAt ? Math.max(0, Math.round((+new Date(releasedAt) - +new Date(takenAt)) / 3_600_000)) : null,
-        takerStanding: takenAt ? standing(m.freelancer.email) : 'not taken',
+        takerStanding: takenAt ? standing(m.freelancer.email) : 'Not taken',
       });
     }
 
@@ -250,7 +256,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
         startedAt: r.startedAt,
         startedDate: r.startedAt.slice(0, 10),
         engine: r.engine === 'claude' ? `Claude (${r.model ?? 'claude'})` : 'Simulated',
-        decision: r.decision ?? 'in progress',
+        decision: r.decision ? DECISION[r.decision] : 'In progress',
         durationSec: r.finishedAt ? Math.round((+new Date(r.finishedAt) - +new Date(r.startedAt)) / 1000) : null,
         findings: r.findings.length,
         metCount: counts.met,
@@ -259,7 +265,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
         avgConfidence: r.findings.length ? r.findings.reduce((s, f) => s + f.confidence, 0) / r.findings.length : null,
         inputTokens: r.usage?.inputTokens ?? 0,
         outputTokens: r.usage?.outputTokens ?? 0,
-        secondOpinion: !r.audit ? 'not asked' : r.audit.agreed ? 'confirmed' : r.audit.redFlags.length ? 'refused: red flag' : 'refused: evidence',
+        secondOpinion: !r.audit ? 'Not asked' : r.audit.agreed ? 'Confirmed' : r.audit.redFlags.length ? 'Refused: red flag' : 'Refused: evidence',
         secondOpinionAsked: r.audit ? 1 : 0,
         isVeto: r.audit && !r.audit.agreed ? 1 : 0,
         redFlags: r.audit?.redFlags.length ?? 0,
@@ -270,7 +276,7 @@ export function getEscrowDashboardData(): EscrowDashboardData {
           milestoneId: m.id,
           reviewId: r.id,
           criterion: m.criteria.find((c) => c.id === f.criterionId)?.text ?? f.criterionId,
-          status: f.status,
+          status: VERDICT[f.status],
           confidence: f.confidence,
           aboveThreshold: f.status === 'met' && f.confidence >= m.releaseThreshold,
           evidence: f.evidence,

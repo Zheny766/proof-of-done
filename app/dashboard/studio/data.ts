@@ -103,7 +103,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       {
         id: 'reviews',
         name: 'AI Reviews',
-        description: 'One row per AI verification run of a submission. Decision is release, request_changes or escalate.',
+        description: 'One row per AI verification run of a submission. Decision is Pay, Ask for changes, Hand to the client or In progress; Second Opinion is Confirmed, Refused (red flag or evidence) or Not asked.',
         data: data.reviews,
         fields: fields([
           ['id', 'Review ID', 'textFormat', true],
@@ -230,6 +230,9 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
     formats: createFormats({
       overrides: {
         currencyFormat: { formatOptions: { format: '$#,##0' } },
+        // Averages of whole numbers (review seconds, PayPal call ms) would show two decimals.
+        integerFormat: { formatOptions: { format: new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }) } },
+        decimalFormat: { formatOptions: { format: new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }) } },
         dateFormat: { formatOptions: { format: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } },
         dateTimeFormat: { formatOptions: { format: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) } },
       },
