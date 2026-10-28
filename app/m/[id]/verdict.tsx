@@ -20,7 +20,7 @@ export function Verdict({ m }: { m: Milestone }) {
         : review
           ? m.demo
             ? 'Simulated reviewer (live reviews on demo deals are capped per day)'
-            : 'Simulated reviewer'
+            : 'Simulated reviewer (see the audit log)'
           : null;
   return (
     <section className={card} aria-labelledby="verdict-title">

@@ -72,6 +72,22 @@ test('public demo deals get live reviews only up to a daily cap, then the simula
   delete process.env.POD_DEMO_REVIEWS_DAILY;
 });
 
+test('every deal counts towards the daily cap on live reviews, then the simulated reviewer takes over', async () => {
+  store.deleteAll();
+  process.env.ANTHROPIC_API_KEY = 'test-key-no-calls';
+  process.env.POD_LIVE_REVIEWS_DAILY = '1';
+  const deal = async () => {
+    const m = service.createMilestone({ title: 'Logo', criteria: ['An SVG logo'], amount: 20, clientName: 'C', clientEmail: 'c@example.com', freelancerName: 'F', freelancerEmail: 'f@example.com' });
+    const { clientKey, freelancerKey } = m.access!;
+    const { orderId } = await service.beginFunding(m.id, clientKey);
+    await service.confirmFunding(m.id, orderId, clientKey);
+    return (await service.submitWork(m.id, { notes: 'logo.svg attached', links: [], files: [] }, freelancerKey)).milestone.reviews[0].engine;
+  };
+  assert.equal(await deal(), 'claude');
+  assert.equal(await deal(), 'simulated');
+  delete process.env.POD_LIVE_REVIEWS_DAILY;
+});
+
 test('the challenge never gets a standing: what the scoreboard shows is the AI alone', () => {
   for (let i = 0; i < 3; i++) {
     const m = service.startDemo('arena');

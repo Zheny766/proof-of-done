@@ -263,7 +263,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
 
   const reviewId = newId('rev');
   const replay = input.replay ? loadReplay(input.replay) : null;
-  const live = isClaudeConfigured() && (!m.demo || demoReviewsLeft());
+  const live = isClaudeConfigured() && liveReviewsLeft() && (!m.demo || demoReviewsLeft());
   const milestone = updateMilestone(id, (x) => {
     if (payoutEmail && payoutEmail !== x.freelancer.email) {
       x.freelancer.email = payoutEmail;
@@ -290,12 +290,14 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
 
 // Deals anyone can open on the hosted demo (board demo jobs, the challenge) get live Claude reviews up
 // to a daily cap; after that they fall back to the simulated reviewer, so a visitor can't run up the bill.
+// Every deal also counts towards POD_LIVE_REVIEWS_DAILY: on the hosted sandbox anyone can fund a deal
+// with PayPal's test card, so a deal of one's own is no limit by itself.
 const DEMO_REVIEWS_DAILY = () => Number(process.env.POD_DEMO_REVIEWS_DAILY ?? 60);
-function demoReviewsLeft(): boolean {
-  const since = Date.now() - 86_400_000;
-  const used = listMilestones().filter((x) => x.demo && x.reviews.some((r) => r.engine === 'claude' && Date.parse(r.startedAt) > since)).length;
-  return used < DEMO_REVIEWS_DAILY();
-}
+const LIVE_REVIEWS_DAILY = () => Number(process.env.POD_LIVE_REVIEWS_DAILY ?? 100);
+const liveReviewsSince = (since: number, demoOnly: boolean) =>
+  listMilestones().filter((x) => (!demoOnly || x.demo) && x.reviews.some((r) => r.engine === 'claude' && Date.parse(r.startedAt) > since)).length;
+const demoReviewsLeft = () => liveReviewsSince(Date.now() - 86_400_000, true) < DEMO_REVIEWS_DAILY();
+const liveReviewsLeft = () => liveReviewsSince(Date.now() - 86_400_000, false) < LIVE_REVIEWS_DAILY();
 
 // Runs in the background (after()) once the submit request has returned.
 export async function runReview(id: string, reviewId: string): Promise<void> {

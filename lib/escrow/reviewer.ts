@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { checkReleasePolicy, latestFindings } from './policy.ts';
 import { cleanName, fence, htmlToText, normalHost, submittedHosts } from './evidence.ts';
 import { fetchPublic } from './public-url.ts';
-import { refusalFallback } from '../ai.ts';
+import { isClaudeConfigured, refusalFallback } from '../ai.ts';
 import { isPayPalConfigured } from '../paypal.ts';
 import { paypalOrderTools } from './paypal-toolkit.ts';
 import { UPLOAD_DIR } from './store.ts';
@@ -443,7 +443,12 @@ const words = (t: string) => t.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => 
 export async function runSimulatedReview(m: Milestone, s: Submission, hooks: ReviewHooks): Promise<ReviewOutcome> {
   // The pauses only make the live log readable in a demo; tests set POD_SIM_STEP_MS=0.
   const pause = () => new Promise((r) => setTimeout(r, Number(process.env.POD_SIM_STEP_MS ?? 450)));
-  hooks.log({ kind: 'info', text: 'Simulated reviewer (set ANTHROPIC_API_KEY to use Claude)' });
+  hooks.log({
+    kind: 'info',
+    text: isClaudeConfigured()
+      ? "Simulated reviewer: today's live Claude reviews on this server are used up (a daily cap keeps the demo's API budget safe)"
+      : 'Simulated reviewer (set ANTHROPIC_API_KEY to use Claude)',
+  });
   await pause();
   hooks.log({ kind: 'tool', text: 'Reading the brief and acceptance criteria' });
   await pause();
