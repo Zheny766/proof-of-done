@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { paymentMode } from '@/lib/escrow/payments';
 import { isClaudeConfigured } from '@/lib/ai';
 import { REVIEW_MODEL } from '@/lib/escrow/reviewer';
+import { modelName } from '@/app/m/[id]/ui';
 import { Logo } from './logo';
 
 export function SiteHeader() {
@@ -30,7 +31,7 @@ export function SiteHeader() {
               PayPal {mode === 'sandbox' ? 'sandbox' : 'simulated'}
             </span>
             <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset ${claude ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-slate-100 text-slate-600 ring-slate-300'}`}>
-              {claude ? `Reviewer: ${REVIEW_MODEL}` : 'Reviewer: simulated'}
+              {claude ? `Reviewer: ${modelName(REVIEW_MODEL)}` : 'Reviewer: simulated'}
             </span>
           </span>
         </nav>

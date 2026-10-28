@@ -87,6 +87,7 @@ export default async function DemoPage() {
               <p className="mt-4 rounded-xl bg-pp-canvas px-4 py-3 text-sm text-pp-muted">Needs an Anthropic key on the server, so it is off here. Run it locally with ANTHROPIC_API_KEY set.</p>
             )}
           </div>
+          <div>
           <dl className="grid grid-cols-3 gap-3 text-center">
             {[
               ['Tricks tried', arena.attempts, 'text-pp-navy'],
@@ -99,6 +100,16 @@ export default async function DemoPage() {
               </div>
             ))}
           </dl>
+          {arena.ours > 0 && (
+            <p className="mt-2 text-center text-xs text-pp-muted">
+              Includes the {arena.ours} we played before launch (
+              <a href="https://github.com/Zheny766/proof-of-done/blob/main/eval/results/arena-haiku.json" className="underline decoration-pp-muted/40 underline-offset-2 hover:text-pp-blue">
+                results
+              </a>
+              ).
+            </p>
+          )}
+          </div>
         </section>
 
         <div className="mt-10 rounded-2xl border border-pp-border bg-white p-6 text-[15px] leading-relaxed text-pp-muted">

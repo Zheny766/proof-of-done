@@ -9,6 +9,9 @@ import { NewMilestoneForm } from './components/new-milestone-form';
 import { MilestonesGrid } from './components/milestones-grid';
 import { DemoDataButton } from './components/demo-button';
 import { fmtMoney } from './components/status';
+import { isClaudeConfigured } from '@/lib/ai';
+import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
+import { modelName } from './m/[id]/ui';
 
 const STEPS = [
   ['Agree on what "done" means', 'Write the acceptance criteria, or let Claude draft them from a plain description.'],
@@ -62,7 +65,12 @@ export default async function Home() {
               </Link>
             </div>
             <p className="mt-6 text-sm text-pp-muted">
-              {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} · Claude Opus 5.5 reviews, Claude Haiku 5.5 double-checks · 0 false payouts across 32 test deliveries and 10 live tricks
+              {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} ·{' '}
+              {/* Say which model reviews here: the hosted demo runs Haiku to keep reviews under a cent. */}
+              {isClaudeConfigured() && REVIEW_MODEL !== 'claude-opus-5-5'
+                ? `live reviews here by ${modelName(REVIEW_MODEL)}, the demo replays by Claude Opus 5.5; ${modelName(AUDIT_MODEL)} double-checks`
+                : `Claude Opus 5.5 reviews, ${modelName(AUDIT_MODEL)} double-checks`}{' '}
+              · 0 false payouts across 32 test deliveries and 10 live tricks
             </p>
           </div>
           <PreviewCard />

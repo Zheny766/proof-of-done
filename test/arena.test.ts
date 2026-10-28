@@ -57,7 +57,8 @@ test('the scoreboard counts a payout only when the AI released it', () => {
   finish(service.startDemo('arena').id, 'released', false); // the visitor approved it as the client
   finish(service.startDemo('arena').id, 'released', true);
   service.startDemo('arena'); // started, never handed in
-  assert.deepEqual(service.arenaStats(), { attempts: 3, paid: 1, vetoed: 1, live: true });
+  // On top of the ten tricks we played before launch (none paid, none needed the second opinion).
+  assert.deepEqual(service.arenaStats(), { attempts: 13, paid: 1, vetoed: 1, ours: 10, live: true });
 });
 
 test('public demo deals get live reviews only up to a daily cap, then the simulated reviewer', async () => {

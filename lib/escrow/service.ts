@@ -816,16 +816,31 @@ export function deliverArena(raw: unknown, key: string | null) {
   return submitWork(id, { notes, links: [], files: [{ name: ARENA_FILE, type: 'application/pdf', bytes: demoFile(ARENA_FILE) }] }, key);
 }
 
+// The ten tricks we played on the challenge before opening it (eval/arena-tricks.mjs). They stay on
+// the scoreboard, labelled, so a fresh server (the free host wipes its disk) doesn't show 0 / 0 / 0.
+function beforeLaunch(): { attempts: number; paid: number; vetoed: number } {
+  try {
+    const { results } = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'eval/results/arena-haiku.json'), 'utf8')) as {
+      results: { paidByAI: boolean; secondOpinion: string }[];
+    };
+    return { attempts: results.length, paid: results.filter((r) => r.paidByAI).length, vetoed: results.filter((r) => r.secondOpinion.startsWith('refused')).length };
+  } catch {
+    return { attempts: 0, paid: 0, vetoed: 0 };
+  }
+}
+
 /** The scoreboard: how many tricks were tried, and how many got the draft paid. */
 export function arenaStats() {
   // Only live Claude reviews count: the scoreboard is about what the AI does.
   // A review that failed (an API error, a spent budget) isn't an attempt the AI judged either.
   const tried = arenaDeals().filter((m) => m.reviews.some((r) => r.finishedAt && r.engine === 'claude' && !r.log.some((l) => l.kind === 'error')));
+  const ours = beforeLaunch();
   return {
-    attempts: tried.length,
+    attempts: tried.length + ours.attempts,
     // Paid by the AI, that is: a visitor who switches to the client and approves doesn't count.
-    paid: tried.filter((m) => m.timeline.some((e) => e.type === 'verified')).length,
-    vetoed: tried.filter((m) => m.reviews.some((r) => r.audit && !r.audit.agreed)).length,
+    paid: tried.filter((m) => m.timeline.some((e) => e.type === 'verified')).length + ours.paid,
+    vetoed: tried.filter((m) => m.reviews.some((r) => r.audit && !r.audit.agreed)).length + ours.vetoed,
+    ours: ours.attempts,
     live: isClaudeConfigured(),
   };
 }
