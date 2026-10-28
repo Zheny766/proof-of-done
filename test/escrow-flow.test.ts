@@ -348,3 +348,14 @@ test('the demo history is recognised once loaded, so the button that loads it ca
   seedDemo(5);
   assert.equal(hasDemoHistory(), true);
 });
+
+test('the demo history tells each deal in the order it could have happened', async () => {
+  const { seedDemo } = await import('../lib/escrow/demo.ts');
+  store.deleteAll();
+  seedDemo(30);
+  for (const m of store.listMilestones()) {
+    for (let i = 1; i < m.timeline.length; i++) assert.ok(m.timeline[i].at >= m.timeline[i - 1].at, `${m.title}: "${m.timeline[i].text}" comes before "${m.timeline[i - 1].text}"`);
+    const types = m.timeline.map((e) => e.type);
+    if (types.includes('claimed')) assert.ok(types.indexOf('authorized') < types.indexOf('claimed'), `${m.title}: taken from the board before it was funded`);
+  }
+});

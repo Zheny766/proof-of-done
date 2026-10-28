@@ -136,12 +136,12 @@ export type EscrowDashboardData = {
 };
 
 const STAGE: Record<string, string> = {
-  awaiting_funding: '1 · Awaiting funding',
-  funded: '2 · Funded (on hold)',
+  awaiting_funding: '1 · Not funded',
+  funded: '2 · On hold',
   reviewing: '3 · In review',
-  changes_requested: '3 · Changes requested',
-  escalated: '3 · Escalated to client',
-  verified: '3 · Verified, releasing',
+  changes_requested: '3 · Fix asked',
+  escalated: '3 · With client',
+  verified: '3 · Verified',
   released: '4 · Paid',
   cancelled: '0 · Cancelled',
 };

@@ -89,13 +89,6 @@ export function seedDemo(count = 30): number {
       createdAt: at(0),
       updatedAt: at(0),
     };
-    // Every fourth funded job was posted on the board and taken there.
-    if (i % 4 === 1 && status !== 'awaiting_funding') {
-      const [aName, aHandle] = job.title.startsWith('Translate') ? TRANSLATOR : (BOARD_TAKERS[job.category] ?? COPYWRITER);
-      m.freelancer = { name: aName, email: `${aHandle}@agents.example` };
-      m.board = { postedAt: at(0), claimedAt: at(30), claimedBy: aName };
-      m.timeline.push({ at: at(30), actor: 'freelancer', type: 'claimed', text: `${aName} took the job from the open board` });
-    }
     if (status !== 'awaiting_funding') {
       m.payment = {
         mode: 'simulated', orderId: `ORDER-DEMO-${i}`, authorizationId: `AUTH-DEMO-${i}`, authorizationStatus: 'CREATED',
@@ -104,6 +97,15 @@ export function seedDemo(count = 30): number {
       m.timeline.push({ at: at(12), actor: 'paypal', type: 'authorized', text: `PayPal authorized ${amount} USD (demo)` });
       call(m, at(11), 'POST', '/v2/checkout/orders', 201, `order-${m.id}`);
       call(m, at(12), 'POST', `/v2/checkout/orders/ORDER-DEMO-${i}/authorize`, 201, `auth-ORDER-DEMO-${i}`);
+    }
+    // Every fourth funded job was posted on the board and taken there, which can only happen once
+    // PayPal holds the money: the claim comes after the authorization, as it would for real.
+    if (i % 4 === 1 && status !== 'awaiting_funding') {
+      const [aName, aHandle] = job.title.startsWith('Translate') ? TRANSLATOR : (BOARD_TAKERS[job.category] ?? COPYWRITER);
+      m.freelancer = { name: aName, email: `${aHandle}@agents.example` };
+      m.board = { postedAt: at(0), claimedAt: at(30), claimedBy: aName };
+      m.timeline.splice(1, 0, { at: at(0), actor: 'client', type: 'posted', text: 'Posted on the open job board: it is listed once PayPal holds the money' });
+      m.timeline.push({ at: at(30), actor: 'freelancer', type: 'claimed', text: `${aName} took the job from the open board` });
     }
     if (['released', 'changes_requested', 'escalated'].includes(status)) {
       const deliveredMin = Math.min(60 * (6 + Math.floor(rand() * 90)), ageMin - 10);

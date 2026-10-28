@@ -95,6 +95,9 @@ const overview: AgPageState = {
     'stage-donut': {
       type: 'donut-chart',
       dataMapping: { categoryKey: [{ id: 'milestones.stage' }], valueKey: [sum('milestones.escrowed')] },
+      // Stages in the same order as the stacked chart and the pipeline, so each one gets the same colour
+      // everywhere (charts colour by position: "Paid" was purple in one and teal in the other).
+      sort: [{ field: { id: 'milestones.stage' }, direction: 'asc' }],
       // Legend on the right: below the chart it fit one stage per page ("1 / 3").
       format: { ...title('Where the money is'), style: { custom: { pieDataLabel: { enabled: true }, totalLabel: { enabled: true } }, theme: { common: { legend: { enabled: true, position: 'right' } } } } },
     },

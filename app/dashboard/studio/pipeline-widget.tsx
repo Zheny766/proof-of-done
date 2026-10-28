@@ -9,7 +9,9 @@ import type { AgWidgetParams } from 'ag-studio';
 
 type Stage = { label: string; value: number; count: number };
 
-const TONES = ['#94a3b8', '#0070e0', '#7b61ff', '#f5a623', '#00875a', '#001c64'];
+// The charts' own palette, in the same stage order as the stacked chart and the donut, so a stage has
+// one colour across the page.
+const TONES = Array.from({ length: 10 }, (_, i) => `var(--pp-chart-${i + 1})`);
 
 // Studio rows are keyed by field; read a field's value by id, falling back to position.
 function valueOf(row: Record<string, any>, field: { id: string; key?: string }, index: number) {
@@ -85,7 +87,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
               flex: Math.max(1, s.value / total) * 4 + 1,
               minWidth: 92,
               position: 'relative',
-              background: `${color}14`,
+              background: `color-mix(in srgb, ${color} 8%, transparent)`,
               borderTop: `4px solid ${color}`,
               borderRadius: 10,
               padding: '10px 12px',
@@ -94,7 +96,8 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
               justifyContent: 'space-between',
             }}
           >
-            <div style={{ ...oneLine, fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
+            {/* Darkened, so light palette colours (amber, sky) still read as text. */}
+            <div style={{ ...oneLine, fontSize: 11, fontWeight: 700, color: `color-mix(in srgb, ${color} 65%, black)`, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
             <div>
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--pp-ink)' }}>{money(s.value)}</div>
               <div style={{ ...oneLine, fontSize: 11, color: 'var(--pp-muted)' }}>

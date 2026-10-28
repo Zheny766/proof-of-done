@@ -20,7 +20,7 @@ export function Verdict({ m }: { m: Milestone }) {
         : review
           ? m.demo
             ? 'Simulated reviewer (live reviews on demo deals are capped per day)'
-            : 'Simulated reviewer (see the audit log)'
+            : 'Simulated reviewer'
           : null;
   return (
     <section className={card} aria-labelledby="verdict-title">
@@ -103,6 +103,10 @@ function SecondOpinion({ audit, m }: { audit: Audit; m: Milestone }) {
         </span>
         <span className="text-xs text-pp-muted">{who}</span>
       </div>
+      {/* Without a key the reasons are redacted; say where they are rather than show an empty list. */}
+      {!audit.agreed && !audit.disputed.some((d) => d.reason) && !audit.redFlags.length && (
+        <p className="mt-2 text-[13px] text-orange-900">Why is visible to the client and the freelancer.</p>
+      )}
       {!audit.agreed && (
         <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px] text-orange-900">
           {audit.disputed.map((d) => (
