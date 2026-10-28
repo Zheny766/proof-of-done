@@ -42,6 +42,7 @@ function describe(m, role, origin) {
   const verdicts = (review?.findings ?? []).reduce((acc, f) => ({ ...acc, [f.criterionId]: f }), {});
   return [
     `${m.title}: ${m.amount} ${m.currency}, ${m.client.name} pays ${m.freelancer.name}. You are the ${role}.`,
+    m.dueAt && `Deadline: ${m.dueAt.slice(0, 16).replace('T', ' ')} UTC${Date.parse(m.dueAt) < Date.now() && ['funded', 'changes_requested'].includes(m.status) ? ' (passed)' : ''}.`,
     `Status: ${m.status}. PayPal: ${m.payment.authorizationStatus ? `authorization ${m.payment.authorizationStatus}` : 'not funded yet'}${m.payment.captureId ? `, captured ${m.payment.capturedAmount ?? m.amount}` : ''}${m.payment.payoutStatus ? `, payout ${m.payment.payoutStatus}` : ''}.`,
     m.description && `Brief: ${m.description}`,
     `Acceptance criteria (each must be met with at least ${Math.round(m.releaseThreshold * 100)}% confidence):`,
@@ -141,8 +142,9 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
         freelancer_name: z.string().optional(),
         freelancer_email: z.string().email().optional().describe('Where the payout goes; the freelancer can change it when delivering'),
         objection_hours: z.number().int().min(0).max(48).default(0).describe('Hours the client gets to object after the AI verifies, before the money moves'),
+        due_days: z.number().int().min(1).max(25).optional().describe('Deadline in days, counted from when PayPal holds the money (not for jobs on the open board)'),
         stages: z
-          .array(z.object({ title: z.string().min(3).max(120), amount_usd: z.number().min(1).max(10000), days: z.number().int().min(1).max(180).default(7).describe('Planned length of the stage in days'), criteria: z.array(z.string().min(3).max(300)).min(1).max(12) }))
+          .array(z.object({ title: z.string().min(3).max(120), amount_usd: z.number().min(1).max(10000), days: z.number().int().min(1).max(25).default(7).describe('Planned length of the stage in days, also its deadline once funded'), criteria: z.array(z.string().min(3).max(300)).min(1).max(12) }))
           .min(2)
           .max(6)
           .optional()
@@ -169,7 +171,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       const { milestone, clientKey, freelancerKey, criteriaHints = [] } = await call(base, '/api/escrow/milestones', {
         body: {
           title: a.title, description: a.description, criteria: a.criteria, amount: a.amount_usd, clientName: a.client_name, clientEmail: a.client_email,
-          postToBoard: a.open_to_agents, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email, objectionHours: a.objection_hours, postedBy: a.posted_by,
+          postToBoard: a.open_to_agents, freelancerName: a.freelancer_name, freelancerEmail: a.freelancer_email, objectionHours: a.objection_hours, postedBy: a.posted_by, dueDays: a.due_days,
         },
       });
       return text(

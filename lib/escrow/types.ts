@@ -179,6 +179,9 @@ export interface Milestone {
   objectionHours?: number;
   /** When a verified milestone's payment goes out, unless the client objects first. */
   releaseAt?: string;
+  /** The deadline: days after PayPal holds the money, and the date that gives once it does. */
+  dueDays?: number;
+  dueAt?: string;
   settlement?: SettlementOffer;
   /** After the payment: the client reported a problem (the latest one; earlier ones are in the timeline). */
   complaint?: Complaint;

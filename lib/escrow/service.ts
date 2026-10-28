@@ -89,6 +89,8 @@ export const CreateMilestoneInput = z.object({
   releaseThreshold: z.coerce.number().min(0.5).max(0.99).default(0.8),
   // Capped well inside PayPal's 3-day honor period, so the capture after the window still goes through.
   objectionHours: z.coerce.number().int().min(0).max(48).default(0),
+  // A deadline, counted from when PayPal holds the money. At most 25 days: the hold itself lasts 29.
+  dueDays: z.coerce.number().int().min(1).max(25).optional(),
 });
 
 export function createMilestone(raw: unknown): Milestone {
@@ -107,6 +109,8 @@ export function createMilestone(raw: unknown): Milestone {
     freelancer: input.postToBoard ? { name: 'Anyone on the board', email: '' } : { name: input.freelancerName!, email: input.freelancerEmail! },
     releaseThreshold: input.releaseThreshold,
     objectionHours: input.objectionHours,
+    // A job on the open board has the 24-hour claim instead.
+    ...(input.dueDays && !input.postToBoard && { dueDays: input.dueDays }),
     status: 'awaiting_funding',
     payment: { mode: paymentMode() },
     submissions: [],
@@ -141,8 +145,9 @@ export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, am
         title: z.string().trim().min(3).max(120),
         amount: z.coerce.number().min(1).max(10_000),
         criteria: z.array(z.string().trim().min(3).max(300)).min(1).max(12),
-        // The plan: how long the stage should take. Each stage starts when the one before is paid.
-        days: z.coerce.number().int().min(1).max(180).default(7),
+        // The plan: how long the stage should take, which is also its deadline once it is funded. Each
+        // stage starts when the one before is paid; at most 25 days, as PayPal holds money for 29.
+        days: z.coerce.number().int().min(1).max(25).default(7),
       }),
     )
     .min(2)
@@ -156,7 +161,7 @@ export function createProject(raw: unknown): Milestone[] {
   const access = newAccess();
   const stages = input.stages.map((st) =>
     // A deal title is at most 120 characters; the stage name gives way if the two together are longer.
-    createMilestone({ ...input, title: `${input.title}: ${st.title}`.slice(0, 120), amount: st.amount, criteria: st.criteria, postToBoard: false }),
+    createMilestone({ ...input, title: `${input.title}: ${st.title}`.slice(0, 120), amount: st.amount, criteria: st.criteria, postToBoard: false, dueDays: st.days }),
   );
   const stageIds = stages.map((m) => m.id);
   return stages.map((m, i) =>
@@ -252,6 +257,7 @@ async function confirmFundingNow(id: string, orderId: string, key: string | null
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
     x.status = 'funded';
+    if (x.dueDays) x.dueAt = new Date(Date.now() + x.dueDays * 86_400_000).toISOString();
     pushEvent(
       x,
       'paypal',
@@ -469,6 +475,13 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
     });
   }
   if (m.status === 'verified' && m.releaseAt && Date.parse(m.releaseAt) <= Date.now()) return releaseWhenDue(id);
+  // The deadline passed with no delivery that passed review: say so once, so the client knows they
+  // can stop waiting.
+  if (m.dueAt && Date.parse(m.dueAt) <= Date.now() && ['funded', 'changes_requested'].includes(m.status) && !m.timeline.some((e) => e.type === 'overdue')) {
+    return updateMilestone(id, (x) =>
+      pushEvent(x, 'system', 'overdue', `The deadline passed without a delivery that passed review. ${x.client.name} can keep waiting, or cancel and void the hold: nothing is charged.`),
+    );
+  }
   if (HOLDING.includes(m.status) && holdNeedsRenewal(m.payment) && retryDue(m.payment.reauthTriedAt)) return renewHoldNow(id);
   if (!['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? '')) return m;
   return exclusive(id, async () => {
@@ -970,6 +983,7 @@ function startProjectDemo(): Milestone {
     x.demo = opened;
     x.createdAt = ago(5, 2);
     x.payment = hold(2, ago(2, 2));
+    x.dueAt = new Date(Date.parse(ago(2, 2)) + (x.dueDays ?? 5) * 86_400_000).toISOString();
     x.status = 'funded';
     x.timeline = [
       event(ago(5, 2), 'client', 'created', 'Crumb & Co created stage 2 of 3 of "Website for a bakery" for 380.00 USD'),

@@ -272,6 +272,11 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
       <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{resubmit ? 'Fix it and resubmit' : 'Deliver the work'}</p>
       <p className="mt-2 text-[15px] text-pp-muted">
         {fmtMoney(m.amount, m.currency)} is on hold at PayPal. When every criterion checks out, you get paid without anyone having to click approve.
+        {m.dueAt && (
+          <b suppressHydrationWarning className="mt-1 block text-pp-ink">
+            {m.timeline.some((e) => e.type === 'overdue') ? `The deadline was ${fmtDate(m.dueAt)}: deliver as soon as you can, the client may cancel.` : `Deliver by ${fmtDate(m.dueAt)}.`}
+          </b>
+        )}
       </p>
       <form onSubmit={submit} className="mt-4 space-y-3">
         <textarea aria-label="What you delivered" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What you delivered and how it meets each criterion…" className={`${field} h-28 py-2.5`} />
@@ -323,13 +328,16 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   const lastSubmitted = m.submissions.at(-1)?.at ?? '';
   const probation = m.timeline.findLast((e) => e.type === 'probation' && e.at >= lastSubmitted);
   const vetoed = m.reviews.at(-1)?.audit?.agreed === false;
-  const title = verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
+  const overdue = !onBoard && m.timeline.some((e) => e.type === 'overdue') && ['funded', 'changes_requested'].includes(m.status);
+  const title = overdue ? 'The deadline passed' : verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
       <h2 className={h2}>Your next step</h2>
       <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{title}</p>
       <p className="mt-2 text-[15px] leading-relaxed text-pp-muted">
-        {verified ? (
+        {overdue ? (
+          `${m.freelancer.name} hasn't delivered work that passed review by the deadline (${fmtDate(m.dueAt!)}). Keep waiting, or cancel and void the hold: nothing is charged.`
+        ) : verified ? (
           <>
             The AI verified every criterion and a second model agreed. {amount} goes to {m.freelancer.name} <ReleaseCountdown at={m.releaseAt} /> unless you object.
           </>

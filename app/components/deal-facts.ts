@@ -9,7 +9,7 @@ export function describeDeal(m: Milestone): string {
   const findings = review ? latestFindings(m.criteria, review.findings) : [];
   const lines = [
     `${m.title} (${m.id}): ${m.amount} ${m.currency}, ${m.client.name} pays ${m.freelancer.name}.`,
-    `Status: ${m.status}${m.releaseAt ? `, pays out at ${m.releaseAt} unless the client objects` : ''}.`,
+    `Status: ${m.status}${m.releaseAt ? `, pays out at ${m.releaseAt} unless the client objects` : ''}${m.dueAt ? `; deadline ${m.dueAt}${m.timeline.some((e) => e.type === 'overdue') ? ' (passed)' : ''}` : ''}.`,
     `PayPal (${m.payment.mode}): authorization ${m.payment.authorizationStatus ?? 'none'}${m.payment.reauthorizedAt ? ' (reauthorized after the 3-day honor period)' : ''}${m.payment.captureId ? `, captured ${m.payment.capturedAmount ?? m.amount}` : ''}${m.payment.payoutStatus ? `, payout ${m.payment.payoutStatus}` : ''}.`,
     ...(m.project ? [`Stage ${m.project.stage} of ${m.project.stageIds.length} of the project "${m.project.title}"; each stage is funded after the one before it is paid.`] : []),
     ...(m.board ? [m.board.claimedAt ? `Taken from the open job board by ${m.board.claimedBy}.` : 'On the open job board, not taken yet.'] : []),

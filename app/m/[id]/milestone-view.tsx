@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
 import type { StageSummary } from '@/lib/escrow/service';
-import { api, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
+import { api, fmtDay, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
 import { AfterPayment, NextStep, Settlement, ShareLink } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
@@ -150,6 +150,7 @@ export function MilestoneView({
 
   const review = m.reviews.at(-1);
   const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
+  const overdue = m.timeline.some((e) => e.type === 'overdue') && ['funded', 'changes_requested'].includes(m.status);
   const both = !!(keys.client && keys.freelancer);
   // A later stage is funded only once the one before it is paid (or cancelled).
   const before = m.project && m.project.stage > 1 ? stages?.[m.project.stage - 2] : undefined;
@@ -184,6 +185,14 @@ export function MilestoneView({
               <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-inset ring-orange-200">Refunded {fmtMoney(refunded, m.currency)}</span>
             )}
             {m.complaint?.status === 'open' && <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-inset ring-orange-200">Problem reported</span>}
+            {m.dueAt && ['funded', 'changes_requested'].includes(m.status) && (
+              <span
+                suppressHydrationWarning
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${overdue ? 'bg-rose-50 text-pp-danger ring-rose-200' : 'bg-slate-50 text-slate-700 ring-slate-200'}`}
+              >
+                {overdue ? `Overdue since ${fmtDay(m.dueAt)}` : `Due ${fmtDay(m.dueAt)}`}
+              </span>
+            )}
             {m.objectionHours ? <span className="text-xs text-pp-muted">{m.objectionHours} h objection window</span> : null}
           </div>
           <h1 className="mt-2 font-display text-4xl leading-tight text-pp-navy sm:text-[44px]">{m.title}</h1>

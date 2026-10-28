@@ -15,6 +15,7 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
     ['Honor period ends', p.honorExpiresAt && fmtDate(p.honorExpiresAt)],
     ['Authorization expires', p.expiresAt && fmtDate(p.expiresAt)],
     ['Releases', m.status === 'verified' && m.releaseAt ? fmtDate(m.releaseAt) : undefined],
+    ['Deadline', m.dueAt && ['funded', 'reviewing', 'changes_requested', 'escalated'].includes(m.status) ? fmtDate(m.dueAt) : undefined],
     ['Capture', p.captureId && (p.capturedAmount ? `${p.captureId} · ${fmtMoney(p.capturedAmount, m.currency)} of ${fmtMoney(m.amount, m.currency)}` : p.captureId)],
     ['Payout', p.payoutBatchId ? `${p.payoutBatchId} · ${p.payoutStatus}` : p.payoutStatus],
     ['Voided', p.voidedAt && fmtDate(p.voidedAt)],

@@ -37,6 +37,7 @@ export function NewMilestoneForm() {
   const [freelancerEmail, setFreelancerEmail] = useState('maya@freelance.example');
   const [threshold, setThreshold] = useState(0.8);
   const [objectionHours, setObjectionHours] = useState(0);
+  const [dueDays, setDueDays] = useState(0);
   const [toBoard, setToBoard] = useState(false);
   // A project in stages, each with its own amount and criteria, funded and paid one by one.
   const [staged, setStaged] = useState(false);
@@ -124,7 +125,7 @@ export function NewMilestoneForm() {
           title, description, amount, currency: 'USD',
           criteria: criteria.map((c) => c.trim()).filter(Boolean),
           clientName, clientEmail, releaseThreshold: threshold, objectionHours,
-          ...(toBoard ? { postToBoard: true } : { freelancerName, freelancerEmail }),
+          ...(toBoard ? { postToBoard: true } : { freelancerName, freelancerEmail, ...(dueDays && { dueDays }) }),
         }),
       });
       router.push(`/m/${milestone.id}?key=${clientKey}`);
@@ -171,7 +172,7 @@ export function NewMilestoneForm() {
                     <input className={field} type="number" min="1" max="10000" step="0.01" value={st.amount} onChange={(e) => setStage(i, { amount: e.target.value })} aria-label={`Stage ${i + 1} amount`} title="Amount (USD)" required />
                   </span>
                   <span className="flex w-24 shrink-0 items-center gap-1 text-xs text-pp-muted">
-                    <input className={field} type="number" min="1" max="180" step="1" value={st.days} onChange={(e) => setStage(i, { days: e.target.value })} aria-label={`Stage ${i + 1} planned days`} title="Planned length in days" required />
+                    <input className={field} type="number" min="1" max="25" step="1" value={st.days} onChange={(e) => setStage(i, { days: e.target.value })} aria-label={`Stage ${i + 1} planned days`} title="Planned length in days" required />
                     days
                   </span>
                   {stages.length > 2 && (
@@ -256,6 +257,19 @@ export function NewMilestoneForm() {
         <span className="font-normal text-pp-muted"> · minimum AI confidence per criterion before money can move</span>
         <input type="range" min="0.5" max="0.95" step="0.05" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="mt-2 w-full accent-[var(--pp-blue)]" />
       </label>
+
+      {!staged && !toBoard && (
+        <label className="block text-sm font-medium">
+          Deadline <span className="font-normal text-pp-muted">· counted from when PayPal holds the money</span>
+          <select value={dueDays} onChange={(e) => setDueDays(Number(e.target.value))} className={`${field} mt-1`}>
+            <option value={0}>No deadline</option>
+            <option value={3}>3 days</option>
+            <option value={7}>7 days</option>
+            <option value={14}>14 days</option>
+            <option value={21}>21 days</option>
+          </select>
+        </label>
+      )}
 
       <label className="block text-sm font-medium">
         When the AI verifies the work

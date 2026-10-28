@@ -370,3 +370,20 @@ test('sync with PayPal renews a hold past its guarantee and says what changed, a
   assert.match(changes[0], /PayPal renewed the hold/);
   assert.notEqual(store.getMilestone(id)!.payment.authorizationId, before);
 });
+
+test('a deadline starts when PayPal holds the money; once it passes the client is told, once', async () => {
+  store.deleteAll();
+  const { id } = await funded({ dueDays: 7 });
+  const m = store.getMilestone(id)!;
+  assert.ok(Math.abs(Date.parse(m.dueAt!) - (Date.parse(m.payment.authorizedAt!) + 7 * 86_400_000)) < 5_000);
+  store.updateMilestone(id, (x) => void (x.dueAt = new Date(Date.now() - 1000).toISOString()));
+  await service.readMilestone(id);
+  await service.readMilestone(id);
+  assert.equal(store.getMilestone(id)!.timeline.filter((e) => e.type === 'overdue').length, 1);
+});
+
+test('a project stage takes its planned days as its deadline; a board job has its claim window instead', () => {
+  const [stage] = service.createProject({ ...input(), stages: [{ title: 'Draft', amount: 10, days: 4, criteria: ['A PDF draft'] }, { title: 'Final', amount: 10, days: 6, criteria: ['A PDF final'] }] });
+  assert.equal(stage.dueDays, 4);
+  assert.equal(service.createMilestone({ ...input(), postToBoard: true, dueDays: 5 }).dueDays, undefined);
+});
