@@ -1,7 +1,7 @@
 import 'server-only';
 // Milestones flattened into six tables (milestones, reviews, findings, events, PayPal calls, board jobs) for AG Studio.
 
-import { redactEmails } from './access.ts';
+import { viewerEventText } from './access.ts';
 import { paymentMode } from './payments.ts';
 import { latestFindings } from './policy.ts';
 import { listMilestones } from './store.ts';
@@ -283,7 +283,9 @@ export function getEscrowDashboardData(): EscrowDashboardData {
           status: VERDICT[f.status],
           confidence: f.confidence,
           aboveThreshold: f.status === 'met' && f.confidence >= m.releaseThreshold,
-          evidence: f.evidence,
+          // The dashboard has no login: the reviewer's evidence quotes the delivered work, so only the
+          // labelled demo history keeps it. A real deal's evidence stays with its two parties.
+          evidence: m.description.startsWith('[Demo data]') ? f.evidence : '',
         }),
       );
     }
@@ -305,8 +307,9 @@ export function getEscrowDashboardData(): EscrowDashboardData {
     );
 
     m.timeline.forEach((e, i) =>
-      // The dashboard has no login, so no addresses in it.
-      eRows.push({ id: `${m.id}-${i}`, milestoneId: m.id, at: e.at, date: e.at.slice(0, 10), actor: e.actor, type: e.type, text: redactEmails(e.text) }),
+      // The dashboard has no login: events read as they do to someone without a link (no addresses,
+      // and not what the parties or the reviewer wrote after the colon).
+      eRows.push({ id: `${m.id}-${i}`, milestoneId: m.id, at: e.at, date: e.at.slice(0, 10), actor: e.actor, type: e.type, text: viewerEventText(e) }),
     );
   }
 

@@ -131,7 +131,7 @@ export function buildStudioData(data: EscrowDashboardData): AgDataSourcesDefinit
       {
         id: 'findings',
         name: 'Criterion Findings',
-        description: 'One row per acceptance-criterion verdict in a review, with the model confidence and the evidence it cited.',
+        description: 'One row per acceptance-criterion verdict in a review, with the model confidence. Evidence text is kept for the labelled demo history only: on a real deal it quotes the delivered work, which only the two parties may read.',
         data: data.findings,
         fields: fields([
           ['id', 'Finding ID', 'textFormat', true],
