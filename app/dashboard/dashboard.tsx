@@ -10,6 +10,7 @@
 // Nothing tracks edits as they happen. Save reads the report from Studio with getState(), and
 // leaving a report compares Studio's state with the saved one there and then.
 
+import './english-numbers'; // first: before ag-studio builds its number formatters
 import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   AgStudioAiModule,

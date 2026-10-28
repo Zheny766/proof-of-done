@@ -43,6 +43,16 @@ const legend = { theme: { common: { legend: { enabled: true } } } };
 
 const overview: AgPageState = {
   id: 'overview',
+  // The date filter starts set (it read "Last 3 [Select]" unset), so it also shows in the filters panel.
+  filter: {
+    page: [
+      {
+        field: { id: 'milestones.createdDate' },
+        filterWidgetId: 'created-date',
+        model: { operator: 'inRelativeRange', value: { type: 'last', value: 3, unit: 'month', includeToday: true } },
+      },
+    ],
+  },
   widgets: {
     'created-date': {
       type: 'date-filter',

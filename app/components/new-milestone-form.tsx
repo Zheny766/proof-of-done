@@ -225,7 +225,7 @@ export function NewMilestoneForm() {
 
       {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-pp-danger">{error}</p>}
       <button disabled={saving} className="h-11 w-full rounded-full bg-pp-blue text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-60">
-        {saving ? 'Creating…' : staged ? 'Create the project → fund stage 1 with PayPal' : 'Create milestone → fund it with PayPal'}
+        {saving ? 'Creating…' : staged ? 'Create the project → fund stage 1 with PayPal' : 'Create the deal → fund it with PayPal'}
       </button>
     </form>
   );

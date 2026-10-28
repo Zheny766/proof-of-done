@@ -111,7 +111,7 @@ export function createMilestone(raw: unknown): Milestone {
     'created',
     input.postedBy
       ? `${input.postedBy} posted the job for ${m.client.name}: ${money(input.amount, m.currency)}, waiting for ${m.client.name} to approve the payment`
-      : `${m.client.name} created the milestone for ${money(input.amount, m.currency)}`,
+      : `${m.client.name} created the deal for ${money(input.amount, m.currency)}`,
   );
   if (input.postToBoard) pushEvent(m, 'client', 'posted', 'Posted on the open job board: it is listed once PayPal holds the money');
   return insertMilestone(m);
@@ -181,7 +181,7 @@ export const beginFunding = (id: string, key: string | null) => exclusive(id, ()
 async function beginFundingNow(id: string, key: string | null): Promise<{ orderId: string }> {
   const m = mustGet(id);
   requireRole(m, key, 'client');
-  if (m.status !== 'awaiting_funding') throw new EscrowError('This milestone is already funded.');
+  if (m.status !== 'awaiting_funding') throw new EscrowError('This deal is already funded.');
   const earlier = unfinishedEarlierStage(m);
   if (earlier) throw new EscrowError(`Stage ${earlier.project!.stage} isn't paid yet. Each stage is funded when it starts, so fund this one after that.`, 409);
   const { orderId } = await startFunding(m);
@@ -231,7 +231,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     throw new EscrowError('Enter a valid PayPal email for the payout.');
   }
   const payoutEmail = input.payoutEmail;
-  if (!['funded', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot submit work while the milestone is ${m.status}.`);
+  if (!['funded', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot submit work while the deal is ${m.status}.`);
   if (!input.notes.trim() && input.links.length === 0 && input.files.length === 0) throw new EscrowError('Add notes, a link or a file.');
 
   const submissionId = newId('sub');
@@ -311,7 +311,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
       exclusive(id, async () => {
         try {
           const latest = mustGet(id);
-          if (latest.status !== 'reviewing') return { error: `the milestone is ${latest.status} now` };
+          if (latest.status !== 'reviewing') return { error: `the deal is ${latest.status} now` };
           // Someone on probation gets paid only with the client's OK, however good this delivery looks.
           const trust = trustFor(latest.freelancer.email, id);
           if (trust.tier === 'probation' && !scripted(latest)) {
@@ -527,8 +527,8 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
       'client',
       'cancelled',
       m.payment.authorizationId
-        ? `${x.client.name} cancelled the milestone; the PayPal hold was voided, nothing was charged`
-        : `${x.client.name} cancelled the milestone before funding it`,
+        ? `${x.client.name} cancelled the deal; the PayPal hold was voided, nothing was charged`
+        : `${x.client.name} cancelled the deal before funding it`,
     );
   });
 }

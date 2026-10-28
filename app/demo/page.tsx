@@ -14,7 +14,7 @@ const SCENARIOS = [
     id: 'honest',
     n: '1',
     title: 'Honest work gets paid',
-    who: 'Diego delivers the cafe menu Maya asked for.',
+    who: 'Diego delivers the menu the Ember & Oak cafe asked for.',
     see: 'Claude Opus checks the PDF against all three criteria, Claude Haiku double-checks, and PayPal pays Diego. Nobody clicks approve.',
     tone: 'border-emerald-200',
   },

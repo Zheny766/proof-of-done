@@ -20,7 +20,7 @@ export type StoredReports = { reports: SavedReport[]; activeId: string };
 
 // Bump when the built-in report changes, so browsers drop their stale copy.
 // Bumped when the built-in report changes, so saved copies of the old one don't hide the new pages.
-const STORAGE_KEY = 'proof-of-done:reports:v7';
+const STORAGE_KEY = 'proof-of-done:reports:v8';
 
 export const BUILT_IN_ID = 'escrow-overview';
 

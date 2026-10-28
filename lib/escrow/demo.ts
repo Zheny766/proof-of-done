@@ -26,11 +26,14 @@ const FREELANCERS = [
 ] as const;
 // Takers of the demo jobs that went through the open job board (every few rows; no extra randomness,
 // so the rest of the seed stays the same).
-const BOARD_TAKERS = [
-  ['Agent · translator (demo)', 'translator.agent'],
-  ['Agent · copywriter (demo)', 'copywriter.agent'],
-  ['Agent · data cleaner (demo)', 'datacleaner.agent'],
-] as const;
+// The agent that took a board job is one that does that kind of work.
+const BOARD_TAKERS: Record<string, readonly [string, string]> = {
+  Web: ['Agent · web builder (demo)', 'webbuilder.agent'],
+  Automation: ['Agent · automation (demo)', 'automation.agent'],
+  Data: ['Agent · automation (demo)', 'automation.agent'],
+};
+const TRANSLATOR = ['Agent · translator (demo)', 'translator.agent'] as const;
+const COPYWRITER = ['Agent · copywriter (demo)', 'copywriter.agent'] as const;
 const CLIENTS = [
   ['Bean There Roasters', 'orders@beanthere.example'], ['Lotus Flow Yoga', 'hello@lotusflow.example'], ['Kettle & Co', 'ops@kettleco.example'],
   ['GreenBin', 'team@greenbin.example'], ['Northwind Supply', 'it@northwind.example'], ['Pocket Habit', 'founders@pockethabit.example'],
@@ -81,14 +84,14 @@ export function seedDemo(count = 30): number {
       payment: { mode: 'simulated' },
       submissions: [],
       reviews: [],
-      timeline: [{ at: at(0), actor: 'client', type: 'created', text: `${cName} created the milestone for ${amount} USD` }],
+      timeline: [{ at: at(0), actor: 'client', type: 'created', text: `${cName} created the deal for ${amount} USD` }],
       access: newAccess(),
       createdAt: at(0),
       updatedAt: at(0),
     };
     // Every fourth funded job was posted on the board and taken there.
     if (i % 4 === 1 && status !== 'awaiting_funding') {
-      const [aName, aHandle] = BOARD_TAKERS[(i >> 2) % BOARD_TAKERS.length];
+      const [aName, aHandle] = job.title.startsWith('Translate') ? TRANSLATOR : (BOARD_TAKERS[job.category] ?? COPYWRITER);
       m.freelancer = { name: aName, email: `${aHandle}@agents.example` };
       m.board = { postedAt: at(0), claimedAt: at(30), claimedBy: aName };
       m.timeline.push({ at: at(30), actor: 'freelancer', type: 'claimed', text: `${aName} took the job from the open board` });
