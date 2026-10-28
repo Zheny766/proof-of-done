@@ -45,7 +45,7 @@ export function MoneyJourney({ m }: { m: Milestone }) {
     {
       icon: ICONS.hold,
       title: stage >= 1 ? `PayPal holds ${amount}` : 'PayPal holds the money',
-      sub: stage === 4 ? (settled ? `captured ${fmtMoney(settled, m.currency)} by agreement` : aiSkipped ? 'captured when the client approved' : 'captured once the work checked out') : stage >= 1 ? 'on hold, nothing charged yet' : 'authorized, not charged',
+      sub: stage === 4 ? (settled ? `captured ${fmtMoney(settled, m.currency)} by agreement` : aiSkipped ? 'captured when the client approved' : 'captured once the work checked out') : stage >= 1 ? 'on hold, nothing charged yet' : 'nothing on hold yet',
     },
     { icon: ICONS.check, title: 'Two AIs check the work', sub: checkSub },
     {
