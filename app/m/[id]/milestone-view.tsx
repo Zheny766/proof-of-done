@@ -209,7 +209,8 @@ export function MilestoneView({
 
       <MoneyJourney m={m} />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      {/* minmax(0, ...) on phones too: a long word in the evidence (is_valid_email(...)) must not widen the page. */}
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <div className="space-y-6">
           {role !== 'viewer' && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-pp-border bg-white px-4 py-2.5 text-sm">

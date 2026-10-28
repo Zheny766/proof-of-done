@@ -72,9 +72,16 @@ function describeJob(j) {
  * Registers the tools on an McpServer. `base` is the Proof of Done server new jobs are posted to and
  * the board is read from (deal links carry their own host). `localFiles`: may submit_work read files
  * from this machine's disk (the local stdio server) or only take inline attachments (the hosted one).
+ * The hosted one also follows deal links to its own host only: otherwise anyone could make the
+ * server send requests wherever they like.
  */
 export function registerTools(server, { base, localFiles = false, maxWaitSeconds = 600 }) {
   base = base.replace(/\/$/, '');
+  const dealLink = (link) => {
+    const deal = parseLink(link);
+    if (!localFiles && deal.origin !== new URL(base).origin) throw new Error(`This server works with deals on ${base} only. For another host, connect its own MCP server.`);
+    return deal;
+  };
 
   server.registerTool(
     'find_jobs',
@@ -182,7 +189,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       annotations: { readOnlyHint: true },
     },
     async ({ link }) => {
-      const { origin, id, key } = parseLink(link);
+      const { origin, id, key } = dealLink(link);
       const { milestone, role } = await call(origin, `/api/escrow/milestones/${id}`, { key });
       return text(describe(milestone, role, origin));
     },
@@ -209,7 +216,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       },
     },
     async ({ link, notes, links, attachments, files = [], payout_email }) => {
-      const { origin, id, key } = parseLink(link);
+      const { origin, id, key } = dealLink(link);
       const form = new FormData();
       form.set('notes', notes);
       form.set('links', links.join('\n'));
@@ -239,7 +246,7 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
       annotations: { readOnlyHint: true },
     },
     async ({ link, timeout_seconds }) => {
-      const { origin, id, key } = parseLink(link);
+      const { origin, id, key } = dealLink(link);
       const until = Date.now() + timeout_seconds * 1000;
       for (;;) {
         const { milestone, role } = await call(origin, `/api/escrow/milestones/${id}`, { key });

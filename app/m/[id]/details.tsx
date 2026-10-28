@@ -120,7 +120,7 @@ export function Timeline({ m }: { m: Milestone }) {
           <li key={i} className="flex gap-3 text-sm">
             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ACTOR[e.actor]?.dot ?? 'bg-slate-300'}`} />
             <div className="min-w-0">
-              <div className="leading-snug">{e.text}</div>
+              <div className="leading-snug [overflow-wrap:anywhere]">{e.text}</div>
               <div suppressHydrationWarning className="mt-0.5 text-xs text-pp-muted">
                 {ACTOR[e.actor]?.label ?? e.actor} · {fmtDate(e.at)}
               </div>
@@ -142,7 +142,7 @@ export function Submissions({ m, fileKey }: { m: Milestone; fileKey: string | nu
         {[...m.submissions].reverse().map((s) => (
           <li key={s.id} className="text-sm">
             <div suppressHydrationWarning className="text-xs text-pp-muted">{fmtDate(s.at)}</div>
-            {s.notes && <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed">{s.notes}</p>}
+            {s.notes && <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed [overflow-wrap:anywhere]">{s.notes}</p>}
             {s.links.map((l) => (
               <a key={l} href={l} target="_blank" rel="noreferrer" className="mt-1 block truncate text-pp-blue hover:underline">
                 {l}

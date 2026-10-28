@@ -70,7 +70,7 @@ function CriterionRow({ n, text, finding, pending, threshold }: { n: number; tex
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-            <span className="text-[15px] font-medium leading-snug text-pp-ink">{text}</span>
+            <span className="min-w-0 text-[15px] font-medium leading-snug text-pp-ink [overflow-wrap:anywhere]">{text}</span>
             <span className={`shrink-0 text-xs font-semibold ${!finding ? 'text-pp-muted' : clears ? 'text-emerald-700' : finding.status === 'not_met' ? 'text-pp-danger' : 'text-amber-700'}`}>
               {label}
               {finding && ` · ${pct}%`}
@@ -82,7 +82,7 @@ function CriterionRow({ n, text, finding, pending, threshold }: { n: number; tex
                 <div className={`h-full rounded-full ${clears ? 'bg-emerald-500' : finding.status === 'not_met' ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
                 <div className="absolute -top-1 h-3.5 w-0.5 rounded bg-pp-navy" style={{ left: `${threshold * 100}%` }} />
               </div>
-              <p className="mt-2 border-l-2 border-slate-300 pl-3 text-[13px] leading-relaxed text-pp-muted">{finding.evidence}</p>
+              <p className="mt-2 border-l-2 border-slate-300 pl-3 text-[13px] leading-relaxed text-pp-muted [overflow-wrap:anywhere]">{finding.evidence}</p>
             </>
           )}
         </div>
@@ -96,7 +96,7 @@ function SecondOpinion({ audit, m }: { audit: Audit; m: Milestone }) {
   const who = audit.engine === 'claude' ? modelName(audit.model) : 'simulated check';
   const text = (id: string) => m.criteria.find((c) => c.id === id)?.text ?? id;
   return (
-    <div className={`mt-4 rounded-xl px-4 py-3.5 text-sm ring-1 ring-inset ${audit.agreed ? 'bg-violet-50/70 ring-violet-200' : 'bg-orange-50 ring-orange-200'}`}>
+    <div className={`mt-4 rounded-xl px-4 py-3.5 text-sm ring-1 ring-inset [overflow-wrap:anywhere] ${audit.agreed ? 'bg-violet-50/70 ring-violet-200' : 'bg-orange-50 ring-orange-200'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className={`font-semibold ${audit.agreed ? 'text-violet-900' : 'text-orange-900'}`}>
           {audit.agreed ? 'Second opinion: confirmed every criterion' : 'Second opinion: did not confirm the release'}
@@ -149,7 +149,7 @@ function DecisionBanner({ m }: { m: Milestone }) {
   const summary = byAgent && (agentOutcome[byAgent] as readonly string[]).includes(m.status) && !settled ? review?.summary : undefined;
   const feedback = m.status === 'changes_requested' || m.status === 'escalated' ? review?.feedback : undefined;
   return (
-    <div className={`mt-4 rounded-xl p-4 ring-1 ring-inset ${tone}`}>
+    <div className={`mt-4 rounded-xl p-4 ring-1 ring-inset [overflow-wrap:anywhere] ${tone}`}>
       <div className="text-[15px] font-semibold">{title}</div>
       {summary && <p className="mt-1 text-sm">{summary}</p>}
       {feedback && <pre className="mt-2 whitespace-pre-wrap font-[inherit] text-sm">{feedback}</pre>}
@@ -204,7 +204,7 @@ export function AgentLog({ entries, live, role, reviewed }: { entries: AgentLogE
           {entries.map((e, i) => (
             <div key={i} className="flex gap-3 text-sm">
               <span className="w-16 shrink-0 pt-0.5 font-mono text-[10px] uppercase tracking-wide text-pp-muted">{LOG_TAG[e.kind]}</span>
-              <span className={e.kind === 'decision' ? 'font-semibold' : e.kind === 'error' ? 'text-pp-danger' : e.kind === 'thinking' ? 'whitespace-pre-line text-pp-ink' : 'text-pp-ink'}>
+              <span className={'min-w-0 [overflow-wrap:anywhere] ' + (e.kind === 'decision' ? 'font-semibold' : e.kind === 'error' ? 'text-pp-danger' : e.kind === 'thinking' ? 'whitespace-pre-line text-pp-ink' : 'text-pp-ink')}>
                 {e.kind === 'thinking' ? plain(e.text) : e.text}
               </span>
             </div>
