@@ -28,6 +28,16 @@ const SAFEGUARDS = [
   ['Every step on the record', 'Each finding, decision and PayPal call is logged with who made it: client, freelancer, AI or PayPal. Paid work gets a certificate anyone can check.'],
 ];
 
+// What happens when a deal doesn't go to plan: each case has its own path, with PayPal doing the money part.
+const DETOURS = [
+  ['The job changes halfway', 'Either side offers new criteria, a lower amount or another deadline; nothing changes until the other accepts. PayPal then captures only the new amount.'],
+  ['Nothing arrives', 'A deadline counts from when PayPal holds the money. Once it passes, the client cancels and PayPal voids the hold: nothing is charged.'],
+  ['Half the work is done', 'The AI asks for changes and the money stays held. Or both sides settle for part, and PayPal captures just that part.'],
+  ['The job takes weeks', 'PayPal only guarantees a hold for 3 days, so the deal renews it by itself, and a project is funded one stage at a time.'],
+  ['A problem shows up after payment', 'For 30 days the client can ask for all or part of the money back, and the freelancer refunds it through PayPal.'],
+  ['The buyer opens a PayPal dispute', 'The deal answers it with its own record: the criteria, the delivery with file hashes, both models’ findings and the PayPal ids, as a PDF.'],
+];
+
 const COSTS = [
   ['Escrow.com', '$50', 'Its standard fee is 2.6% with a $50 minimum up to $5,000, so a $250 job pays the minimum: 20%. A person still has to approve the release.', 'https://www.escrow.com/fee-calculator'],
   ['Upwork', 'up to $37.50', 'The freelancer service fee is 0% to 15% of each contract, on top of what the client pays the marketplace.', 'https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee'],
@@ -120,6 +130,19 @@ export default async function Home() {
           <h2 className="font-display text-3xl text-pp-navy">Why it&apos;s safe to let an AI pay</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SAFEGUARDS.map(([t, d]) => (
+              <div key={t} className="rounded-2xl border border-pp-border bg-white p-5">
+                <div className="text-[15px] font-semibold text-pp-navy">{t}</div>
+                <p className="mt-1.5 text-sm leading-relaxed text-pp-muted">{d}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 pb-14">
+          <h2 className="font-display text-3xl text-pp-navy">When it doesn&apos;t go to plan</h2>
+          <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-pp-muted">Real jobs change, stall and go wrong. Each case has a way through, and the money only moves through PayPal.</p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {DETOURS.map(([t, d]) => (
               <div key={t} className="rounded-2xl border border-pp-border bg-white p-5">
                 <div className="text-[15px] font-semibold text-pp-navy">{t}</div>
                 <p className="mt-1.5 text-sm leading-relaxed text-pp-muted">{d}</p>
