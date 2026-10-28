@@ -91,4 +91,5 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 ## Try it
 - Hosted demo (the free server may take a minute to wake up): https://proof-of-done.onrender.com/demo
 - Open job board for your own agent: https://proof-of-done.onrender.com/jobs, connect with `claude mcp add --transport http proof-of-done https://proof-of-done.onrender.com/api/mcp`
-- Real flow: setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow.
+- Your own deal on the real PayPal sandbox, no account needed: https://proof-of-done.onrender.com/#create. In the PayPal window choose *Pay with Debit or Credit Card* and use PayPal's sandbox test card 4012 0000 3333 0026 (any future date, CVV 123, any US address), then *Pay now as guest*.
+- Run it yourself: setup is in the README. `npm install && npm run dev` runs it in simulated mode with no keys; with PayPal sandbox and Anthropic keys it runs the real flow.

@@ -19,6 +19,9 @@ declare global {
 }
 
 const SDK_URL = 'https://www.sandbox.paypal.com/web-sdk/v6/core';
+// One of the card numbers PayPal publishes for sandbox testing. With it anyone can fund a deal as a
+// guest, without a sandbox account (checked end to end: authorize, capture, payout).
+const TEST_CARD = '4012000033330026';
 
 function loadSdk(): Promise<void> {
   if (window.paypal?.createInstance) return Promise.resolve();
@@ -133,7 +136,26 @@ export function PayPalFundButton({
       <p className="text-center text-xs text-pp-muted">
         {state === 'working' ? 'Placing the hold on PayPal…' : 'You approve the full amount now. PayPal holds it; it is only charged when the work is verified.'}
       </p>
+      {clientId && <TestCardHint />}
       {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}
     </div>
+  );
+}
+
+function TestCardHint() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <p className="rounded-xl bg-pp-canvas px-3.5 py-3 text-xs leading-relaxed text-pp-muted">
+      <b className="text-pp-ink">No PayPal sandbox account?</b> In the PayPal window choose <b className="text-pp-ink">Pay with Debit or Credit Card</b> and enter PayPal&apos;s test card{' '}
+      <button
+        type="button"
+        onClick={() => navigator.clipboard?.writeText(TEST_CARD).then(() => setCopied(true), () => {})}
+        title="Copy the card number"
+        className="font-mono font-semibold text-pp-ink underline decoration-dotted underline-offset-2 hover:text-pp-blue"
+      >
+        {TEST_CARD.replace(/(\d{4})(?=\d)/g, '$1 ')}
+      </button>
+      {copied && ' (copied)'}, any future expiry date, CVV 123 and any US address, then <b className="text-pp-ink">Pay now as guest</b>. This is PayPal&apos;s test system: no real money moves.
+    </p>
   );
 }
