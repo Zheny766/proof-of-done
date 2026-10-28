@@ -64,7 +64,7 @@ test('each party can only do its own part', async () => {
   await assert.rejects(service.beginFunding(m.id, null), /Only the client/);
   const { orderId } = await service.beginFunding(m.id, clientKey);
   await assert.rejects(service.confirmFunding(m.id, orderId, freelancerKey), /Only the client/);
-  await assert.rejects(service.confirmFunding(m.id, 'ORDER-SIM-SOMEONE-ELSES', clientKey), /does not belong/);
+  await assert.rejects(service.confirmFunding(m.id, 'ORDER-SIM-SOMEONE-ELSES', clientKey), /not for this deal/);
   await service.confirmFunding(m.id, orderId, clientKey);
   await assert.rejects(service.submitWork(m.id, { notes: 'x', links: [], files: [] }, clientKey), /Only the freelancer/);
   await assert.rejects(service.clientDecision(m.id, 'approve', '', freelancerKey), /Only the client/);
@@ -73,7 +73,7 @@ test('each party can only do its own part', async () => {
 
 test('weak evidence escalates; the client can ask for changes, the freelancer resubmits', async () => {
   const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
-  await assert.rejects(service.clientDecision(id, 'request_changes', 'more', clientKey), /Cannot request changes while funded/);
+  await assert.rejects(service.clientDecision(id, 'request_changes', 'more', clientKey), /once the AI has reviewed a delivery; the deal is funded/);
   let m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
   assert.equal(m.status, 'escalated', 'confidence never reaches 99%');
   m = await service.clientDecision(id, 'request_changes', 'Add the prices', clientKey);
@@ -109,7 +109,7 @@ test('cancel: before funding nothing to void, after funding the hold is voided',
   m = await service.clientDecision(id, 'cancel', '', clientKey);
   assert.equal(m.status, 'cancelled');
   assert.equal(m.payment.authorizationStatus, 'VOIDED');
-  await assert.rejects(service.clientDecision(id, 'approve', '', clientKey), /Cannot release while cancelled/);
+  await assert.rejects(service.clientDecision(id, 'approve', '', clientKey), /nothing to pay now: the deal is cancelled/);
 });
 
 test('a submission waits for a cancel in flight instead of racing it', async () => {
@@ -249,7 +249,7 @@ test('objection window: with no objection the money moves once, when the window 
 
 test('settling for part: one side offers, only the other accepts, PayPal captures just that', async () => {
   const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
-  await assert.rejects(service.settle(id, { action: 'propose', amount: 50 }, freelancerKey), /Cannot settle while funded/);
+  await assert.rejects(service.settle(id, { action: 'propose', amount: 50 }, freelancerKey), /settle once a review.*the deal is funded/);
   await submitAndReview(id, freelancerKey, goodNotes);
   assert.equal(store.getMilestone(id)!.status, 'escalated');
   await assert.rejects(service.settle(id, { action: 'propose', amount: 120 }, freelancerKey), /less than/);
@@ -271,7 +271,7 @@ test('settling for part: one side offers, only the other accepts, PayPal capture
   assert.equal(m.payment.capturedAmount, '70.00');
   assert.equal(count(id, 'settled'), 1);
   assert.match(m.timeline.find((e) => e.type === 'captured')!.text, /other 50\.00 USD of the hold went back/);
-  await assert.rejects(service.settle(id, { action: 'propose', amount: 10 }, clientKey), /Cannot settle while released/);
+  await assert.rejects(service.settle(id, { action: 'propose', amount: 10 }, clientKey), /settle once a review.*the deal is paid/);
 });
 
 test('a new submission withdraws an open offer', async () => {

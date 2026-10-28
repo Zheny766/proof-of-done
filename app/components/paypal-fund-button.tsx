@@ -97,6 +97,7 @@ export function PayPalFundButton({
   }, [clientId, milestoneId]);
 
   async function startPayPal() {
+    if (!sessionRef.current || state === 'working') return;
     setError('');
     try {
       await sessionRef.current.start({ presentationMode: 'auto' }, createOrder());

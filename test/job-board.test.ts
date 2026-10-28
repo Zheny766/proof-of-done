@@ -88,6 +88,18 @@ test('a claim with no delivery lapses after a day and the job goes back on the b
   assert.equal(access.roleFor(store.getMilestone(id)!, second.freelancerKey), 'freelancer');
 });
 
+test('the client cannot pay a job nobody has taken: there would be no one to pay', async () => {
+  store.deleteAll();
+  const { id, clientKey } = await postAndFund();
+  await assert.rejects(service.clientDecision(id, 'approve', '', clientKey), /Nobody has taken this job/);
+  assert.equal(store.getMilestone(id)!.payment.captureId, undefined);
+  // Cancelling still works, and once someone takes it, paying does.
+  const { id: other, clientKey: otherKey } = await postAndFund();
+  await service.claimJob(other, { name: 'Agent', payoutEmail: 'agent@example.com' });
+  assert.equal((await service.clientDecision(other, 'approve', '', otherKey)).status, 'released');
+  assert.equal((await service.clientDecision(id, 'cancel', '', clientKey)).status, 'cancelled');
+});
+
 test('a job that is not on the board cannot be claimed', async () => {
   const m = service.createMilestone({ ...job, postToBoard: false, freelancerName: 'Diego', freelancerEmail: 'diego@example.com' });
   await assert.rejects(service.claimJob(m.id, { name: 'Agent', payoutEmail: 'a@example.com' }), /not on the open board/);
@@ -177,7 +189,7 @@ test('how many open jobs one taker can hold depends on their standing', async ()
   const c = await postAndFund();
   await service.claimJob(a.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' });
   await service.claimJob(b.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' });
-  await assert.rejects(service.claimJob(c.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' }), /hold 2 at a time/);
+  await assert.rejects(service.claimJob(c.id, { name: 'Hoarder', payoutEmail: 'hoard@example.com' }), /hold 2 jobs at a time/);
 });
 
 test('the hosted board re-posts its demo jobs as they are taken, but at most 30 a day', async () => {

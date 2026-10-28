@@ -358,7 +358,7 @@ function ago(iso: string) {
 /** The project this stage belongs to: every stage, what it pays and where it stands. */
 function ProjectStages({ m, stages }: { m: Milestone; stages: StageSummary[] }) {
   const total = stages.reduce((sum, x) => sum + Number(x.amount), 0);
-  const paid = stages.filter((x) => x.status === 'released').reduce((sum, x) => sum + Number(x.amount), 0);
+  const paid = stages.reduce((sum, x) => sum + Number(x.paid ?? 0), 0);
   return (
     <section className={`${card} mt-6`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">

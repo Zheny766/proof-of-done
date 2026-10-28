@@ -37,6 +37,9 @@ export function MoneyJourney({ m }: { m: Milestone }) {
             : stage >= 3
               ? `${m.criteria.length} of ${m.criteria.length} criteria met`
               : `${m.criteria.length} criteria agreed`;
+  // Captured is not paid: a payout can still be waiting for the capture, or fail.
+  const payout = m.payment.payoutStatus ?? '';
+  const payoutStuck = stage === 4 && !!payout && payout !== 'SUCCESS' && !['PENDING', 'PROCESSING'].includes(payout);
   const steps = [
     { icon: ICONS.fund, title: 'Client funds', sub: m.client.name },
     {
@@ -47,8 +50,12 @@ export function MoneyJourney({ m }: { m: Milestone }) {
     { icon: ICONS.check, title: 'Two AIs check the work', sub: checkSub },
     {
       icon: ICONS.paid,
-      title: settled ? `Freelancer paid ${fmtMoney(settled, m.currency)}` : stage === 4 ? `Freelancer paid ${amount}` : 'Freelancer paid',
-      sub: settled
+      title: payoutStuck ? 'Payout not sent yet' : settled ? `Freelancer paid ${fmtMoney(settled, m.currency)}` : stage === 4 ? `Freelancer paid ${amount}` : 'Freelancer paid',
+      sub: payoutStuck
+        ? payout.startsWith('HELD')
+          ? 'waits for PayPal to complete the capture'
+          : 'the payout did not go through'
+        : settled
         ? `${fmtMoney(Number(m.amount) - Number(settled), m.currency)} went back to the client`
         : stage === 4
           ? `to ${m.freelancer.name} via PayPal`
@@ -75,7 +82,7 @@ export function MoneyJourney({ m }: { m: Milestone }) {
   return (
     <ol className={`${card} mt-6 grid gap-5 sm:grid-cols-4 sm:gap-0`} aria-label="Where the money is">
       {steps.map((s, i) => {
-        const done = stage > i && !(aiSkipped && i === 2);
+        const done = stage > i && !(aiSkipped && i === 2) && !(payoutStuck && i === 3);
         const active = stage === i;
         return (
           <li key={s.title} className="relative flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">

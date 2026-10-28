@@ -68,8 +68,24 @@ export function NewMilestoneForm() {
     }
   }
 
+  // The server checks all of this too; here it's said in plain words before anything is sent.
+  function problem(): string | null {
+    const lists = staged ? stages.map((st) => st.criteria.split('\n')) : [criteria];
+    for (const [i, list] of lists.entries()) {
+      const where = staged ? `Stage ${i + 1}: ` : '';
+      const filled = list.map((c) => c.trim()).filter(Boolean);
+      if (!filled.length) return `${where}add at least one acceptance criterion.`;
+      if (filled.length > 12) return `${where}12 acceptance criteria at most.`;
+      if (filled.some((c) => c.length < 3)) return `${where}each acceptance criterion needs at least 3 characters.`;
+      if (filled.some((c) => c.length > 300)) return `${where}each acceptance criterion can be at most 300 characters.`;
+    }
+    return null;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const wrong = problem();
+    if (wrong) return setError(wrong.charAt(0).toUpperCase() + wrong.slice(1));
     setError('');
     setSaving(true);
     try {
@@ -107,7 +123,7 @@ export function NewMilestoneForm() {
       <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
         <label className="block text-sm font-medium">
           What needs to be done?
-          <input className={`${field} mt-1`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Landing page for a yoga studio" required minLength={3} />
+          <input className={`${field} mt-1`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Landing page for a yoga studio" required minLength={3} maxLength={120} />
         </label>
         {staged ? (
           <div className="text-sm font-medium">
@@ -123,7 +139,7 @@ export function NewMilestoneForm() {
       </div>
       <label className="block text-sm font-medium">
         Details
-        <textarea className={`${field} mt-1 h-24 py-2`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="One page, class schedule, contact form to hello@lotusflow.example, must look good on phones…" />
+        <textarea className={`${field} mt-1 h-24 py-2`} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={4000} placeholder="One page, class schedule, contact form to hello@lotusflow.example, must look good on phones…" />
       </label>
 
       {staged ? (
@@ -172,7 +188,9 @@ export function NewMilestoneForm() {
             </li>
           ))}
         </ol>
-        <button type="button" onClick={() => setCriteria([...criteria, ''])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">+ Add criterion</button>
+        {criteria.length < 12 && (
+          <button type="button" onClick={() => setCriteria([...criteria, ''])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">+ Add criterion</button>
+        )}
       </div>
       )}
 
@@ -195,14 +213,14 @@ export function NewMilestoneForm() {
       <div className={`grid gap-4 ${toBoard ? '' : 'sm:grid-cols-2'}`}>
         <fieldset className="rounded-lg border border-pp-border p-3">
           <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Client (pays)</legend>
-          <input className={field} value={clientName} onChange={(e) => setClientName(e.target.value)} aria-label="Client name" />
-          <input className={`${field} mt-2`} type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} aria-label="Client email" />
+          <input className={field} value={clientName} onChange={(e) => setClientName(e.target.value)} aria-label="Client name" placeholder="Client name" required maxLength={80} />
+          <input className={`${field} mt-2`} type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} aria-label="Client email" placeholder="Client email" required />
         </fieldset>
         {!toBoard && (
           <fieldset className="rounded-lg border border-pp-border p-3">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Freelancer (gets paid)</legend>
-            <input className={field} value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} aria-label="Freelancer name" />
-            <input className={`${field} mt-2`} type="email" value={freelancerEmail} onChange={(e) => setFreelancerEmail(e.target.value)} aria-label="Freelancer PayPal email" />
+            <input className={field} value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} aria-label="Freelancer name" placeholder="Freelancer name" required maxLength={80} />
+            <input className={`${field} mt-2`} type="email" value={freelancerEmail} onChange={(e) => setFreelancerEmail(e.target.value)} aria-label="Freelancer PayPal email" placeholder="Freelancer PayPal email" required />
           </fieldset>
         )}
       </div>

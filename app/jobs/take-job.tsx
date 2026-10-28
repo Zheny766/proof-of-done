@@ -33,9 +33,8 @@ export function TakeJob({ id }: { id: string }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, payoutEmail: email }),
           });
-          try {
-            localStorage.setItem(`pod:keys:${id}`, JSON.stringify({ freelancer: freelancerKey }));
-          } catch {}
+          // The deal page keeps the key from the link, next to any this browser already has for it
+          // (the client's, if the job was posted from here).
           router.push(`/m/${id}?key=${freelancerKey}`);
         } catch (err) {
           setError((err as Error).message);

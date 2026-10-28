@@ -10,7 +10,7 @@ import { MilestoneView } from './milestone-view';
 
 export async function generateMetadata(props: PageProps<'/m/[id]'>): Promise<Metadata> {
   const { id } = await props.params;
-  return { title: getMilestone(id)?.title ?? 'Milestone' };
+  return { title: getMilestone(id)?.title ?? 'Deal not found' };
 }
 
 export default async function MilestonePage(props: PageProps<'/m/[id]'>) {

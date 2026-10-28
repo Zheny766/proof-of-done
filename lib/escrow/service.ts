@@ -19,9 +19,22 @@ import { deleteWhere, getMilestone, insertMilestone, listMilestones, newId, nowI
 import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
 
 export { CLAIM_LIMIT, trustFor, type Trust, type TrustTier } from './trust.ts';
-import type { Attachment, Milestone, Review, Role } from './types.ts';
+import type { Attachment, Milestone, MilestoneStatus, Review, Role } from './types.ts';
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+// For messages people read: "the deal is paid", not "the deal is released".
+const STATE: Record<MilestoneStatus, string> = {
+  awaiting_funding: 'not funded yet',
+  funded: 'funded and waiting for the work',
+  reviewing: 'being reviewed by the AI',
+  changes_requested: 'waiting for a fixed delivery',
+  escalated: 'waiting for the client',
+  verified: 'verified and about to pay out',
+  released: 'paid',
+  cancelled: 'cancelled',
+};
+const dealIs = (m: Milestone) => `the deal is ${STATE[m.status]}`;
 
 export class EscrowError extends Error {
   readonly status: number;
@@ -159,14 +172,16 @@ export function createProject(raw: unknown): Milestone[] {
   );
 }
 
-export type StageSummary = { id: string; stage: number; title: string; amount: string; currency: string; status: Milestone['status'] };
+export type StageSummary = { id: string; stage: number; title: string; amount: string; currency: string; status: Milestone['status']; paid?: string };
 
 /** Every stage of the project this milestone belongs to, in order (what anyone with the page sees). */
 export function projectStages(m: Milestone): StageSummary[] | null {
   if (!m.project) return null;
   return m.project.stageIds.flatMap((sid, i) => {
     const x = getMilestone(sid);
-    return x ? [{ id: x.id, stage: i + 1, title: x.title.replace(`${m.project!.title}: `, ''), amount: x.amount, currency: x.currency, status: x.status }] : [];
+    // A stage settled for part of the money paid only that part.
+    const paid = x?.status === 'released' ? (x.payment.capturedAmount ?? x.amount) : undefined;
+    return x ? [{ id: x.id, stage: i + 1, title: x.title.replace(`${m.project!.title}: `, ''), amount: x.amount, currency: x.currency, status: x.status, ...(paid && { paid }) }] : [];
   });
 }
 
@@ -198,7 +213,7 @@ async function confirmFundingNow(id: string, orderId: string, key: string | null
   requireRole(m, key, 'client');
   if (m.status !== 'awaiting_funding') return m;
   // Only the order we created for this milestone can fund it.
-  if (!m.payment.orderId || m.payment.orderId !== orderId) throw new EscrowError('Order does not belong to this milestone.');
+  if (!m.payment.orderId || m.payment.orderId !== orderId) throw new EscrowError('This PayPal order is not for this deal.');
   const payment = await completeFunding(orderId, { amount: m.amount, currency: m.currency });
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
@@ -231,7 +246,9 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     throw new EscrowError('Enter a valid PayPal email for the payout.');
   }
   const payoutEmail = input.payoutEmail;
-  if (!['funded', 'changes_requested'].includes(m.status)) throw new EscrowError(`Cannot submit work while the deal is ${m.status}.`);
+  if (!['funded', 'changes_requested'].includes(m.status)) {
+    throw new EscrowError(m.status === 'awaiting_funding' ? 'You can deliver once the client puts the money on hold.' : `You can't hand in work now: ${dealIs(m)}.`);
+  }
   if (!input.notes.trim() && input.links.length === 0 && input.files.length === 0) throw new EscrowError('Add notes, a link or a file.');
 
   const submissionId = newId('sub');
@@ -311,7 +328,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
       exclusive(id, async () => {
         try {
           const latest = mustGet(id);
-          if (latest.status !== 'reviewing') return { error: `the deal is ${latest.status} now` };
+          if (latest.status !== 'reviewing') return { error: `${dealIs(latest)} now` };
           // Someone on probation gets paid only with the client's OK, however good this delivery looks.
           const trust = trustFor(latest.freelancer.email, id);
           if (trust.tier === 'probation' && !scripted(latest)) {
@@ -490,7 +507,9 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
   const m = mustGet(id);
   requireRole(m, key, 'client');
   if (action === 'approve') {
-    if (!['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status)) throw new EscrowError(`Cannot release while ${m.status}.`);
+    if (!['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status)) throw new EscrowError(`There is nothing to pay now: ${dealIs(m)}.`);
+    // Nobody has taken the job yet: capturing would charge the client with no one to pay.
+    if (isOpenJob(m)) throw new EscrowError('Nobody has taken this job yet, so there is no one to pay. Cancel to void the hold.', 409);
     const payment = await releaseFunds(m, note || 'Released by the client');
     return updateMilestone(id, (x) => {
       mergeRelease(x, payment);
@@ -505,7 +524,7 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
   if (action === 'request_changes') {
     // Only makes sense once there is a reviewed submission to send back. In the objection window
     // this is the client's objection to the AI's verdict.
-    if (m.status !== 'escalated' && m.status !== 'verified') throw new EscrowError(`Cannot request changes while ${m.status}.`);
+    if (m.status !== 'escalated' && m.status !== 'verified') throw new EscrowError(`You can ask for changes once the AI has reviewed a delivery; ${dealIs(m)}.`);
     return updateMilestone(id, (x) => {
       const objected = x.status === 'verified';
       x.status = 'changes_requested';
@@ -515,7 +534,11 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
       pushEvent(x, 'client', 'changes_requested', `${x.client.name} ${objected ? 'objected and asked' : 'asked'} for changes${note ? `: ${note}` : ''}`);
     });
   }
-  if (['released', 'cancelled', 'reviewing'].includes(m.status)) throw new EscrowError(`Cannot cancel while ${m.status}.`);
+  if (['released', 'cancelled', 'reviewing'].includes(m.status)) {
+    throw new EscrowError(
+      m.status === 'reviewing' ? 'The AI is reviewing the work: wait for its verdict, then decide.' : m.status === 'cancelled' ? 'This deal is already cancelled.' : 'This deal is paid, so it can no longer be cancelled.',
+    );
+  }
   const payment = await cancelFunding(m);
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
@@ -548,10 +571,10 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
   const offer = m.settlement;
 
   if (input.action === 'propose') {
-    if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`Cannot settle while ${m.status}.`);
+    if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`You can settle once a review has asked for changes or handed the deal to the client; ${dealIs(m)}.`);
     const amount = Math.round(input.amount * 100) / 100;
     if (!(amount >= 1 && amount < Number(m.amount))) {
-      throw new EscrowError(`Offer between ${money(1, m.currency)} and less than ${money(Number(m.amount), m.currency)}; for the full amount, approve the work.`);
+      throw new EscrowError(`Offer at least ${money(1, m.currency)} and less than ${money(Number(m.amount), m.currency)}; for the full amount, approve the work.`);
     }
     const note = (input.note ?? '').trim().slice(0, 500);
     return updateMilestone(id, (x) => {
@@ -569,7 +592,7 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
   }
 
   if (offer.by === role) throw new EscrowError('The other party has to accept your offer.', 403);
-  if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`Cannot settle while ${m.status}.`);
+  if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`The offer can't be accepted now: ${dealIs(m)}.`);
   const payment = await releaseFunds(m, `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount);
   return updateMilestone(id, (x) => {
     mergeRelease(x, payment);
@@ -651,7 +674,8 @@ function claimJobNow(id: string, input: z.infer<typeof ClaimJobInput>): { milest
   const trust = trustFor(input.payoutEmail);
   const holding = listMilestones().filter((x) => x.board && claimActive(x) && x.status === 'funded' && !x.submissions.length && x.freelancer.email.toLowerCase() === input.payoutEmail.toLowerCase()).length;
   if (holding >= CLAIM_LIMIT[trust.tier]) {
-    throw new EscrowError(`Deliver the job you already took first: with your record (${trust.tier}) you can hold ${CLAIM_LIMIT[trust.tier]} at a time.`, 429);
+    const standing = { new: 'a new taker', regular: 'a regular', trusted: 'a trusted taker', probation: 'on probation' }[trust.tier];
+    throw new EscrowError(`Deliver the job you already took first: ${standing} can hold ${count(CLAIM_LIMIT[trust.tier], 'job')} at a time.`, 429);
   }
   const freelancerKey = newAccess().freelancerKey;
   const milestone = updateMilestone(id, (x) => {
@@ -966,6 +990,6 @@ function pushPayoutEvent(m: Milestone, payment: Partial<Milestone['payment']>) {
 
 function mustGet(id: string): Milestone {
   const m = getMilestone(id);
-  if (!m) throw new EscrowError('Milestone not found', 404);
+  if (!m) throw new EscrowError('Deal not found.', 404);
   return m;
 }

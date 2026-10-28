@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
-import { api, fmtDate, fmtMoney, keyHeader } from '@/app/components/status';
+import { api, fmtDate, fmtMoney, keyHeader, payoutText } from '@/app/components/status';
 import { PayPalFundButton } from '@/app/components/paypal-fund-button';
 import { btn, card, currentMinute, field, h2, noSubscribe } from './ui';
 
@@ -50,7 +50,7 @@ export function NextStep({
       <>
         {settled
           ? `PayPal captured ${fmtMoney(settled, m.currency)} for ${m.freelancer.name}; the other ${fmtMoney(Number(m.amount) - Number(settled), m.currency)} of the hold went back to ${m.client.name}.`
-          : `PayPal captured the hold and paid ${m.freelancer.name}. Payout: ${m.payment.payoutStatus?.toLowerCase() ?? 'sent'}.`}
+          : `PayPal captured the hold. ${payoutText(m.payment.payoutStatus, m.freelancer.name)}`}
         <br />
         {certificate}
       </>,
@@ -365,9 +365,12 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
         </div>
       ) : (
         <div className="mt-3 space-y-2">
-          <button onClick={() => setConfirming('approve')} disabled={!!busy} className={`${btn.pay} w-full`}>
-            {busy === 'approve' ? '…' : verified ? `Pay ${amount} now` : `Approve & pay ${amount}`}
-          </button>
+          {/* Nobody to pay until someone takes the job from the board. */}
+          {!onBoard && (
+            <button onClick={() => setConfirming('approve')} disabled={!!busy} className={`${btn.pay} w-full`}>
+              {busy === 'approve' ? '…' : verified ? `Pay ${amount} now` : `Approve & pay ${amount}`}
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => act('request_changes')}
@@ -493,7 +496,7 @@ export function ShareLink({ id, shareKey, name }: { id: string; shareKey: string
       <p className="mt-2 text-sm text-pp-muted">Send this to {name}. With it they can deliver the work, nothing more: no releasing or cancelling.</p>
       <div className="mt-3 flex gap-2">
         <input readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Freelancer link" className={`${field} h-10 min-w-0 flex-1 bg-pp-canvas font-mono text-xs`} />
-        <button onClick={() => navigator.clipboard.writeText(url).then(() => setCopied(true))} className="h-10 shrink-0 rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue">
+        <button onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true), () => {})} className="h-10 shrink-0 rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue">
           {copied ? 'Copied' : 'Copy'}
         </button>
         <a href={url} target="_blank" rel="noreferrer" className="grid h-10 shrink-0 place-items-center rounded-full border border-pp-border px-4 text-xs font-semibold hover:border-pp-blue">

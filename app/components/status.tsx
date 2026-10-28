@@ -19,9 +19,21 @@ export function StatusBadge({ status }: { status: MilestoneStatus }) {
 export const fmtMoney = (amount: string | number, currency: string) =>
   Number(amount).toLocaleString('en-US', { style: 'currency', currency });
 
-/** One fixed format on server and client (avoids locale-dependent hydration mismatches). */
+/**
+ * One fixed format on server and client, in UTC and saying so: the server renders the page, and with
+ * no zone given a visitor read the host's clock as their own.
+ */
 export const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
+
+/** What happened to the freelancer's payout, in words (PayPal's statuses are SUCCESS, PENDING, ...). */
+export function payoutText(status: string | undefined, to: string): string {
+  if (!status || status === 'SUCCESS') return `PayPal paid ${to}.`;
+  if (status === 'PENDING' || status === 'PROCESSING') return `The payout to ${to} is on its way.`;
+  if (status.startsWith('HELD')) return `The payout to ${to} goes out once PayPal completes the capture.`;
+  const why = status.replace(/^(FAILED|NOT SENT): /, '');
+  return `The payout to ${to} did not go through (${/^[A-Z_ ]+$/.test(why) ? why.toLowerCase() : why}).`;
+}
 
 /** Header that proves which party is acting (the key from their milestone link). */
 export const keyHeader = (key: string | null): Record<string, string> => (key ? { 'x-milestone-key': key } : {});
