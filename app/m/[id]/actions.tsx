@@ -50,7 +50,7 @@ export function NextStep({
       <>
         {settled
           ? `PayPal captured ${fmtMoney(settled, m.currency)} for ${m.freelancer.name}; the other ${fmtMoney(Number(m.amount) - Number(settled), m.currency)} of the hold went back to ${m.client.name}.`
-          : `PayPal captured the hold. ${payoutText(m.payment.payoutStatus, m.freelancer.name)}`}
+          : payoutText(m.payment.payoutStatus, m.freelancer.name)}
         <br />
         {certificate}
       </>,

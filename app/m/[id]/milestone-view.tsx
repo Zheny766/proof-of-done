@@ -314,12 +314,12 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
                   : 'Done: PayPal captured the hold and paid the freelancer, and nobody clicked approve.'
                 : 'Cancelled: the hold was voided, nothing was charged.';
   return (
-    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white">
+    <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Demo · {DEMO_TITLE[s] ?? s}</div>
         <div className="mt-1 text-[15px]">{tip}</div>
       </div>
-      <a href="/demo" className="shrink-0 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">
+      <a href="/demo" className="shrink-0 self-start rounded-full bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20 sm:self-auto">
         All scenarios
       </a>
     </div>

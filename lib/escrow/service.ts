@@ -282,7 +282,8 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
       log: [],
     });
     x.status = 'reviewing';
-    pushEvent(x, 'freelancer', 'submitted', `${x.freelancer.name} submitted the work (${count(attachments.length, 'file')}, ${count(input.links.length, 'link')})`);
+    const parts = [attachments.length && count(attachments.length, 'file'), input.links.length && count(input.links.length, 'link')].filter(Boolean);
+    pushEvent(x, 'freelancer', 'submitted', `${x.freelancer.name} submitted the work${parts.length ? ` (${parts.join(', ')})` : ': notes only'}`);
     pushEvent(x, 'agent', 'review_started', 'The AI reviewer started checking the work against the acceptance criteria');
   });
   return { milestone, reviewId };
