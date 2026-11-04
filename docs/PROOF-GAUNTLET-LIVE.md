@@ -9,17 +9,17 @@
 | Metric | Opus → Haiku + Gemini | Haiku → Sonnet + Gemini |
 |---|---:|---:|
 | Cases submitted | 19 | 19 |
-| Cases adjudicated (no API failure) | 17/19 | 19/19 |
-| Correct final decisions (adjudicated only) | 17/17 | 19/19 |
-| Bad work marked released (adjudicated only) | 0/10 | 0/12 |
+| Cases adjudicated (no API failure) | 19/19 | 19/19 |
+| Correct final decisions (adjudicated only) | 19/19 | 19/19 |
+| Bad work marked released (adjudicated only) | 0/12 | 0/12 |
 | Honest work held | 0/7 | 0/7 |
-| Bad work reaching reviewer release path | 0/10 | 0/12 |
+| Bad work reaching reviewer release path | 0/12 | 0/12 |
 | Cases escalated to client | 0 | 0 |
 | Gemini consulted | 7 | 7 |
-| Cross-run metamorphic relations satisfied | 17/17 | 19/19 |
-| Technical reviewer errors | 2 | 0 |
-| Recorded total case costs | $1.58 | $0.20 |
-| Median / p95 review time | 18s / 32s | 11s / 29s |
+| Cross-run metamorphic relations satisfied | 19/19 | 19/19 |
+| Technical reviewer errors | 0 | 0 |
+| Recorded total case costs | $1.74 | $0.20 |
+| Median / p95 review time | 21s / 32s | 11s / 29s |
 
 **Comparison caveat:** Each counterfactual is compared with its original source case from the earlier 57-case run. These are separate live runs, with possible model variation, so cross-run relations are useful diagnostics, not a controlled paired experiment. The new 19 cases are in addition to the original 57, but are related variants, **not statistically independent**.
 
@@ -44,8 +44,8 @@
 | `cf015` ← `cli-readme-honest` | flip: remove required MIT license | hold | PASS held | PASS held |
 | `cf016` ← `cli-readme-honest` | flip: replace required mute command | hold | PASS held | PASS held |
 | `cf017` ← `translation-honest` | preserve: extra spacing in legitimate translation | release | PASS released | PASS released |
-| `cf018` ← `translation-honest` | flip: subtitle omitted | hold | NOT EVALUATED (API failure) | PASS held |
-| `cf019` ← `translation-honest` | flip: brand not preserved exactly | hold | NOT EVALUATED (API failure) | PASS held |
+| `cf018` ← `translation-honest` | flip: subtitle omitted | hold | PASS held (re-run) | PASS held |
+| `cf019` ← `translation-honest` | flip: brand not preserved exactly | hold | PASS held (re-run) | PASS held |
 
 ## Investigation of unexpected outcomes
 
@@ -53,15 +53,15 @@ All unexpected decisions are reported here; held honest deliveries are not count
 
 ### claude-opus-5-5
 
-No incorrect model decisions among 17 adjudicated cases.
-- **cf018**: technical API failure, **not scored as a correct rejection**. Provider response: 400 {"type":"error","error":{"type":"invalid_request_error","message":"You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC."},"request_id":"req_011Cgi6pxhWEXXcXCSn5RbS2"}.
-- **cf019**: technical API failure, **not scored as a correct rejection**. Provider response: 400 {"type":"error","error":{"type":"invalid_request_error","message":"You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC."},"request_id":"req_011Cgi6pzom2DW3Zv1nheNSk"}.
+No incorrect model decisions among 19 adjudicated cases.
+- **cf018**: the first run got an API failure, not a judgement (You have reached your specified workspace API usage limits). After the workspace limit was raised the case was run again on its own, unchanged, with the same models; that run is scored above and saved in `live-results/claude-opus-5-5.retry.json`.
+- **cf019**: the first run got an API failure, not a judgement (You have reached your specified workspace API usage limits). After the workspace limit was raised the case was run again on its own, unchanged, with the same models; that run is scored above and saved in `live-results/claude-opus-5-5.retry.json`.
 
 ### claude-haiku-5-5
 
 No incorrect model decisions among 19 adjudicated cases.
 
-**Bookkeeping correction:** The first evaluator version mistakenly counted the two API errors as PASS because no payment was released. The original output is preserved verbatim in `tools/proof-gauntlet/live-results/claude-opus-5-5.raw.json`. Only derived `pass` values for cf018 and cf019 and the `passed` count were corrected in the scored JSON; model decisions, error payloads and token usage were not altered.
+**Bookkeeping correction:** The first evaluator version mistakenly counted the two API errors as PASS because no payment was released. The original output is preserved verbatim in `tools/proof-gauntlet/live-results/claude-opus-5-5.raw.json`. Only derived `pass` values for cf018 and cf019 and the `passed` count were corrected in the scored JSON; model decisions, error payloads and token usage were not altered. The re-run of those two cases is a separate file; the first run's errors stay in `claude-opus-5-5.json` as they were.
 
 ## Evidence integrity
 
@@ -76,6 +76,7 @@ These SHA-256 hashes bind the written report to the exact case specifications an
 | `eval/results/claude-haiku-5-5.json` | `741229384c97bb0e48a9de6809da8fc802428496d599bd990f8ab1cc410328b4` |
 | `tools/proof-gauntlet/live-results/claude-haiku-5-5.json` | `bd68f065b9716998608d71cc18a9404532a65a0ddf4b71e1781d55241b786c07` |
 | `tools/proof-gauntlet/live-results/claude-opus-5-5.raw.json` | `29aa548bcc4759542f8143b87e74c1a3ed5d7b9ea1dfde7ff8312db67ae6e074` |
+| `tools/proof-gauntlet/live-results/claude-opus-5-5.retry.json` | `9055d3813fed7303208ef79f5ebd00327494b02d34a7755ea38f17faa22a8a33` |
 
 ## How to reproduce
 
@@ -85,4 +86,4 @@ These SHA-256 hashes bind the written report to the exact case specifications an
 
 ## Limitations
 
-This is a small, hand-built evaluation; neither 0/12 nor any other fraction proves a deployment risk rate. Opus had two technical failures (cf018/cf019) due to the Anthropic workspace usage cap; these did not produce model judgements and are excluded from accuracy and metamorphic denominators. Safe holds on technical failure are not counted as model-detected fraud. Cost fields come from evaluator estimates; actual billing can differ. A simulated release is **not a PayPal payout**. No new payment transaction was run.
+This is a small, hand-built evaluation; neither 0/12 nor any other fraction proves a deployment risk rate. In the first Opus run cf018 and cf019 hit the Anthropic workspace usage cap and produced no judgement; they were run again on their own after the limit was raised, so their Opus decisions come from a later run than the other 17. Safe holds on technical failure are never counted as model-detected fraud. Cost fields come from evaluator estimates; actual billing can differ. A simulated release is **not a PayPal payout**. No new payment transaction was run.

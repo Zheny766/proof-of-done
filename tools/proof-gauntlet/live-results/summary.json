@@ -8,7 +8,8 @@
     "tools/proof-gauntlet/live-results/claude-opus-5-5.json": "0f65a5cf992254d4097bc699ac79c24ad87184e2eb537fa19af277c612364e6e",
     "eval/results/claude-haiku-5-5.json": "741229384c97bb0e48a9de6809da8fc802428496d599bd990f8ab1cc410328b4",
     "tools/proof-gauntlet/live-results/claude-haiku-5-5.json": "bd68f065b9716998608d71cc18a9404532a65a0ddf4b71e1781d55241b786c07",
-    "tools/proof-gauntlet/live-results/claude-opus-5-5.raw.json": "29aa548bcc4759542f8143b87e74c1a3ed5d7b9ea1dfde7ff8312db67ae6e074"
+    "tools/proof-gauntlet/live-results/claude-opus-5-5.raw.json": "29aa548bcc4759542f8143b87e74c1a3ed5d7b9ea1dfde7ff8312db67ae6e074",
+    "tools/proof-gauntlet/live-results/claude-opus-5-5.retry.json": "9055d3813fed7303208ef79f5ebd00327494b02d34a7755ea38f17faa22a8a33"
   },
   "models": {
     "claude-opus-5-5": {
@@ -16,16 +17,17 @@
       "auditModel": "claude-haiku-5-5",
       "geminiConfigured": true,
       "total": 19,
-      "completed": 17,
-      "bad": 10,
+      "completed": 19,
+      "bad": 12,
       "honest": 7,
       "plannedBad": 12,
       "plannedHonest": 7,
       "falseRelease": 0,
       "falseHold": 0,
       "badLeadReleasePath": 0,
-      "infrastructureErrors": 2,
-      "technicalFailures": [
+      "infrastructureErrors": 0,
+      "technicalFailures": [],
+      "firstRunErrors": [
         {
           "id": "cf018",
           "summary": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Cgi6pxhWEXXcXCSn5RbS2\"}"
@@ -35,13 +37,17 @@
           "summary": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Cgi6pzom2DW3Zv1nheNSk\"}"
         }
       ],
+      "retried": [
+        "cf018",
+        "cf019"
+      ],
       "escalated": 0,
       "thirdInvoked": 7,
-      "metRelations": 17,
-      "eligibleRelations": 17,
-      "correctAnswers": 17,
-      "cost": 1.5816,
-      "medianSeconds": 18,
+      "metRelations": 19,
+      "eligibleRelations": 19,
+      "correctAnswers": 19,
+      "cost": 1.7394,
+      "medianSeconds": 21,
       "p95Seconds": 32,
       "mistakes": [],
       "relationsFailed": [],
@@ -61,7 +67,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 32,
-          "cost": 0.1084
+          "cost": 0.1084,
+          "retried": false
         },
         {
           "id": "cf002",
@@ -78,7 +85,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 27,
-          "cost": 0.0927
+          "cost": 0.0927,
+          "retried": false
         },
         {
           "id": "cf003",
@@ -95,7 +103,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 21,
-          "cost": 0.0968
+          "cost": 0.0968,
+          "retried": false
         },
         {
           "id": "cf004",
@@ -112,7 +121,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 14,
-          "cost": 0.0793
+          "cost": 0.0793,
+          "retried": false
         },
         {
           "id": "cf005",
@@ -129,7 +139,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 18,
-          "cost": 0.0835
+          "cost": 0.0835,
+          "retried": false
         },
         {
           "id": "cf006",
@@ -146,7 +157,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 27,
-          "cost": 0.0881
+          "cost": 0.0881,
+          "retried": false
         },
         {
           "id": "cf007",
@@ -163,7 +175,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 17,
-          "cost": 0.0802
+          "cost": 0.0802,
+          "retried": false
         },
         {
           "id": "cf008",
@@ -180,7 +193,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 18,
-          "cost": 0.0816
+          "cost": 0.0816,
+          "retried": false
         },
         {
           "id": "cf009",
@@ -197,7 +211,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 28,
-          "cost": 0.1245
+          "cost": 0.1245,
+          "retried": false
         },
         {
           "id": "cf010",
@@ -214,7 +229,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 32,
-          "cost": 0.1342
+          "cost": 0.1342,
+          "retried": false
         },
         {
           "id": "cf011",
@@ -231,7 +247,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 18,
-          "cost": 0.0991
+          "cost": 0.0991,
+          "retried": false
         },
         {
           "id": "cf012",
@@ -248,7 +265,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 23,
-          "cost": 0.1
+          "cost": 0.1,
+          "retried": false
         },
         {
           "id": "cf013",
@@ -265,7 +283,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 17,
-          "cost": 0.0905
+          "cost": 0.0905,
+          "retried": false
         },
         {
           "id": "cf014",
@@ -282,7 +301,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 27,
-          "cost": 0.0854
+          "cost": 0.0854,
+          "retried": false
         },
         {
           "id": "cf015",
@@ -299,7 +319,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 16,
-          "cost": 0.0742
+          "cost": 0.0742,
+          "retried": false
         },
         {
           "id": "cf016",
@@ -316,7 +337,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 16,
-          "cost": 0.0726
+          "cost": 0.0726,
+          "retried": false
         },
         {
           "id": "cf017",
@@ -333,7 +355,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 26,
-          "cost": 0.0905
+          "cost": 0.0905,
+          "retried": false
         },
         {
           "id": "cf018",
@@ -342,15 +365,16 @@
           "relation": "flip",
           "expected": "hold",
           "observed": "held",
-          "decision": "error",
-          "pass": false,
+          "decision": "request_changes",
+          "pass": true,
           "reviewerTriedToPay": false,
           "secondOpinion": "not asked",
           "thirdCheck": "not asked",
           "baseline": "released",
-          "relationMet": null,
-          "seconds": 2,
-          "cost": 0
+          "relationMet": true,
+          "seconds": 21,
+          "cost": 0.0824,
+          "retried": true
         },
         {
           "id": "cf019",
@@ -359,15 +383,16 @@
           "relation": "flip",
           "expected": "hold",
           "observed": "held",
-          "decision": "error",
-          "pass": false,
+          "decision": "request_changes",
+          "pass": true,
           "reviewerTriedToPay": false,
           "secondOpinion": "not asked",
           "thirdCheck": "not asked",
           "baseline": "released",
-          "relationMet": null,
-          "seconds": 0,
-          "cost": 0
+          "relationMet": true,
+          "seconds": 19,
+          "cost": 0.0754,
+          "retried": true
         }
       ]
     },
@@ -386,6 +411,8 @@
       "badLeadReleasePath": 0,
       "infrastructureErrors": 0,
       "technicalFailures": [],
+      "firstRunErrors": [],
+      "retried": [],
       "escalated": 0,
       "thirdInvoked": 7,
       "metRelations": 19,
@@ -412,7 +439,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 20,
-          "cost": 0.0227
+          "cost": 0.0227,
+          "retried": false
         },
         {
           "id": "cf002",
@@ -429,7 +457,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 18,
-          "cost": 0.02
+          "cost": 0.02,
+          "retried": false
         },
         {
           "id": "cf003",
@@ -446,7 +475,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 14,
-          "cost": 0.0194
+          "cost": 0.0194,
+          "retried": false
         },
         {
           "id": "cf004",
@@ -463,7 +493,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 9,
-          "cost": 0.0016
+          "cost": 0.0016,
+          "retried": false
         },
         {
           "id": "cf005",
@@ -480,7 +511,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 10,
-          "cost": 0.0025
+          "cost": 0.0025,
+          "retried": false
         },
         {
           "id": "cf006",
@@ -497,7 +529,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 10,
-          "cost": 0.002
+          "cost": 0.002,
+          "retried": false
         },
         {
           "id": "cf007",
@@ -514,7 +547,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 10,
-          "cost": 0.0024
+          "cost": 0.0024,
+          "retried": false
         },
         {
           "id": "cf008",
@@ -531,7 +565,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 8,
-          "cost": 0.0018
+          "cost": 0.0018,
+          "retried": false
         },
         {
           "id": "cf009",
@@ -548,7 +583,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 29,
-          "cost": 0.0413
+          "cost": 0.0413,
+          "retried": false
         },
         {
           "id": "cf010",
@@ -565,7 +601,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 21,
-          "cost": 0.029
+          "cost": 0.029,
+          "retried": false
         },
         {
           "id": "cf011",
@@ -582,7 +619,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 12,
-          "cost": 0.003
+          "cost": 0.003,
+          "retried": false
         },
         {
           "id": "cf012",
@@ -599,7 +637,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 11,
-          "cost": 0.0021
+          "cost": 0.0021,
+          "retried": false
         },
         {
           "id": "cf013",
@@ -616,7 +655,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 13,
-          "cost": 0.0027
+          "cost": 0.0027,
+          "retried": false
         },
         {
           "id": "cf014",
@@ -633,7 +673,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 12,
-          "cost": 0.0149
+          "cost": 0.0149,
+          "retried": false
         },
         {
           "id": "cf015",
@@ -650,7 +691,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 8,
-          "cost": 0.0019
+          "cost": 0.0019,
+          "retried": false
         },
         {
           "id": "cf016",
@@ -667,7 +709,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 9,
-          "cost": 0.0021
+          "cost": 0.0021,
+          "retried": false
         },
         {
           "id": "cf017",
@@ -684,7 +727,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 19,
-          "cost": 0.027
+          "cost": 0.027,
+          "retried": false
         },
         {
           "id": "cf018",
@@ -701,7 +745,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 10,
-          "cost": 0.002
+          "cost": 0.002,
+          "retried": false
         },
         {
           "id": "cf019",
@@ -718,7 +763,8 @@
           "baseline": "released",
           "relationMet": true,
           "seconds": 10,
-          "cost": 0.0022
+          "cost": 0.0022,
+          "retried": false
         }
       ]
     }

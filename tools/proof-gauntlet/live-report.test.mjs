@@ -23,7 +23,8 @@ test('new AI evaluation covers exactly the pre-labelled 19 files',()=>{
 
 test('real AI release-hook decisions require both independent approvals',()=>{
   for(const name of ['claude-opus-5-5','claude-haiku-5-5']){
-    const results=load('tools/proof-gauntlet/live-results/'+name+'.json').results;
+    const retry='tools/proof-gauntlet/live-results/'+name+'.retry.json';
+    const results=[...load('tools/proof-gauntlet/live-results/'+name+'.json').results,...(fs.existsSync(path.join(ROOT,retry))?load(retry).results:[])];
     for(const row of results.filter(r=>r.outcome==='released')){
       assert.equal(row.secondOpinion,'confirmed',name+'/'+row.id+' has no second-model approval');
       assert.equal(row.thirdCheck,'confirmed',name+'/'+row.id+' has no Google approval');
@@ -67,15 +68,27 @@ test('independently rebuilt fresh report has correct source and case dimensions'
 });
 
 test('API workspace limit is not counted as a successful rejection',()=>{
+  const first=load('tools/proof-gauntlet/live-results/claude-opus-5-5.json');
+  const errors=first.results.filter(r=>r.decision==='error');
+  assert.deepEqual(errors.map(r=>r.id),['cf018','cf019']);
+  for(const r of errors)assert.equal(r.pass,false,r.id+' API error scored as a pass');
+  assert.equal(first.summary.passed,17);
   const {summary}=build();
   const opus=summary.models['claude-opus-5-5'];
   const haiku=summary.models['claude-haiku-5-5'];
-  assert.equal(opus.completed,17);
-  assert.equal(opus.correctAnswers,17);
-  assert.deepEqual(opus.technicalFailures.map(x=>x.id),['cf018','cf019']);
+  assert.deepEqual(opus.firstRunErrors.map(x=>x.id),['cf018','cf019']);
+  assert.deepEqual(opus.retried,['cf018','cf019']);
+  for(const id of opus.retried){
+    const row=opus.rows.find(r=>r.id===id);
+    assert.notEqual(row.decision,'error');
+    assert.equal(row.retried,true);
+  }
+  assert.equal(opus.completed,19);
+  assert.equal(opus.correctAnswers,19);
+  assert.equal(opus.technicalFailures.length,0);
   assert.equal(opus.falseRelease,0);
-  assert.equal(opus.eligibleRelations,17);
   assert.equal(haiku.completed,19);
   assert.equal(haiku.correctAnswers,19);
   assert.equal(haiku.technicalFailures.length,0);
+  assert.deepEqual(haiku.retried,[]);
 });

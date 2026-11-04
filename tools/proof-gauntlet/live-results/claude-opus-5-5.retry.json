@@ -1,0 +1,70 @@
+{
+  "summary": {
+    "reviewModel": "claude-opus-5-5",
+    "auditModel": "claude-haiku-5-5",
+    "gemini": true,
+    "date": "2026-11-04",
+    "cases": 2,
+    "adjudicated": 2,
+    "technicalErrors": [],
+    "passed": 2,
+    "falseReleases": 0,
+    "falseHolds": 0,
+    "aloneWouldPay": [],
+    "cost": 0.1578,
+    "geminiCost": 0,
+    "allCasesCost": 0.1578
+  },
+  "results": [
+    {
+      "id": "cf018",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 not_met 65%",
+        "c2 met 95%",
+        "c3 met 90%"
+      ],
+      "summary": "The Spanish translation reads well and keeps the brand name, but the submission doesn't clearly include the required subtitle.",
+      "seconds": 21,
+      "usage": {
+        "review": {
+          "inputTokens": 12585,
+          "outputTokens": 1605
+        }
+      },
+      "cost": 0.0824
+    },
+    {
+      "id": "cf019",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 85%",
+        "c2 not_met 90%",
+        "c3 met 90%"
+      ],
+      "summary": "The Spanish translation is fluent and complete, but the brand name was changed from \"Lumo\" to \"LumoX\", which breaks criterion c2.",
+      "seconds": 19,
+      "usage": {
+        "review": {
+          "inputTokens": 12236,
+          "outputTokens": 1322
+        }
+      },
+      "cost": 0.0754
+    }
+  ]
+}
