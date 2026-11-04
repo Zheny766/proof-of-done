@@ -9,16 +9,17 @@ import { card, currentMinute, h2, noSubscribe } from './ui';
 export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey?: string | null }) {
   const p = m.payment;
   const rows: [string, string | undefined][] = [
-    ['Order', p.orderId],
-    ['Authorization', p.authorizationId && `${p.authorizationId} · ${p.authorizationStatus ?? ''}`],
-    ['Reauthorized', p.reauthorizedAt && `${fmtDate(p.reauthorizedAt)} · was ${p.previousAuthorizationId}`],
-    ['Honor period ends', p.honorExpiresAt && fmtDate(p.honorExpiresAt)],
-    ['Authorization expires', p.expiresAt && fmtDate(p.expiresAt)],
-    ['Releases', m.status === 'verified' && m.releaseAt ? fmtDate(m.releaseAt) : undefined],
+    ['PayPal order', p.orderId],
+    ['Hold (authorization)', p.authorizationId && `${p.authorizationId} · ${p.authorizationStatus ?? ''}`],
+    ['Hold renewed', p.reauthorizedAt && `${fmtDate(p.reauthorizedAt)} · was ${p.previousAuthorizationId}`],
+    ['PayPal guarantees it until', p.honorExpiresAt && fmtDate(p.honorExpiresAt)],
+    ['The hold ends', p.expiresAt && fmtDate(p.expiresAt)],
+    ['Pays out at', m.status === 'verified' && m.releaseAt ? fmtDate(m.releaseAt) : undefined],
     ['Deadline', m.dueAt && ['funded', 'reviewing', 'changes_requested', 'escalated'].includes(m.status) ? fmtDate(m.dueAt) : undefined],
-    ['Capture', p.captureId && (p.capturedAmount ? `${p.captureId} · ${fmtMoney(p.capturedAmount, m.currency)} of ${fmtMoney(m.amount, m.currency)}` : p.captureId)],
-    ['Payout', p.payoutBatchId ? `${p.payoutBatchId} · ${p.payoutStatus}` : p.payoutStatus],
-    ['Voided', p.voidedAt && fmtDate(p.voidedAt)],
+    ['Charged (capture)', p.captureId && (p.capturedAmount ? `${p.captureId} · ${fmtMoney(p.capturedAmount, m.currency)} of ${fmtMoney(m.amount, m.currency)}` : p.captureId)],
+    ['Paid to the freelancer', p.payoutBatchId ? `${p.payoutAmount ? `${fmtMoney(p.payoutAmount, m.currency)} · ` : ''}${p.payoutBatchId} · ${p.payoutStatus}` : p.payoutStatus],
+    ['PayPal’s fee', p.paypalFee && fmtMoney(p.paypalFee, m.currency)],
+    ['Hold cancelled (voided)', p.voidedAt && fmtDate(p.voidedAt)],
   ];
   // PayPal only guarantees the funds for 3 days; capturing later can fail.
   const minute = useSyncExternalStore(noSubscribe, currentMinute, () => 0);
@@ -33,7 +34,7 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
       </div>
       {honorPassed && (
         <p suppressHydrationWarning className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          {p.reauthorizedAt ? 'The renewed' : 'The'} 3-day honor period ended on {fmtDate(p.honorExpiresAt!)}. PayPal may decline the capture; if it does, the hold stays and the client can fund again.
+          PayPal guarantees a hold for 3 days, and {p.reauthorizedAt ? 'the renewed one' : 'this one'} ran out on {fmtDate(p.honorExpiresAt!)}. PayPal may decline the charge; if it does, the hold stays and the client can fund again.
         </p>
       )}
       <dl className="mt-3 space-y-2 text-sm">
@@ -144,16 +145,16 @@ export function Timeline({ m }: { m: Milestone }) {
 export function SealNote({ seal, anchor }: { seal: NonNullable<Milestone['seal']>; anchor?: string }) {
   return (
     <p className={`mt-3 rounded-xl px-3 py-2 text-xs leading-relaxed ring-1 ring-inset ${seal.intact ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-rose-50 text-pp-danger ring-rose-200'}`}>
-      {seal.intact ? '✓ Sealed record: ' : '✗ This record was changed: '}
+      {seal.intact ? '✓ Tamper-proof record: ' : '✗ This record was changed: '}
       {seal.intact
-        ? `${seal.events === 1 ? 'the step carries' : `each of the ${seal.events} steps carries`} a SHA-256 of itself, the step before and the deal's terms, so none can change unnoticed.`
+        ? `${seal.events === 1 ? 'the step is' : `each of the ${seal.events} steps is`} locked to the one before it and to the deal's terms (SHA-256), so nobody can change what happened unnoticed.`
         : seal.termsChanged
           ? 'the criteria, amount, files or payee are not what the last step sealed.'
           : `step ${(seal.brokenAt ?? 0) + 1} no longer matches its hash.`}{' '}
       Fingerprint <span className="break-all font-mono">{seal.head.slice(0, 16)}…</span>
       {anchor && (
         <>
-          {' '}· PayPal&apos;s capture note holds <span className="font-mono">{anchor.slice(0, 16)}</span>
+          {' '}· PayPal keeps a copy with the payment: <span className="font-mono">{anchor.slice(0, 16)}</span>
         </>
       )}
     </p>

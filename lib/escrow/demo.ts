@@ -55,8 +55,11 @@ export function seedDemo(count = 30): number {
     (m.paypalCalls ??= []).push({ at, method, path, status, ms: 250 + Math.floor(rand() * 700), requestId });
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
   const now = Date.now();
+  let boardJobs = 0;
   for (let i = 0; i < count; i++) {
-    const job = JOBS[i % JOBS.length];
+    // Board jobs (every fourth) step through the list on their own, so "Recently taken" never shows
+    // the same job three times.
+    const job = i % 4 === 1 ? JOBS[(boardJobs++ * 5 + 2) % JOBS.length] : JOBS[i % JOBS.length];
     const [fName, fHandle] = pick(FREELANCERS);
     const [cName, cEmail] = pick(CLIENTS);
     const amount = (job.amount * (0.8 + rand() * 0.5)).toFixed(2);

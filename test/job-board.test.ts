@@ -223,7 +223,10 @@ test('the labelled demo history never shows up as a job, even after its claims l
   const { seedDemo } = await import('../lib/escrow/demo.ts');
   store.deleteAll();
   seedDemo(12);
-  for (const m of store.listMilestones()) if (m.board) store.updateMilestone(m.id, (x) => void (x.board!.claimedAt = new Date(Date.now() - 3 * 86_400_000).toISOString()));
+  // Every board deal in the history funded and untouched, with its claim long lapsed.
+  for (const m of store.listMilestones()) {
+    if (m.board) store.updateMilestone(m.id, (x) => Object.assign(x, { status: 'funded', submissions: [], board: { ...x.board!, claimedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() } }));
+  }
   assert.ok(store.listMilestones().some((m) => m.board && m.status === 'funded'), 'the history has board deals still funded');
   assert.equal(service.openJobs().filter((m) => m.description.startsWith('[Demo data]')).length, 0);
 });
