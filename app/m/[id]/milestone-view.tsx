@@ -144,21 +144,25 @@ export function MilestoneView({
   }, [initial.id, link, key, role]);
 
   // Fast while the reviewer works (findings appear live), slower otherwise so the other party's
-  // actions show up without a reload. Stops once nothing can change any more.
-  const settled = m.status === 'cancelled' || (m.status === 'released' && !['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? ''));
+  // actions show up without a reload. Stops once nothing can change any more. The status changes a
+  // moment before the review writes its decision and summary, so a review still finishing counts as working.
+  const finishing = !!m.reviews.length && !m.reviews.at(-1)?.finishedAt;
+  const settled = !finishing && (m.status === 'cancelled' || (m.status === 'released' && !['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? '')));
   useEffect(() => {
     if (settled) return;
     const tick = () => {
       if (!document.hidden) refresh().catch(() => {});
     };
-    const t = setInterval(tick, m.status === 'reviewing' ? 1200 : 5000);
+    // Once at once too: a page restored by Back (or opened from the browser's cache) shows the deal as it was then.
+    tick();
+    const t = setInterval(tick, m.status === 'reviewing' || finishing ? 1200 : 5000);
     // Coming back to the tab: catch up right away instead of on the next tick.
     document.addEventListener('visibilitychange', tick);
     return () => {
       clearInterval(t);
       document.removeEventListener('visibilitychange', tick);
     };
-  }, [m.status, settled, refresh]);
+  }, [m.status, settled, finishing, refresh]);
 
   const review = m.reviews.at(-1);
   const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);

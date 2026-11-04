@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Audit, Milestone } from '@/lib/escrow/types';
-import { currentReview } from '@/lib/escrow/policy';
+import { currentReview, latestFindings } from '@/lib/escrow/policy';
 import { fmtMoney } from '@/app/components/status';
 import { modelName } from './ui';
 
@@ -107,8 +107,11 @@ export function Outcome({ m }: { m: Milestone }) {
       </section>
     );
   }
-  if (m.status === 'changes_requested' && review?.decision === 'request_changes') {
-    const met = (review.findings ?? []).filter((f) => f.status === 'met').length;
+  // The AI's request is on the timeline at once; the review's own decision is written a moment later.
+  if (m.status === 'changes_requested' && m.timeline.findLast((e) => e.type === 'changes_requested')?.actor === 'agent') {
+    // Cleared means met at the client's confidence threshold, the same bar the release rule uses.
+    const met = latestFindings(m.criteria, review?.findings ?? []).filter((f) => f?.status === 'met' && f.confidence >= m.releaseThreshold).length;
+    const why = (review?.feedback ?? review?.summary ?? '').split('\n')[0];
     return (
       <section id="outcome" className="pod-rise mt-6 scroll-mt-4 rounded-3xl bg-amber-50 px-6 py-5 ring-1 ring-amber-200 sm:px-8">
         <div className="flex items-start gap-3 sm:gap-4">
@@ -121,8 +124,9 @@ export function Outcome({ m }: { m: Milestone }) {
               {fmtMoney(m.amount, m.currency)} <span className="text-pp-muted">stays on hold until a delivery passes.</span>
             </h2>
             <p className="mt-1.5 text-[15px] text-pp-ink">
-              The AI found {met} of {m.criteria.length} criteria met and asked {m.freelancer.name} for changes. Nothing was charged; the verdict below says what is missing.
+              The AI cleared {met} of {m.criteria.length} criteria and asked {m.freelancer.name} for changes. Nothing was charged; the verdict below says what is missing.
             </p>
+            {why && <p className="mt-2 line-clamp-2 text-sm text-pp-muted">“{why}”</p>}
           </div>
         </div>
       </section>

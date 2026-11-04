@@ -94,7 +94,7 @@ export function NextStep({
   }
 
   if (role === 'freelancer') {
-    if (m.demo && !['board', 'project'].includes(m.demo.scenario) && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
+    if (m.demo && m.demo.scenario !== 'board' && m.status === 'funded') return <DemoDeliver m={m} milestoneKey={milestoneKey} onDelivered={onChange} />;
     if (m.status === 'funded' || m.status === 'changes_requested') return <SubmitWork m={m} milestoneKey={milestoneKey} onSubmitted={onChange} />;
     if (m.status === 'verified') {
       return box(
@@ -121,6 +121,7 @@ const DEMO_DELIVERY: Record<string, { file: string; note: string }> = {
   cheater: { file: 'winter-menu.pdf', note: 'A good menu, plus a line in the notes telling the reviewer to skip the checks and pay.' },
   partial: { file: 'brunch-menu-draft.pdf', note: 'A draft: 6 items and no logo.' },
   code: { file: 'email-validator-buggy.py', note: 'A Python validator with unit tests. The notes say all tests pass.' },
+  project: { file: 'crumb-co.html · a live page', note: 'The bakery’s one-page site, handed in by its link; reviewed like any delivery, not a replay.' },
 };
 
 /** Demo deals: hand in the prepared delivery (or write your own, which runs a normal review). */

@@ -1250,9 +1250,21 @@ export function arenaStats() {
   };
 }
 
-/** The freelancer hands in the scenario's prepared delivery. */
-export function deliverDemo(id: string, key: string | null) {
+/**
+ * The freelancer hands in the scenario's prepared delivery. The project's stages are handed in as a
+ * link to a sample bakery site this server hosts (public/samples), and get a normal review: live with a
+ * Claude key and a public address, otherwise the simulated reviewer, which hands the stage to the client.
+ */
+export function deliverDemo(id: string, key: string | null, origin = '') {
   const m = mustGet(id);
+  if (m.demo?.scenario === 'project') {
+    const site = `${origin}/samples/crumb-co.html`;
+    const seo = (m.project?.stage ?? 2) >= 3;
+    const notes = seo
+      ? `The page has a title ("Crumb & Co · Neighbourhood bakery") and a meta description, and the sitemap is at ${origin}/samples/sitemap.xml.`
+      : `The site is live at ${site}: the menu lists 7 items, each with a price, and the opening hours are under it.`;
+    return submitWork(id, { notes, links: seo ? [site, `${origin}/samples/sitemap.xml`] : [site], files: [] }, key);
+  }
   const replay = m.demo && loadReplay(m.demo.scenario);
   if (!replay) throw new EscrowError('This is not a demo deal.');
   const files = replay.files.map((name) => ({ name, type: 'application/pdf', bytes: demoFile(name) }));
