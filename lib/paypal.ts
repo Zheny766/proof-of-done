@@ -177,6 +177,8 @@ export function createAuthorizeOrder(input: {
         paypal: {
           experience_context: {
             brand_name: 'Proof of Done',
+            // The site is in English, so PayPal's window is too, whatever the buyer's browser language.
+            locale: 'en-US',
             user_action: 'CONTINUE',
             shipping_preference: 'NO_SHIPPING',
           },

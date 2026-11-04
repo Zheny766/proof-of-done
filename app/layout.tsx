@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Instrument_Serif, Inter } from "next/font/google";
 import "./globals.css";
+import { EnglishValidation } from "./components/english-validation";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -38,7 +39,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistMono.variable} ${inter.variable} ${display.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <EnglishValidation />
+        {children}
+      </body>
     </html>
   );
 }
