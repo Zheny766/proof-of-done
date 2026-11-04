@@ -28,3 +28,46 @@ export function criterionHint(text: string): CriterionHint | null {
   if (!/\s/.test(t)) return { word: t, hint: 'is a single word. Say what has to be delivered and how the reviewer can tell.' };
   return null;
 }
+
+/**
+ * Two criteria that can't both be met ("exactly 12 lines" and "at least 15 lines"): bounds on the same
+ * counted thing that don't overlap. The deal would end in a dispute however good the work, so it's
+ * refused while it's written. Null when the counts fit together.
+ */
+export function criteriaConflict(criteria: string[]): string | null {
+  const bounds = new Map<string, { lo: number; hi: number; from: string[] }>();
+  const unit = (w: string) => w.toLowerCase().replace(/(es|s)$/, '');
+  const N = String.raw`(\d+)\s+([a-z]+)`;
+  const forms: [RegExp, (a: number, b?: number) => [number, number]][] = [
+    [new RegExp(String.raw`\bexactly\s+${N}`, 'gi'), (a) => [a, a]],
+    [new RegExp(String.raw`\b(?:at least|no fewer than|minimum of|a minimum of)\s+${N}`, 'gi'), (a) => [a, Infinity]],
+    // "no X is more than 30 words" is a negation the rules can't read, so a bare "more than" is left alone.
+    [new RegExp(String.raw`\b(?:at most|no more than|not more than|maximum of|a maximum of|up to)\s+${N}`, 'gi'), (a) => [-Infinity, a]],
+    [new RegExp(String.raw`\b(?:fewer|less) than\s+${N}`, 'gi'), (a) => [-Infinity, a - 1]],
+  ];
+  for (const text of criteria) {
+    for (const [re, range] of forms) {
+      for (const m of text.matchAll(re)) {
+        const [lo, hi] = range(Number(m[1]));
+        const key = unit(m[2]);
+        const b = bounds.get(key) ?? { lo: -Infinity, hi: Infinity, from: [] };
+        b.lo = Math.max(b.lo, lo);
+        b.hi = Math.min(b.hi, hi);
+        b.from.push(m[0]);
+        bounds.set(key, b);
+        if (b.lo > b.hi) return `"${b.from.join('" and "')}" can't both be true. Pick one number.`;
+      }
+    }
+    // "40 to 80 words", "between 40 and 80 words"
+    for (const m of text.matchAll(/\b(?:between\s+)?(\d+)\s*(?:to|and|-|–)\s*(\d+)\s+([a-z]+)/gi)) {
+      const key = unit(m[3]);
+      const b = bounds.get(key) ?? { lo: -Infinity, hi: Infinity, from: [] };
+      b.lo = Math.max(b.lo, Number(m[1]));
+      b.hi = Math.min(b.hi, Number(m[2]));
+      b.from.push(m[0]);
+      bounds.set(key, b);
+      if (b.lo > b.hi) return `"${b.from.join('" and "')}" can't both be true. Pick one number.`;
+    }
+  }
+  return null;
+}

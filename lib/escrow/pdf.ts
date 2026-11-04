@@ -1,11 +1,27 @@
 // A plain PDF of text lines, for PayPal: a dispute takes evidence as PDF, JPG, PNG or GIF files, not
 // JSON. Built by hand (Helvetica, A4, line wrapping, as many pages as it takes) so the deal record
-// needs no PDF library. Text outside Latin-1 is replaced, since the standard fonts can't draw it.
+// needs no PDF library. Text outside Latin-1 loses its accents or is spelled in Latin letters (Cyrillic), and what can't be is replaced, since the standard fonts can't draw it.
 
 export type PdfLine = { text: string; bold?: boolean; size?: number; gap?: number };
 
 const PAGE = { width: 595, height: 842, margin: 50 };
 
+// Cyrillic spelled in Latin letters, so a Russian or Ukrainian name stays readable to PayPal's staff.
+const CYRILLIC: Record<string, string> = Object.fromEntries(
+  [...'абвгдеёжзийклмнопрстуфхцчшщъыьэюяіїєґ'].map((c, i) => [c, ['a', 'b', 'v', 'g', 'd', 'e', 'e', 'zh', 'z', 'i', 'y', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'f', 'kh', 'ts', 'ch', 'sh', 'shch', '', 'y', '', 'e', 'yu', 'ya', 'i', 'yi', 'ye', 'g'][i]]),
+);
+/** One character the standard fonts can't draw: its letter without accents, or spelled in Latin, or '?'. */
+function fallback(c: string): string {
+  const plain = c.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  if (plain && /^[\x20-\x7e\xa0-\xff]+$/.test(plain)) return plain;
+  if (c === 'Đ' || c === 'đ') return c === 'Đ' ? 'D' : 'd';
+  const lower = c.toLowerCase();
+  if (lower in CYRILLIC) {
+    const latin = CYRILLIC[lower];
+    return c === lower ? latin : latin.charAt(0).toUpperCase() + latin.slice(1);
+  }
+  return '?';
+}
 const latin1 = (s: string) =>
   s
     .replace(/[‘’]/g, "'")
@@ -13,7 +29,7 @@ const latin1 = (s: string) =>
     .replace(/[–—]/g, '-')
     .replace(/…/g, '...')
     .replace(/→/g, '->')
-    .replace(/[^\x20-\x7e\xa0-\xff]/g, '?');
+    .replace(/[^\x20-\x7e\xa0-\xff]/g, fallback);
 const escape = (s: string) => s.replace(/[\\()]/g, (c) => `\\${c}`);
 
 /** Breaks a line to fit the page: Helvetica averages about half the font size per character. */

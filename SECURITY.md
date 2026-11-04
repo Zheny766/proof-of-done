@@ -82,6 +82,11 @@ Sandbox only: the app talks to `api-m.sandbox.paypal.com` and nothing else.
 | **Two servers sharing one data folder** (each with its own queue, so two captures could race) | The first process to write holds the folder; a second refuses to write and says why | `test/stress.test.ts` › *a second server on the same data folder refuses to write* |
 | **Data restored without its key**, or `POD_KEY_SECRET` set after deals were sealed with the keyring | Seals open with either key; with neither, loading stops with a plain error instead of handing out new links | `test/races.test.ts` › *the two secret links are encrypted in the data file, and still work* |
 | **Odd amounts**: fractions of a cent, NaN, infinity, a trillion | Amounts must be whole cents between $1 and $10,000, everywhere an amount is entered | `test/races.test.ts` › *amounts must be whole cents* |
+| **A deal that can't be met** ("exactly 12 lines" and "at least 15 lines") | Criteria whose counts can't both hold are refused when the deal is created, a project stage is written, or new terms are offered ([criteria-lint.ts](lib/escrow/criteria-lint.ts) `criteriaConflict`) | `test/leftovers.test.ts` › *criteria that contradict each other are refused* |
+| **A promise the hold can't keep**: a fix window running past the end of PayPal's hold | The window ends with the hold, and the deal says so | `test/leftovers.test.ts` › *the time to fix never runs past the end of PayPal’s hold* |
+| **A stored file changed after delivery** (by an operator, a bug or someone with the disk) | The certificate re-hashes stored files and says when one no longer matches its delivered SHA-256; the reviewer's log keeps a fingerprint of each page it read | `test/leftovers.test.ts` › *a stored file changed after delivery no longer matches its fingerprint* |
+| **Files left behind** when a delivery's record can't be saved; **an outage using up deliveries** | The files are removed again; a review that failed on our side doesn't count towards the 12 deliveries | `test/leftovers.test.ts` › *a review that failed on our side does not use up one of the 12 deliveries* |
+| **Every money rule at once, under random use** | The state fuzzer runs 120 random action sequences and checks after every step: a payout only from a capture and never above it, whole cents, money moved only on a recorded decision, no verified work cancelled, never captured or paid out twice | `test/fuzz.test.ts` |
 | **A corrupt data file** silently treated as empty (and then overwritten) | Loading refuses; nothing is written | `test/escrow-flow.test.ts` › *a corrupt data file is an error, never an empty store* |
 
 ## The open job board and agents
@@ -117,6 +122,8 @@ Sandbox only: the app talks to `api-m.sandbox.paypal.com` and nothing else.
 - With `GEMINI_API_KEY` set, the delivery also goes to Google's Gemini API. On Google's free tier Google may use what it's sent to improve its products; with billing on the key, it doesn't.
 
 - There are no accounts: each party's power is a secret link. Anyone who gets the link has that role.
+- Timers trust the server's clock: a clock that jumps forward could close an objection window early.
+- A dispute PDF keeps Latin, accented and Cyrillic text readable; Chinese, Arabic and other scripts show as `?` (PayPal also gets the record as text).
 - The dashboard is an operator view with no login (email addresses are removed).
 - Storage is a JSON file for one server process; production needs a database with transactions instead of the per-milestone queue.
 - A freelancer's refund debt and track record follow the PayPal email they're paid at. Someone who switches to a new email starts fresh; real accounts (Log in with PayPal) would close that.

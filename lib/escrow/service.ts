@@ -10,6 +10,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
 import { cancelBlock, isOverdue, liveReviewRequired, MIN_REASON, objectionBlock } from './policy.ts';
+import { criteriaConflict } from './criteria-lint.ts';
 import { sniffType } from './evidence.ts';
 import { disputeEvidence } from './disputes.ts';
 import { GEMINI_MODELS, isGeminiConfigured, runGeminiAudit } from './gemini.ts';
@@ -121,6 +122,8 @@ export const CreateMilestoneInput = z.object({
 
 export function createMilestone(raw: unknown): Milestone {
   const input = CreateMilestoneInput.parse(raw);
+  const conflict = criteriaConflict(input.criteria.map((c) => c.text));
+  if (conflict) throw new EscrowError(`These criteria contradict each other: ${conflict}`);
   if (!input.postToBoard && (!input.freelancerName || !input.freelancerEmail)) {
     throw new EscrowError('Add the freelancer, or post the job on the open board.');
   }
@@ -183,6 +186,10 @@ export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, am
 export function createProject(raw: unknown): Milestone[] {
   const input = CreateProjectInput.parse(raw);
   if (!input.freelancerName || !input.freelancerEmail) throw new EscrowError('A project needs the freelancer: projects are not posted on the open board.');
+  for (const st of input.stages) {
+    const conflict = criteriaConflict(st.criteria.map((c) => c.text));
+    if (conflict) throw new EscrowError(`The criteria of "${st.title}" contradict each other: ${conflict}`);
+  }
   const projectId = newId('prj');
   const access = newAccess();
   const stages = input.stages.map((st) =>
@@ -332,7 +339,9 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
   }
   if (!input.notes.trim() && input.links.length === 0 && input.files.length === 0) throw new EscrowError('Add notes, a link or a file.');
   // Every delivery is stored and reviewed: a deal can't be used to fill the disk or the review budget.
-  if (m.submissions.length >= MAX_DELIVERIES) {
+  // A review that failed on our side (an outage, not the work) doesn't use up a delivery.
+  const counted = m.submissions.filter((s) => !m.reviews.find((r) => r.submissionId === s.id)?.log.some((l) => l.kind === 'error')).length;
+  if (counted >= MAX_DELIVERIES) {
     throw new EscrowError(`This deal has had ${MAX_DELIVERIES} deliveries. Settle it, change the terms, or the client can cancel and start a new one.`, 409);
   }
   // The same delivery again, after the AI sent it back, would only be a second roll of the dice.
@@ -361,7 +370,16 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
   const reviewId = newId('rev');
   const replay = input.replay ? loadReplay(input.replay) : null;
   const live = isClaudeConfigured() && liveReviewsLeft() && (!m.demo || demoReviewsLeft());
-  const milestone = updateMilestone(id, (x) => {
+  const saved = (fn: () => Milestone) => {
+    try {
+      return fn();
+    } catch (error) {
+      // The files went to disk before the deal could be saved: don't leave them with no owner.
+      fs.rmSync(dir, { recursive: true, force: true });
+      throw error;
+    }
+  };
+  const milestone = saved(() => updateMilestone(id, (x) => {
     if (payoutEmail && payoutEmail !== x.freelancer.email) {
       x.freelancer.email = payoutEmail;
       pushEvent(x, 'freelancer', 'payout_email', `${x.freelancer.name} set the PayPal email for the payout`);
@@ -383,7 +401,7 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     const parts = [attachments.length && count(attachments.length, 'file'), input.links.length && count(input.links.length, 'link')].filter(Boolean);
     pushEvent(x, 'freelancer', 'submitted', `${x.freelancer.name} submitted the work${parts.length ? ` (${parts.join(', ')})` : ': notes only'}`);
     pushEvent(x, 'agent', 'review_started', 'The AI reviewer started checking the work against the acceptance criteria');
-  });
+  }));
   return { milestone, reviewId };
 }
 
@@ -885,6 +903,8 @@ async function changeTermsNow(id: string, input: z.infer<typeof TermsInput>, key
 
   if (input.action === 'propose') {
     if (m.termsChange) throw new EscrowError('There is already an open offer to change the terms.');
+    const conflict = criteriaConflict(input.criteria);
+    if (conflict) throw new EscrowError(`The new criteria contradict each other: ${conflict}`);
     const to: Terms = { criteria: input.criteria, amount: input.amount.toFixed(2), ...(input.dueDays && { dueDays: input.dueDays }) };
     // PayPal holds what the client approved; more than that is a new payment.
     const held = m.payment.authorizationId ? Number(m.payment.authorizedAmount ?? m.amount) : Infinity;

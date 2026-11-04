@@ -49,6 +49,14 @@ function broken(m: Milestone): string[] {
     m.status === 'reviewing' && m.reviews.at(-1)?.finishedAt && 'still reviewing after the review finished',
     m.timeline.some((e, i) => i > 0 && e.at < m.timeline[i - 1].at) && 'timeline out of order',
     !checkSeal(m).intact && 'record chain broken',
+    // Money: a payout only from a capture, never more than PayPal left; amounts in whole cents; and
+    // money moved only on a recorded decision (the AI's, the client's, a settlement or a closed window).
+    p.payoutBatchId && !p.captureId && 'payout without a capture',
+    p.payoutAmount && Number(p.payoutAmount) > Number(p.capturedNet ?? p.capturedAmount ?? m.amount) + 1e-9 && 'paid out more than was captured',
+    Math.abs(Number(m.amount) * 100 - Math.round(Number(m.amount) * 100)) > 1e-6 && 'amount not in whole cents',
+    p.captureId && !['verified', 'approved', 'settled', 'window_closed'].some((t) => count(t) > 0) && 'money moved with nobody deciding',
+    // Fair to the freelancer: verified work isn't cancelled away unless a check flagged it.
+    m.status === 'cancelled' && m.timeline.findLast((e) => e.type === 'verified' || e.type === 'changes_requested' || e.type === 'submitted')?.type === 'verified' && 'verified work cancelled',
   ].filter((x): x is string => typeof x === 'string');
 }
 

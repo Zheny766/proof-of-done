@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { checkSeal } from '@/lib/escrow/chain';
 import { currentReview, latestFindings } from '@/lib/escrow/policy';
 import { readMilestone } from '@/lib/escrow/service';
+import { storedFileIntact } from '@/lib/escrow/store';
 import { SiteHeader } from '@/app/components/site-header';
 import { fmtDay, fmtMoney, fmtTime, payoutText } from '@/app/components/status';
 import { modelName } from '../ui';
@@ -166,6 +167,11 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
             </ul>
           ) : (
             <p className="mt-3 text-sm text-pp-muted">Notes and links only, no files.</p>
+          )}
+          {files.some((a) => storedFileIntact(a) === false) && (
+            <p className="mt-3 rounded-xl bg-rose-50 px-4 py-3 text-[15px] text-rose-900 ring-1 ring-inset ring-rose-200">
+              A file stored on this server no longer matches the fingerprint taken when it was delivered: it was changed afterwards. The fingerprints above are the delivered ones.
+            </p>
           )}
           {files.some((a) => a.sha256) && <CheckFile hashes={files.flatMap((a, i) => (a.sha256 ? [{ name: fileLabel(i, a.mime), sha256: a.sha256 }] : []))} />}
 

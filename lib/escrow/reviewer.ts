@@ -5,6 +5,7 @@ import 'server-only';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodTool } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
@@ -213,7 +214,11 @@ export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks, cod
       if (++fetches > MAX_FETCHES) return `Error: at most ${MAX_FETCHES} pages per review. Decide with what you have.`;
       hooks.log({ kind: 'tool', text: `Opening ${url}` });
       const result = await fetchLink(url, allowedHosts);
-      if (!result.startsWith('Error')) pages.push({ url, text: result.slice(0, 20_000) });
+      if (!result.startsWith('Error')) {
+        pages.push({ url, text: result.slice(0, 20_000) });
+        // A page can change after the check: keep a fingerprint of the text the reviewer actually read.
+        hooks.log({ kind: 'info', text: `Read ${url}: ${result.length} characters, SHA-256 ${createHash('sha256').update(result).digest('hex').slice(0, 16)}` });
+      }
       return result;
     },
   });
