@@ -72,7 +72,7 @@ function Run({ run }: { run: SandboxRun }) {
     <article className="rounded-3xl border border-pp-border bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-2xl text-pp-navy">{run.title}</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-pp-navy">{run.title}</h2>
           <p suppressHydrationWarning className="mt-1 text-sm text-pp-muted">
             {fmtMoney(run.amount, run.currency)} · {fmtDate(run.createdAt)}
             {run.takenBy && <> · taken from the job board by {run.takenBy}</>}
@@ -104,16 +104,26 @@ function Run({ run }: { run: SandboxRun }) {
       )}
 
       <h3 className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">How the money moved</h3>
-      <ol className="mt-3 space-y-2">
-        {steps.map(([label, id, at], i) => (
-          <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-xl bg-pp-canvas/70 px-4 py-3">
-            <span className="text-[15px] text-pp-ink">{label}</span>
-            <span suppressHydrationWarning className="font-mono text-xs text-pp-muted">
-              {id}
-              {at && <>{id && ' · '}{fmtDate(at)}</>}
-            </span>
-          </li>
-        ))}
+      {/* The money's path as a timeline: each stop with the id PayPal gave it. */}
+      <ol className="mt-4">
+        {steps.map(([label, id, at], i) => {
+          const last = i === steps.length - 1;
+          return (
+            <li key={i} className="relative flex gap-4 pb-5 last:pb-0">
+              <div className="relative flex w-4 shrink-0 justify-center">
+                <span className={`relative z-10 mt-1.5 h-3 w-3 rounded-full ring-4 ${last && p.captureId ? 'bg-emerald-500 ring-emerald-100' : 'bg-pod-electric ring-pp-highlight'}`} />
+                {!last && <span aria-hidden className="absolute top-5 -bottom-6 w-px bg-pp-border" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-medium text-pp-ink">{label}</div>
+                <div suppressHydrationWarning className="mt-0.5 break-all font-mono text-xs text-pp-muted">
+                  {id}
+                  {at && <>{id && ' · '}{fmtDate(at)}</>}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
       {run.calls.length > 0 && (

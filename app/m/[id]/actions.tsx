@@ -36,7 +36,7 @@ export function NextStep({
   const box = (title: string, body: React.ReactNode, tone = '') => (
     <section className={`${card} ${tone}`}>
       <h2 className={h2}>{waiting ? 'Status' : 'Your next step'}</h2>
-      <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{title}</p>
+      <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">{title}</p>
       <div className="mt-3 text-[15px] leading-relaxed text-pp-muted">{body}</div>
     </section>
   );
@@ -81,7 +81,7 @@ export function NextStep({
     return (
       <section className={card}>
         <h2 className={h2}>Your next step</h2>
-        <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">Put {amount} on hold</p>
+        <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">Put {amount} on hold</p>
         {m.postedBy && (
           <p className="mt-3 rounded-xl bg-pp-highlight px-4 py-3 text-sm text-pp-navy">
             <b>{m.postedBy}</b> wrote and posted this job for you. Check the brief and the criteria first: only you can approve the payment.
@@ -134,7 +134,7 @@ function DemoDeliver({ m, milestoneKey, onDelivered }: { m: Milestone; milestone
   return (
     <section className={`${card} border-pp-blue ring-2 ring-pp-highlight`}>
       <h2 className={h2}>Your next step</h2>
-      <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">Hand in the work</p>
+      <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">Hand in the work</p>
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-pp-border bg-pp-canvas/60 p-3">
         <svg viewBox="0 0 24 24" className="h-8 w-8 shrink-0 text-pp-danger" fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" /></svg>
         <div className="min-w-0">
@@ -179,7 +179,7 @@ function ArenaDeliver({ m, milestoneKey, onDelivered }: { m: Milestone; mileston
   return (
     <section className={`${card} border-pp-navy ring-2 ring-pp-highlight`}>
       <h2 className={h2}>Your next step</h2>
-      <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">Get this draft paid</p>
+      <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">Get this draft paid</p>
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-pp-border bg-pp-canvas/60 p-3">
         <svg viewBox="0 0 24 24" className="h-8 w-8 shrink-0 text-pp-danger" fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" /></svg>
         <div className="min-w-0">
@@ -278,7 +278,7 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
   return (
     <section className={card}>
       <h2 className={h2}>Your next step</h2>
-      <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{resubmit ? 'Fix it and resubmit' : 'Deliver the work'}</p>
+      <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">{resubmit ? 'Fix it and resubmit' : 'Deliver the work'}</p>
       <p className="mt-2 text-[15px] text-pp-muted">
         {fmtMoney(m.amount, m.currency)} is on hold at PayPal. When every criterion checks out, you get paid without anyone having to click approve.
         {m.dueAt && (
@@ -342,7 +342,7 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
       <h2 className={h2}>Your next step</h2>
-      <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{title}</p>
+      <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">{title}</p>
       <p className="mt-2 text-[15px] leading-relaxed text-pp-muted">
         {overdue ? (
           `${m.freelancer.name} hasn't delivered work that passed review by the deadline (${fmtDate(m.dueAt!)}). Keep waiting, or cancel and void the hold: nothing is charged.`
@@ -585,7 +585,7 @@ export function AfterPayment({ m, role, milestoneKey, onChange }: { m: Milestone
     return (
       <section className={`${card} border-orange-300 ring-2 ring-orange-100`}>
         <h2 className={h2}>After the payment</h2>
-        <p className="mt-2 font-display text-[26px] leading-tight text-pp-navy">{m.client.name} asks for {fmtMoney(open.amount, m.currency)} back</p>
+        <p className="mt-2 text-[22px] font-semibold leading-snug tracking-tight text-pp-navy">{m.client.name} asks for {fmtMoney(open.amount, m.currency)} back</p>
         <p className="mt-3 border-l-2 border-orange-300 pl-3 text-[15px] leading-relaxed text-pp-ink [overflow-wrap:anywhere]">“{open.text}”</p>
         <div className="mt-4 space-y-3">
           <input type="number" min={0.01} max={left} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount to refund" placeholder={`Refund ${fmtMoney(open.amount, m.currency)}, or another amount up to ${fmtMoney(left, m.currency)}`} className={`${field} h-11`} />

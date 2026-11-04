@@ -7,6 +7,7 @@ import { api, fmtDay, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/com
 import { AfterPayment, Disputes, NextStep, Settlement, ShareLink, TermsCard } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
+import { hasOutcome, Outcome } from './outcome';
 import { card, h2, initials } from './ui';
 import { AgentLog, Verdict } from './verdict';
 import { describeDeal } from '@/app/components/deal-facts';
@@ -209,7 +210,7 @@ export function MilestoneView({
             )}
             {m.objectionHours ? <span className="text-xs text-pp-muted">{m.objectionHours} h objection window</span> : null}
           </div>
-          <h1 className="mt-2 font-display text-4xl leading-tight text-pp-navy sm:text-[44px]">{m.title}</h1>
+          <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight text-pp-navy sm:text-[40px]">{m.title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-pp-muted">
             <Person name={m.client.name} tone="bg-pp-navy text-white" />
             <span>pays</span>
@@ -219,7 +220,7 @@ export function MilestoneView({
           <p className="mt-2 text-sm text-pp-muted">{STATUS[m.status].hint}</p>
         </div>
         <div className="shrink-0 sm:text-right">
-          <div className="font-display text-5xl tabular-nums text-pp-navy">{fmtMoney(paidNet ?? m.amount, m.currency)}</div>
+          <div className="text-4xl font-semibold tabular-nums tracking-tight text-pp-navy sm:text-5xl">{fmtMoney(paidNet ?? m.amount, m.currency)}</div>
           <div className="mt-1 text-xs text-pp-muted">
             {paidNet !== null && paidNet !== Number(m.amount)
               ? `paid of ${fmtMoney(m.amount, m.currency)}${refunded ? ` · ${fmtMoney(refunded, m.currency)} refunded` : ' · settled for part'}`
@@ -227,6 +228,8 @@ export function MilestoneView({
           </div>
         </div>
       </div>
+
+      <Outcome m={m} />
 
       {m.demo && m.demo.scenario !== 'board' && <DemoGuide m={m} role={role} />}
 
@@ -373,6 +376,7 @@ function projectTip(m: Milestone, role: Role): string | null {
 /** What to click next in a demo deal. */
 function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
   const s = m.demo!.scenario;
+  const quiet = hasOutcome(m);
   const other = role === 'client' ? 'freelancer' : 'client';
   const arena = s === 'arena';
   // An open offer is the next thing to act on, whichever side made it.
@@ -431,19 +435,20 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
                   : `Done: PayPal captured the hold and paid the freelancer${m.timeline.some((e) => e.type === 'approved') ? ', after the client approved' : ', and nobody clicked approve'}.${role === 'client' && !m.complaint ? ' If the work turns out wrong later, report a problem below and ask for money back.' : ''}`
                 : 'Cancelled: the hold was voided, nothing was charged.');
   return (
-    <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+    // Under an outcome screen the guide steps back to a light card, so the two don't compete.
+    <div className={`mt-6 flex flex-col gap-3 rounded-2xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${quiet ? 'bg-white text-pp-ink ring-1 ring-pp-border' : 'bg-pp-navy text-white'}`}>
       <div className="min-w-0">
-        <div className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Demo · {DEMO_TITLE[s] ?? s}</div>
+        <div className={`text-xs font-bold uppercase tracking-[0.16em] ${quiet ? 'text-pod-electric' : 'text-sky-200'}`}>Demo · {DEMO_TITLE[s] ?? s}</div>
         <div className="mt-1 text-[15px]">{tip}</div>
       </div>
       <div className="flex shrink-0 gap-2">
         {/* On a phone the next step is below the progress and the parties: one tap gets there. */}
         {role !== 'viewer' && (
-          <a href="#next-step" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-pp-navy hover:bg-sky-50 sm:hidden">
+          <a href="#next-step" className={`rounded-full px-4 py-2 text-sm font-semibold sm:hidden ${quiet ? 'bg-pod-electric text-white' : 'bg-white text-pp-navy hover:bg-sky-50'}`}>
             Your step ↓
           </a>
         )}
-        <a href="/demo" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">
+        <a href="/demo" className={`rounded-full px-4 py-2 text-sm font-semibold ${quiet ? 'bg-pp-canvas text-pp-navy hover:bg-pp-highlight' : 'bg-white/10 hover:bg-white/20'}`}>
           All scenarios
         </a>
       </div>

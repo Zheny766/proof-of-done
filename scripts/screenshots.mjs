@@ -60,7 +60,8 @@ async function shot(name, url, { full = false, clip, before } = {}) {
   await page.screenshot({ path: path.join(outDir, `${name}.png`), fullPage: full, ...(clip && { clip }) });
   console.log('saved', name);
 }
-await shot('home', '/');
+// The Proof Engine plays the honest run first; about 6 s in, the payment has been released.
+await shot('home', '/', { before: () => page.waitForTimeout(4600) });
 await shot('deal-paid', `/m/${honest.id}?key=${honest.clientKey}`, { full: true });
 await shot('deal-cheater', `/m/${cheater.id}?key=${cheater.clientKey}`, { full: true });
 await shot('project', `/m/${proj.milestones[1].id}?key=${proj.clientKey}`, { clip: { x: 0, y: 0, width: 1440, height: 900 } });
@@ -69,7 +70,7 @@ await shot('demo', '/demo', { full: true });
 for (const [name, page_] of [['dashboard-trust', 'Trust & PayPal'], ['dashboard-agents', 'Agents & job board']]) {
   await shot(name, '/dashboard', {
     before: async () => {
-      await page.getByText('Escrow pipeline: where every dollar is right now').waitFor({ timeout: 90_000 });
+      await page.getByText('Where every dollar is right now').waitFor({ timeout: 90_000 });
       await page.getByRole('button', { name: page_ }).click();
       await page.waitForTimeout(3000);
     },

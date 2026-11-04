@@ -32,7 +32,7 @@ export function StartDemo({ scenario, label, className = 'mt-5 h-11 w-full text-
           }
         }}
         disabled={busy}
-        className={`inline-flex items-center justify-center rounded-full bg-pp-navy px-5 font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-60 ${className}`}
+        className={`inline-flex items-center justify-center rounded-full bg-pod-electric px-5 font-semibold text-white hover:bg-pod-electric-dark disabled:opacity-60 ${className}`}
       >
         {busy ? 'Setting it up…' : label}
       </button>

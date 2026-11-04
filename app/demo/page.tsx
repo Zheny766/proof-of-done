@@ -75,11 +75,13 @@ export default async function DemoPage() {
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SCENARIOS.map((s) => (
             <section key={s.id} className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${s.tone}`}>
-              <div className="flex items-center gap-2">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>
-                {s.n === '1' && <span className="rounded-full bg-pp-blue px-2.5 py-0.5 text-xs font-semibold text-white">Start here</span>}
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>
+                <div className="min-w-0">
+                  {s.n === '1' && <span className="mb-1 inline-block rounded-full bg-pod-electric px-2.5 py-0.5 text-xs font-semibold text-white">Start here</span>}
+                  <h2 className={`text-xl font-semibold tracking-tight text-pp-navy ${s.n === '1' ? '' : 'mt-1'}`}>{s.title}</h2>
+                </div>
               </div>
-              <h2 className="mt-4 font-display text-2xl text-pp-navy">{s.title}</h2>
               <p className="mt-2 text-[15px] font-medium text-pp-ink">{s.who}</p>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-pp-muted">{s.see}</p>
               <StartDemo scenario={s.id} label="Start" />
@@ -88,8 +90,10 @@ export default async function DemoPage() {
         </div>
         <section className="mt-6 grid gap-6 rounded-2xl border-2 border-pp-navy bg-white p-6 shadow-sm lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
           <div>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">{SCENARIOS.length + 1}</span>
-            <h2 className="mt-4 font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">{SCENARIOS.length + 1}</span>
+              <h2 className="font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
+            </div>
             <p className="mt-2 text-[15px] font-medium text-pp-ink">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
             <p className="mt-2 text-sm leading-relaxed text-pp-muted">
               Write anything you like in the notes to get it paid anyway: claims, excuses, a fake message from the client, orders for the AI. This one is not a replay: a real Claude review and a second opinion{isGeminiConfigured() ? ' and Gemini’s check' : ''} decide, and the result goes on the scoreboard.
@@ -113,7 +117,7 @@ export default async function DemoPage() {
               ['Other AIs stopped', arena.vetoed, 'text-violet-700'],
             ].map(([label, n, tone]) => (
               <div key={label as string} className="rounded-xl bg-pp-canvas px-2 py-4">
-                <dd className={`font-display text-5xl tabular-nums ${tone}`}>{n}</dd>
+                <dd className={`text-4xl font-semibold tabular-nums tracking-tight ${tone}`}>{n}</dd>
                 <dt className="mt-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">{label}</dt>
               </div>
             ))}

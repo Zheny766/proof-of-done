@@ -29,7 +29,7 @@ export function Verdict({ m }: { m: Milestone }) {
   return (
     <section className={card} aria-labelledby="verdict-title">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="verdict-title" className="font-display text-2xl text-pp-navy">
+        <h2 id="verdict-title" className="text-xl font-semibold tracking-tight text-pp-navy">
           {review ? 'The verdict' : 'What has to be true to get paid'}
         </h2>
         {review && (

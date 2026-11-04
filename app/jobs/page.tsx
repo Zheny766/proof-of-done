@@ -87,18 +87,18 @@ export default async function JobsPage() {
         )}
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           {jobs.map((m) => (
-            <article key={m.id} className="flex flex-col rounded-2xl border border-pp-border bg-white p-6 shadow-sm">
+            <article key={m.id} className="flex flex-col rounded-3xl bg-white p-6 shadow-[0_20px_40px_-30px_rgba(7,20,45,0.35)] ring-1 ring-pp-border transition-shadow hover:shadow-[0_24px_48px_-28px_rgba(7,20,45,0.45)] sm:p-7">
               {/* Price under the title on a phone: side by side the title got a third of the width. */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">
-                  <h3 className="font-display text-2xl leading-tight text-pp-navy">{m.title}</h3>
+                  <h3 className="text-xl font-semibold leading-snug tracking-tight text-pp-navy">{m.title}</h3>
                   <p className="mt-1 text-sm text-pp-muted">
                     Posted by {m.client.name}
                     {m.postedBy && ` through ${m.postedBy}`} · <span className="font-mono text-xs">{m.id}</span>
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 sm:block sm:text-right">
-                  <div className="font-display text-4xl tabular-nums text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
+                  <div className="text-4xl font-semibold tabular-nums tracking-tight text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
                   <div className="mt-1 inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
                     {m.payment.mode === 'sandbox' ? 'on hold at PayPal (sandbox)' : 'on hold (demo, simulated)'}
                   </div>
@@ -109,7 +109,7 @@ export default async function JobsPage() {
               <ul className="mt-2 flex-1 space-y-1.5 text-sm">
                 {m.criteria.map((c) => (
                   <li key={c.id} className="flex gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-pp-blue" />
+                    <span aria-hidden className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-pp-highlight text-[9px] font-bold text-pod-electric">✓</span>
                     {c.text}
                   </li>
                 ))}

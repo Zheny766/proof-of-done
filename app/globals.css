@@ -22,7 +22,7 @@ body {
   --pp-blue-dark: #003087;
   --pp-sky: #009cde;
   --pp-highlight: #e6f0fc;
-  --pp-canvas: #f4f6f9;
+  --pp-canvas: #f5f7fb;
   --pp-surface: #ffffff;
   --pp-border: #dbe1e8;
   --pp-gridline: #e9edf2;
@@ -32,6 +32,18 @@ body {
   --pp-warning: #b45309;
   --pp-danger: #c4122f;
   --pp-font: var(--font-inter), "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /*
+   * Proof of Done's own accents, used where money and AI checks are the story (the Proof Engine on
+   * the home page, the paid / stopped outcome, the certificate): midnight for those dark panels,
+   * electric for the main action, violet for the AI checks, mint for money that moved.
+   * Electric on white is 4.6:1, so it carries white button text; links stay --pp-blue.
+   */
+  --pod-midnight: #07142d;
+  --pod-electric: #246bfd;
+  --pod-electric-dark: #1554d6;
+  --pod-violet: #8c76ff;
+  --pod-mint: #b2f5db;
 
   /* Chart series, PayPal blue and navy first. */
   --pp-chart-1: #0070e0;
@@ -61,6 +73,11 @@ body {
   --color-pp-warning: var(--pp-warning);
   --color-pp-danger: var(--pp-danger);
   --font-paypal: var(--pp-font);
+  --color-pod-midnight: var(--pod-midnight);
+  --color-pod-electric: var(--pod-electric);
+  --color-pod-electric-dark: var(--pod-electric-dark);
+  --color-pod-violet: var(--pod-violet);
+  --color-pod-mint: var(--pod-mint);
 }
 
 /* The coin on the money journey and the "live" dot pulse; nothing moves for people who'd rather it didn't. */
@@ -69,8 +86,19 @@ body {
   50% { box-shadow: 0 0 0 10px rgba(0, 112, 224, 0); }
 }
 .pod-pulse { animation: pod-pulse 1.8s ease-in-out infinite; }
+/* A deal's outcome rises in once; the paid one has a light that runs along its top edge. */
+@keyframes pod-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pod-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+.pod-rise { animation: pod-rise 0.5s ease-out both; }
+.pod-sweep { animation: pod-sweep 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .pod-pulse { animation: none; }
+  .pod-pulse, .pod-rise, .pod-sweep { animation: none; }
 }
 
 /* Bryntum Gantt in the site's type and colours. */

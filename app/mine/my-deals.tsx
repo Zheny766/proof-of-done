@@ -46,7 +46,7 @@ export function MyDeals() {
   if (!rows.length) {
     return (
       <div className="mt-10 rounded-2xl border border-pp-border bg-white p-8">
-        <div className="font-display text-2xl text-pp-navy">No deals in this browser yet</div>
+        <div className="text-xl font-semibold tracking-tight text-pp-navy">No deals in this browser yet</div>
         <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-pp-muted">The quickest way to see one: the demo opens a deal with $100 on hold and lets you play both sides. It lands here too.</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link href="/demo" className="inline-flex h-11 items-center rounded-full bg-pp-navy px-5 text-sm font-semibold text-white hover:bg-pp-blue-dark">
@@ -98,10 +98,10 @@ export function MyDeals() {
                           )}
                           {!!m.disputes?.length && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-pp-danger">PayPal dispute</span>}
                         </div>
-                        <div className="mt-2 font-display text-2xl leading-tight text-pp-navy">{m.title}</div>
+                        <div className="mt-2 text-xl font-semibold leading-snug tracking-tight text-pp-navy">{m.title}</div>
                         <div className="mt-1 text-sm text-pp-muted">{role === 'client' ? `for ${m.freelancer.name}` : `from ${m.client.name}`}</div>
                       </div>
-                      <div className="shrink-0 font-display text-3xl tabular-nums text-pp-navy">{fmtMoney(m.payment.capturedAmount ?? m.amount, m.currency)}</div>
+                      <div className="shrink-0 text-2xl font-semibold tabular-nums tracking-tight text-pp-navy">{fmtMoney(m.payment.capturedAmount ?? m.amount, m.currency)}</div>
                     </div>
                     <p className="mt-3 text-sm text-pp-muted">{STATUS[m.status].hint}</p>
                   </Link>

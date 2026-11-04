@@ -10,6 +10,7 @@ import { fmtDay, fmtMoney, fmtTime } from '@/app/components/status';
 import { modelName } from '../ui';
 import { CheckFile } from './check-file';
 import { SealNote } from '../details';
+import { LogoMark } from '@/app/components/logo';
 
 export async function generateMetadata(props: PageProps<'/m/[id]/proof'>): Promise<Metadata> {
   const { id } = await props.params;
@@ -37,8 +38,17 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
   const how = m.payment.capturedAmount
     ? `Settled by agreement for ${fmtMoney(captured, m.currency)} of ${fmtMoney(m.amount, m.currency)}.`
     : aiPaid
-      ? 'Paid by the AI reviewer, with no one clicking approve, after a second model confirmed every criterion.'
+      ? 'Paid by the AI reviewer, with no one clicking approve, after the independent checks confirmed every criterion.'
       : 'Approved and paid by the client after the AI review.';
+  // Who signed off, in order: the reviewer, Claude's second opinion, then Gemini's check.
+  const signatures = review
+    ? [
+        { role: 'Reviewer', name: review.engine === 'claude' || review.engine === 'replay' ? modelName(review.model) : 'Simulated reviewer', ok: review.decision === 'release' || paid, note: review.decision === 'release' ? 'decided to pay' : 'reviewed' },
+        ...(review.audit ? [{ role: 'Second opinion', name: review.audit.engine === 'claude' ? modelName(review.audit.model) : 'Simulated check', ok: review.audit.agreed, note: review.audit.agreed ? 'confirmed every criterion' : 'did not confirm' }] : []),
+        ...(review.panel ?? []).map((a) => ({ role: 'Third check · Google', name: modelName(a.model), ok: a.agreed, note: a.unavailable ? 'could not answer' : a.agreed ? 'confirmed every criterion' : 'did not confirm' })),
+      ]
+    : [];
+  const seal = checkSeal(m);
   const reviewer =
     review?.engine === 'claude' ? `${modelName(review.model)}, live` : review?.engine === 'replay' ? `a replay of a real ${modelName(review.model)} run` : review ? 'the simulated reviewer' : 'no reviewer';
   return (
@@ -47,34 +57,46 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
         <SiteHeader />
       </div>
       <main className="mx-auto w-full max-w-3xl px-6 pb-20 pt-10 print:pt-0">
-        <div className="rounded-3xl border-2 border-pp-navy bg-white p-8 shadow-sm print:border print:shadow-none">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Proof of Done · certificate of verified work</p>
-              <h1 className="mt-3 font-display text-4xl leading-tight text-pp-navy">{m.title}</h1>
-              <p className="mt-2 text-[15px] text-pp-muted">
-                Delivered by <b className="text-pp-ink">{m.freelancer.name}</b> for <b className="text-pp-ink">{m.client.name}</b>
-              </p>
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_30px_60px_-30px_rgba(7,20,45,0.35)] ring-1 ring-pp-border print:shadow-none">
+          <div className="relative bg-pod-midnight px-8 pt-7 pb-8 text-white print:bg-white print:text-pp-ink">
+            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:24px_24px] print:hidden" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white/60 print:text-pp-muted">
+                  <LogoMark className="h-5 w-5" /> Proof of Done · certificate of verified work
+                </p>
+                <p className={`mt-5 font-display text-6xl leading-none sm:text-7xl ${paid ? 'text-pod-mint print:text-emerald-700' : 'text-white/60'}`}>{paid ? 'Verified.' : 'Not paid yet'}</p>
+                <h1 className="mt-4 text-2xl font-semibold tracking-tight">{m.title}</h1>
+                <p className="mt-1.5 text-[15px] text-white/70 print:text-pp-muted">
+                  Delivered by <b className="text-white print:text-pp-ink">{m.freelancer.name}</b> for <b className="text-white print:text-pp-ink">{m.client.name}</b>
+                </p>
+              </div>
+              <span aria-hidden className={`grid h-20 w-20 shrink-0 place-items-center rounded-full text-4xl font-black ring-8 ${paid ? 'bg-pod-mint text-pod-midnight ring-pod-mint/15' : 'bg-white/10 text-white/50 ring-white/5'}`}>
+                {paid ? '✓' : '…'}
+              </span>
             </div>
-            <span aria-hidden className={`grid h-16 w-16 shrink-0 place-items-center rounded-full text-3xl font-black ${paid ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-              {paid ? '✓' : '…'}
-            </span>
+            {seal.head && (
+              <div className="relative mt-6 rounded-xl bg-white/[0.06] px-4 py-3 ring-1 ring-inset ring-white/10 print:bg-pp-canvas print:ring-pp-border">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50 print:text-pp-muted">Record fingerprint · SHA-256</div>
+                <div className="mt-1 break-all font-mono text-[13px] text-white/90 print:text-pp-ink">{seal.head}</div>
+              </div>
+            )}
           </div>
-
+          <div className="p-8">
           {!paid ? (
-            <p className="mt-6 rounded-xl bg-pp-canvas px-4 py-3 text-[15px] text-pp-muted">
+            <p className="rounded-xl bg-pp-canvas px-4 py-3 text-[15px] text-pp-muted">
               This work hasn&apos;t been paid yet. The certificate is issued once PayPal captures the payment.
             </p>
           ) : (
             <>
-              <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+              <dl className="grid gap-4 sm:grid-cols-3">
                 <Fact label="Paid" value={fmtMoney(captured, m.currency)} note={refunded > 0 ? `${fmtMoney(refunded, m.currency)} refunded since` : undefined} />
                 {/* The day in big type and the time as the note: the full stamp wrapped onto two lines. */}
                 <Fact label="On" value={m.payment.capturedAt ? fmtDay(m.payment.capturedAt) : '-'} note={m.payment.capturedAt && fmtTime(m.payment.capturedAt)} />
                 <Fact label="PayPal capture" value={m.payment.captureId ?? '-'} mono note={m.payment.mode === 'sandbox' ? 'PayPal sandbox' : 'simulated'} />
               </dl>
               <p className="mt-4 text-[15px] leading-relaxed text-pp-ink">{how}</p>
-              <SealNote seal={checkSeal(m)} anchor={m.payment.anchoredRecord} />
+              <SealNote seal={seal} anchor={m.payment.anchoredRecord} />
               {refunded > 0 && (
                 <p className="mt-3 rounded-xl bg-orange-50 px-4 py-3 text-[15px] text-orange-900 ring-1 ring-inset ring-orange-200">
                   After the payment {m.client.name} reported a problem, and {fmtMoney(refunded, m.currency)}
@@ -98,10 +120,21 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
               );
             })}
           </ul>
-          {review?.audit && (
-            <p className="mt-3 text-sm text-pp-muted">
-              Second opinion ({review.audit.engine === 'claude' ? modelName(review.audit.model) : 'simulated'}): {review.audit.agreed ? 'confirmed every criterion' : 'did not confirm the release'}.
-            </p>
+          {signatures.length > 0 && (
+            <>
+              <h2 className="mt-8 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">Signed off by</h2>
+              <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+                {signatures.map((s) => (
+                  <li key={s.role} className="rounded-xl border border-pp-border px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-pp-muted">{s.role}</div>
+                    <div className="mt-1 text-[15px] font-semibold text-pp-ink">{s.name}</div>
+                    <div className="mt-2 border-t border-dashed border-pp-border pt-2 text-xs font-semibold">
+                      <span className={s.ok ? 'text-emerald-700' : 'text-orange-700'}>{s.ok ? '✓' : '!'} {s.note}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </>
           )}
 
           <h2 className="mt-8 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">What was delivered</h2>
@@ -129,6 +162,7 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
             </Link>
             . A hackathon project, not a licensed escrow service.
           </p>
+          </div>
         </div>
       </main>
     </>

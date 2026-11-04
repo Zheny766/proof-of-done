@@ -97,17 +97,18 @@ export function MoneyJourney({ m }: { m: Milestone }) {
   }
 
   return (
-    // Four across on a phone too, small, so what to do next is on the first screen; the line under each step shows from sm up.
-    <ol className={`${card} mt-6 grid grid-cols-4`} aria-label="Where the money is">
+    // On a phone two by two, each sign beside its words, small enough that what to do next is on the first screen;
+    // from sm up, four across joined by a line, with the detail under each step.
+    <ol className={`${card} mt-6 grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4 sm:gap-0`} aria-label="Where the money is">
       {steps.map((s, i) => {
         const done = stage > i && !(aiSkipped && i === 2) && !(payoutStuck && i === 3);
         const active = stage === i;
         // The check stopped short (held for changes, or handed to the client): amber, not "working on it".
         const held = active && i === 2 && ['changes_requested', 'escalated'].includes(m.status);
         return (
-          <li key={s.title} className="relative flex flex-col items-center text-center">
+          <li key={s.title} className="relative flex items-center gap-2.5 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
             {i > 0 && (
-              <span aria-hidden className="absolute top-[18px] right-1/2 h-0.5 w-full sm:top-6">
+              <span aria-hidden className="absolute top-6 right-1/2 hidden h-0.5 w-full sm:block">
                 <span className={`block h-full rounded-full ${stage >= i ? 'bg-emerald-400' : 'bg-slate-200'}`} />
               </span>
             )}
@@ -122,8 +123,8 @@ export function MoneyJourney({ m }: { m: Milestone }) {
                 <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{s.icon}</svg>
               )}
             </span>
-            <div className="mt-2 min-w-0 px-1 sm:mt-3 sm:px-3">
-              <div className={`text-[12px] font-semibold leading-tight sm:text-[15px] ${done || active ? 'text-pp-ink' : 'text-pp-muted'}`}>{s.title}</div>
+            <div className="min-w-0 sm:mt-3 sm:px-3">
+              <div className={`text-[13px] font-semibold leading-tight sm:text-[15px] ${done || active ? 'text-pp-ink' : 'text-pp-muted'}`}>{s.title}</div>
               <div className="mt-0.5 hidden text-[13px] leading-snug text-pp-muted sm:block">{s.sub}</div>
             </div>
             <span className="sr-only">{done ? '(done)' : held ? '(stopped: needs a decision)' : active ? '(in progress)' : '(not yet)'}</span>
