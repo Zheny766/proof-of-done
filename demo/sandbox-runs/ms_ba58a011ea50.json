@@ -1,0 +1,169 @@
+{
+  "id": "ms_ba58a011ea50",
+  "title": "Five product descriptions for a candle shop",
+  "amount": "45.00",
+  "currency": "USD",
+  "status": "released",
+  "createdAt": "2026-11-04T08:24:23.423Z",
+  "takenBy": null,
+  "criteria": [
+    {
+      "text": "All five candles have a description",
+      "status": "met",
+      "confidence": 0.98
+    },
+    {
+      "text": "Each description is 40 to 80 words",
+      "status": "met",
+      "confidence": 0.95
+    },
+    {
+      "text": "No exclamation marks anywhere",
+      "status": "met",
+      "confidence": 0.97
+    }
+  ],
+  "review": {
+    "reviewer": "claude-haiku-5-5",
+    "decision": "release",
+    "secondOpinion": {
+      "by": "claude-sonnet-5-5",
+      "agreed": true
+    },
+    "thirdCheck": {
+      "by": "gemini-3.1-pro-preview",
+      "agreed": true,
+      "unavailable": false
+    }
+  },
+  "paypal": {
+    "orderId": "07R09074M6654515C",
+    "authorizationId": "57U69117BP624450G",
+    "authorizationStatus": "CAPTURED",
+    "authorizedAt": "2026-11-04T08:31:28Z",
+    "previousAuthorizationId": null,
+    "reauthorizedAt": null,
+    "captureId": "7MS09846EG609393H",
+    "capturedAt": "2026-11-04T08:32:18Z",
+    "capturedAmount": "45.00",
+    "payoutBatchId": "PGR3K2S5QM8G8",
+    "payoutStatus": "SUCCESS",
+    "voidedAt": null
+  },
+  "calls": [
+    {
+      "at": "2026-11-04T08:25:27.398Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "status": 200,
+      "ms": 2700,
+      "debugId": "f574605b39695"
+    },
+    {
+      "at": "2026-11-04T08:27:33.149Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "status": 200,
+      "ms": 1658,
+      "debugId": "f692045b377a3"
+    },
+    {
+      "at": "2026-11-04T08:28:57.373Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "status": 200,
+      "ms": 3322,
+      "debugId": "f438371289671"
+    },
+    {
+      "at": "2026-11-04T08:31:06.675Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "status": 200,
+      "ms": 1259,
+      "debugId": "ca55242b58fda"
+    },
+    {
+      "at": "2026-11-04T08:31:27.296Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders/07R09074M6654515C/authorize",
+      "status": 201,
+      "ms": 1652,
+      "debugId": "ca5524334e846"
+    },
+    {
+      "at": "2026-11-04T08:32:16.673Z",
+      "method": "POST",
+      "path": "/v2/payments/authorizations/57U69117BP624450G/capture",
+      "status": 201,
+      "ms": 2200,
+      "debugId": "ca552446c3dc1"
+    },
+    {
+      "at": "2026-11-04T08:32:18.875Z",
+      "method": "POST",
+      "path": "/v1/payments/payouts",
+      "status": 201,
+      "ms": 539,
+      "debugId": "ca55244761c50"
+    },
+    {
+      "at": "2026-11-04T08:32:22.882Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/PGR3K2S5QM8G8",
+      "status": 200,
+      "ms": 953,
+      "debugId": "ca552448f1c6e"
+    },
+    {
+      "at": "2026-11-04T08:33:23.972Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/PGR3K2S5QM8G8",
+      "status": 200,
+      "ms": 683,
+      "debugId": "ca552460d5c2f"
+    }
+  ],
+  "timeline": [
+    {
+      "at": "2026-11-04T08:24:23.425Z",
+      "actor": "client",
+      "text": "Wick & Ember created the deal for 45.00 USD"
+    },
+    {
+      "at": "2026-11-04T08:31:30.951Z",
+      "actor": "paypal",
+      "text": "PayPal authorized 45.00 USD: the money is on hold, nothing has been charged yet"
+    },
+    {
+      "at": "2026-11-04T08:31:51.849Z",
+      "actor": "freelancer",
+      "text": "Priya Nair submitted the work (1 file)"
+    },
+    {
+      "at": "2026-11-04T08:31:51.850Z",
+      "actor": "agent",
+      "text": "The AI reviewer started checking the work against the acceptance criteria"
+    },
+    {
+      "at": "2026-11-04T08:32:19.416Z",
+      "actor": "agent",
+      "text": "AI reviewer verified every criterion"
+    },
+    {
+      "at": "2026-11-04T08:32:19.417Z",
+      "actor": "paypal",
+      "text": "PayPal captured 45.00 USD (capture 7MS09846EG609393H)"
+    },
+    {
+      "at": "2026-11-04T08:32:19.418Z",
+      "actor": "paypal",
+      "text": "Payout of 42.94 USD sent to [email] (batch PGR3K2S5QM8G8)"
+    },
+    {
+      "at": "2026-11-04T08:33:24.686Z",
+      "actor": "paypal",
+      "text": "PayPal payout completed: the money reached [email]"
+    }
+  ]
+}

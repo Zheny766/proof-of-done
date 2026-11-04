@@ -1,0 +1,145 @@
+{
+  "id": "ms_875c2ee76529",
+  "title": "Menu redesign for a cafe",
+  "amount": "100.00",
+  "currency": "USD",
+  "status": "released",
+  "createdAt": "2026-11-04T08:24:23.301Z",
+  "takenBy": null,
+  "criteria": [
+    {
+      "text": "The menu is delivered as a one-page PDF",
+      "status": "met",
+      "confidence": 0.95
+    },
+    {
+      "text": "It lists at least 10 items, each with a price",
+      "status": "met",
+      "confidence": 0.97
+    },
+    {
+      "text": "The EMBER & OAK logo is at the top",
+      "status": "met",
+      "confidence": 0.92
+    }
+  ],
+  "review": {
+    "reviewer": "claude-opus-5-5",
+    "decision": "release",
+    "secondOpinion": {
+      "by": "claude-haiku-5-5",
+      "agreed": true
+    },
+    "thirdCheck": {
+      "by": "gemini-3.1-pro-preview",
+      "agreed": true,
+      "unavailable": false
+    }
+  },
+  "paypal": {
+    "orderId": "4UU93536NG4904309",
+    "authorizationId": "15R542642Y1932913",
+    "authorizationStatus": "CAPTURED",
+    "authorizedAt": "2026-11-04T08:25:00Z",
+    "previousAuthorizationId": null,
+    "reauthorizedAt": null,
+    "captureId": "0A530562XR614760K",
+    "capturedAt": "2026-11-04T08:32:16Z",
+    "capturedAmount": "100.00",
+    "payoutBatchId": "LN8XEMNCV6A92",
+    "payoutStatus": "SUCCESS",
+    "voidedAt": null
+  },
+  "calls": [
+    {
+      "at": "2026-11-04T08:24:39.742Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "status": 200,
+      "ms": 1518,
+      "debugId": "f5342709a5ae1"
+    },
+    {
+      "at": "2026-11-04T08:24:59.572Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders/4UU93536NG4904309/authorize",
+      "status": 201,
+      "ms": 2247,
+      "debugId": "f721767049a68"
+    },
+    {
+      "at": "2026-11-04T08:32:12.676Z",
+      "method": "POST",
+      "path": "/v2/payments/authorizations/15R542642Y1932913/capture",
+      "status": 201,
+      "ms": 4814,
+      "debugId": "ca55244638b65"
+    },
+    {
+      "at": "2026-11-04T08:32:17.495Z",
+      "method": "POST",
+      "path": "/v1/payments/payouts",
+      "status": 201,
+      "ms": 537,
+      "debugId": "ca552446d7c13"
+    },
+    {
+      "at": "2026-11-04T08:32:22.890Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/LN8XEMNCV6A92",
+      "status": 200,
+      "ms": 1006,
+      "debugId": "ca5524492dec0"
+    },
+    {
+      "at": "2026-11-04T08:32:51.689Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/LN8XEMNCV6A92",
+      "status": 200,
+      "ms": 2401,
+      "debugId": "ca55245450d46"
+    }
+  ],
+  "timeline": [
+    {
+      "at": "2026-11-04T08:24:23.303Z",
+      "actor": "client",
+      "text": "Ember & Oak created the deal for 100.00 USD"
+    },
+    {
+      "at": "2026-11-04T08:25:01.824Z",
+      "actor": "paypal",
+      "text": "PayPal authorized 100.00 USD: the money is on hold, nothing has been charged yet"
+    },
+    {
+      "at": "2026-11-04T08:31:51.721Z",
+      "actor": "freelancer",
+      "text": "Diego Alvarez submitted the work (1 file)"
+    },
+    {
+      "at": "2026-11-04T08:31:51.722Z",
+      "actor": "agent",
+      "text": "The AI reviewer started checking the work against the acceptance criteria"
+    },
+    {
+      "at": "2026-11-04T08:32:18.035Z",
+      "actor": "agent",
+      "text": "AI reviewer verified every criterion"
+    },
+    {
+      "at": "2026-11-04T08:32:18.036Z",
+      "actor": "paypal",
+      "text": "PayPal captured 100.00 USD (capture 0A530562XR614760K)"
+    },
+    {
+      "at": "2026-11-04T08:32:18.037Z",
+      "actor": "paypal",
+      "text": "Payout of 95.80 USD sent to [email] (batch LN8XEMNCV6A92)"
+    },
+    {
+      "at": "2026-11-04T08:32:54.097Z",
+      "actor": "paypal",
+      "text": "PayPal payout completed: the money reached [email]"
+    }
+  ]
+}

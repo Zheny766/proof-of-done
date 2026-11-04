@@ -12,6 +12,8 @@ export const metadata: Metadata = { title: 'Ran on the real PayPal sandbox' };
 export default async function SandboxPage() {
   await connection();
   const runs = sandboxRuns();
+  // Runs where the AI made the call and PayPal then paid out, with nobody clicking approve.
+  const byAI = runs.filter((r) => r.review?.decision === 'release' && r.paypal.captureId).length;
   return (
     <>
       <SiteHeader />
@@ -24,6 +26,14 @@ export default async function SandboxPage() {
           list those calls with PayPal&apos;s debug id, which is how PayPal finds a request on its side. The brief, the delivered work and everyone&apos;s
           email stay out of it.
         </p>
+        {byAI > 0 && (
+          <p className="mt-4 max-w-3xl rounded-2xl border border-emerald-200 bg-emerald-50/60 px-5 py-4 text-[15px] leading-relaxed text-emerald-900">
+            <b>
+              {byAI === 1 ? 'The first one' : `The first ${['two', 'three', 'four', 'five'][byAI - 2] ?? byAI}`} ran the whole loop with nobody clicking approve:
+            </b>{' '}
+            the client funded it in PayPal&apos;s window as a guest with PayPal&apos;s test card, Claude checked the delivered work against every criterion, a second Claude model and Google&apos;s Gemini confirmed, and PayPal captured the hold and paid the freelancer&apos;s sandbox account.
+          </p>
+        )}
         {runs.length === 0 && <p className="mt-10 rounded-xl bg-pp-canvas px-4 py-3 text-pp-muted">No runs saved yet.</p>}
         <div className="mt-10 space-y-8">
           {runs.map((run) => (
