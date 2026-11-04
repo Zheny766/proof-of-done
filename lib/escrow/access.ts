@@ -4,6 +4,7 @@
 
 import crypto from 'node:crypto';
 import type { Milestone, MilestoneAccess, Role } from './types.ts';
+import { checkSeal } from './chain.ts';
 
 export const newAccess = (): MilestoneAccess => ({
   clientKey: crypto.randomBytes(18).toString('base64url'),
@@ -25,7 +26,7 @@ export function roleFor(m: Milestone, key: string | null | undefined): Role {
 
 /** The milestone as it may be sent to one of the two parties: everything except the keys. */
 export function publicMilestone(m: Milestone): Milestone {
-  const copy = { ...m };
+  const copy = { ...m, seal: checkSeal(m) };
   delete copy.access;
   return copy;
 }

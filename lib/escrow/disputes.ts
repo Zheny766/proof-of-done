@@ -3,6 +3,7 @@
 // the second model found, and the PayPal ids. This turns it into PayPal's evidence: a note (PayPal
 // allows 2000 characters) and the whole record as a PDF, plus proof of any refund already made.
 
+import { checkSeal } from './chain.ts';
 import { currentReview, latestFindings } from './policy.ts';
 import { textPdf, type PdfLine } from './pdf.ts';
 import type { Milestone } from './types.ts';
@@ -31,6 +32,13 @@ function facts(m: Milestone) {
   return { review, findings, refunds, how, termsChanged, captured: m.payment.capturedAmount ?? m.amount };
 }
 
+/** The record's fingerprint, and where PayPal already holds an earlier one. */
+function sealLine(m: Milestone): string {
+  const seal = checkSeal(m);
+  const anchor = m.payment.anchoredRecord;
+  return `Record fingerprint (SHA-256 chain over ${seal.events} steps, ${seal.intact ? 'intact' : 'BROKEN'}): ${seal.head}.${anchor ? ` The capture note sent to PayPal carries its fingerprint at payment: ${anchor.slice(0, 16)}.` : ''}`;
+}
+
 /** The note PayPal shows with the evidence. */
 export function evidenceNote(m: Milestone, origin: string): string {
   const { findings, how, termsChanged, captured } = facts(m);
@@ -47,6 +55,7 @@ export function evidenceNote(m: Milestone, origin: string): string {
     delivery && `Delivered ${day(delivery.at)}: ${files.length ? `${files.length} file(s) ${files.map((a) => `${a.name}${a.sha256 ? ` sha256 ${a.sha256.slice(0, 16)}` : ''}`).join(', ')}` : 'notes'}${delivery.links.length ? `; links ${delivery.links.join(' ')}` : ''}.`,
     how,
     m.payment.captureId && `PayPal captured ${captured} ${m.currency} on ${day(m.payment.capturedAt)} (capture ${m.payment.captureId}).`,
+    sealLine(m),
     `Full record with every step and file hashes is attached; certificate: ${origin}/m/${m.id}/proof`,
   ].filter(Boolean) as string[];
   const note = lines.join('\n');
@@ -81,9 +90,12 @@ export function evidencePdf(m: Milestone, origin: string): Buffer {
     { text: `Order ${m.payment.orderId ?? '-'}, authorization ${m.payment.authorizationId ?? '-'} (${day(m.payment.authorizedAt)}), capture ${m.payment.captureId ?? '-'} (${day(m.payment.capturedAt)}), payout batch ${m.payment.payoutBatchId ?? '-'}.` },
     ...refunds.map((r) => ({ text: `Refunded ${r.amount} ${m.currency} on ${day(r.at)} (refund ${r.id}).` })),
     { text: 'Every step', bold: true, size: 12, gap: 10 },
-    ...m.timeline.map((e) => ({ text: `${day(e.at)}  [${e.actor}] ${e.text}`, size: 9 })),
+    { text: 'Each step carries a SHA-256 of itself and the step before it, so no past step can change unnoticed.', size: 9 },
+    ...m.timeline.map((e) => ({ text: `${day(e.at)}  [${e.actor}] ${e.text}\n   sha256 ${e.hash ?? '-'}`, size: 9 })),
+    { text: sealLine(m), size: 9, gap: 6 },
   ];
-  return textPdf(lines);
+  const head = checkSeal(m).head.slice(0, 16);
+  return textPdf(lines, (page, pages) => `Proof of Done record ${m.id} - page ${page} of ${pages} - fingerprint ${head}`);
 }
 
 /** What goes to PayPal: proof the service was delivered, and proof of each refund already made. */

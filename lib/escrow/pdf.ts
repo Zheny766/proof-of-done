@@ -36,7 +36,8 @@ function wrap(text: string, size: number): string[] {
   return out;
 }
 
-export function textPdf(lines: PdfLine[]): Buffer {
+/** `footer` is printed at the foot of every page, given its number and the page count. */
+export function textPdf(lines: PdfLine[], footer?: (page: number, pages: number) => string): Buffer {
   // Lay the lines out into pages of content streams.
   const pages: string[][] = [[]];
   let y = PAGE.height - PAGE.margin;
@@ -52,6 +53,8 @@ export function textPdf(lines: PdfLine[]): Buffer {
       pages.at(-1)!.push(`BT /${l.bold ? 'F2' : 'F1'} ${size} Tf ${PAGE.margin} ${y.toFixed(1)} Td (${escape(part)}) Tj ET`);
     }
   }
+
+  if (footer) pages.forEach((ops, i) => ops.push(`BT /F1 8 Tf ${PAGE.margin} ${PAGE.margin / 2} Td (${escape(latin1(footer(i + 1, pages.length)))}) Tj ET`));
 
   // Objects: 1 catalog, 2 page tree, 3-4 fonts, then a page and its content stream per page.
   const objects: string[] = [];

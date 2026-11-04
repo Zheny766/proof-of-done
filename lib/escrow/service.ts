@@ -14,8 +14,8 @@ import { sniffType } from './evidence.ts';
 import { disputeEvidence } from './disputes.ts';
 import { answerDisputeOnPayPal, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
-import { onPayPalCall } from '../paypal.ts';
-import { REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
+import { isPayPalConfigured, onPayPalCall } from '../paypal.ts';
+import { AUDIT_MODEL, REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
 import { demoFile, loadReplay, runReplayReview } from './replay.ts';
 import { deleteWhere, getMilestone, insertMilestone, listMilestones, newId, nowIso, pushEvent, updateMilestone, UPLOAD_DIR } from './store.ts';
 import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
@@ -350,6 +350,26 @@ const liveReviewsSince = (since: number, demoOnly: boolean) =>
 const demoReviewsLeft = () => liveReviewsSince(Date.now() - 86_400_000, true) < DEMO_REVIEWS_DAILY();
 const liveReviewsLeft = () => liveReviewsSince(Date.now() - 86_400_000, false) < LIVE_REVIEWS_DAILY();
 
+/** What the server can do right now, for /api/health: no secrets, only whether each part is on. */
+export function readiness() {
+  const deals = listMilestones();
+  const used = liveReviewsSince(Date.now() - 86_400_000, false);
+  let storage = true;
+  try {
+    fs.accessSync(UPLOAD_DIR, fs.constants.W_OK);
+  } catch {
+    storage = false;
+  }
+  return {
+    payments: paymentMode(),
+    webhooks: Boolean(process.env.PAYPAL_WEBHOOK_ID && isPayPalConfigured()),
+    reviewer: isClaudeConfigured() ? { live: true, model: REVIEW_MODEL, secondOpinion: AUDIT_MODEL, liveReviewsLeftToday: Math.max(0, LIVE_REVIEWS_DAILY() - used) } : { live: false, engine: 'simulated (replays of real Claude runs in the demos)' },
+    storage,
+    deals: deals.length,
+    sealedRecords: deals.every((m) => m.timeline.every((e) => e.hash)),
+  };
+}
+
 // Runs in the background (after()) once the submit request has returned.
 export async function runReview(id: string, reviewId: string): Promise<void> {
   const m = mustGet(id);
@@ -633,6 +653,16 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
 const SETTLE_STATES = ['changes_requested', 'escalated'];
 
 export type SettlementAction = { action: 'propose'; amount: number; note?: string } | { action: 'accept' } | { action: 'decline' };
+
+/** The client's call after a review: pay, ask for changes, or cancel and void the hold. */
+export const DecisionInput = z.object({ action: z.enum(['approve', 'request_changes', 'cancel']), note: z.string().max(2000).optional() });
+
+/** Settling for part of the amount: one side offers, the other accepts or declines. */
+export const SettlementInput = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('propose'), amount: z.coerce.number().positive(), note: z.string().max(500).optional() }),
+  z.object({ action: z.literal('accept') }),
+  z.object({ action: z.literal('decline') }),
+]);
 
 export const settle = (id: string, input: SettlementAction, key: string | null) => exclusive(id, () => settleNow(id, input, key));
 async function settleNow(id: string, input: SettlementAction, key: string | null): Promise<Milestone> {

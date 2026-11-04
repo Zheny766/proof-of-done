@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { Milestone, TimelineEvent } from './types.ts';
+import { sealTimeline } from './chain.ts';
 
 const DATA_DIR = process.env.POD_DATA_DIR || path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'milestones.json');
@@ -25,11 +26,15 @@ function load(): DbShape {
   }
   // A file we can't parse is an error, not an empty store: treating it as empty would let the next
   // write replace every milestone with just one.
+  let db: DbShape;
   try {
-    return JSON.parse(raw) as DbShape;
+    db = JSON.parse(raw) as DbShape;
   } catch {
     throw new Error(`${DB_FILE} is not valid JSON; fix or move it before continuing (nothing was overwritten).`);
   }
+  // Deals saved before the timeline was chained get their links here; sealed steps are never redone.
+  db.milestones.forEach(sealTimeline);
+  return db;
 }
 
 function save(db: DbShape) {
@@ -53,6 +58,7 @@ export function getMilestone(id: string): Milestone | undefined {
 }
 
 export function insertMilestone(m: Milestone): Milestone {
+  sealTimeline(m);
   const db = load();
   db.milestones.push(m);
   save(db);
@@ -67,6 +73,7 @@ export function updateMilestone(id: string, mutate: (m: Milestone) => void): Mil
   mutate(m);
   // An offer of new terms only stands while the terms can still change (not under review, paid or cancelled).
   if (m.termsChange && !['awaiting_funding', 'funded', 'changes_requested', 'escalated'].includes(m.status)) m.termsChange = undefined;
+  sealTimeline(m);
   m.updatedAt = nowIso();
   save(db);
   return m;

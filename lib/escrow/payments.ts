@@ -111,8 +111,11 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
   const renewed = await renewHold(m).catch(() => null);
   const authId = renewed?.authorizationId ?? m.payment.authorizationId;
   if (!authId) throw new Error('No PayPal authorization to capture');
-  // What the result carries besides the capture: the renewal, and the amount when it's a settlement.
-  const extra: Partial<PaymentState> = { ...renewed, ...(amount !== m.amount && { capturedAmount: amount }) };
+  // The record's fingerprint at this moment goes into PayPal's capture note (lib/escrow/chain.ts):
+  // PayPal keeps it, so the deal's history up to the payment can be checked against PayPal later.
+  const anchoredRecord = m.timeline?.at(-1)?.hash;
+  // What the result carries besides the capture: the renewal, the anchor, and the amount when it's a settlement.
+  const extra: Partial<PaymentState> = { ...renewed, ...(anchoredRecord && { anchoredRecord }), ...(amount !== m.amount && { capturedAmount: amount }) };
   // Less than PayPal authorized (a settlement, or an amount lowered by agreement): the capture names
   // its amount, and being the final capture, PayPal releases the rest of the hold.
   const partial = Number(amount) < Number(m.payment.authorizedAmount ?? m.amount);
@@ -128,7 +131,8 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     };
   }
 
-  const capture = await captureAuthorization(authId, note, partial ? { currency_code: m.currency, value: amount } : undefined);
+  const payerNote = anchoredRecord ? `Proof of Done record ${anchoredRecord.slice(0, 16)}. ${note}` : note;
+  const capture = await captureAuthorization(authId, payerNote, partial ? { currency_code: m.currency, value: amount } : undefined);
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);

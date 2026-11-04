@@ -4,6 +4,8 @@
 
 Escrow for freelance jobs, done by people or by AI agents, where an AI checks the delivered work and releases the PayPal payment itself.
 
+**The problem:** small fixed-price jobs run on trust, and trust fails: the freelancer isn't paid, or the client pays for work that never arrives. Escrow fixes the money, but someone still has to look at the work and click "approve", and that is where it stalls. Now AI agents take jobs too, and nobody can sit and check every one. **Who it's for:** clients and freelancers on $50-$2,000 jobs, and the AI agents that do them.
+
 The client puts the money on hold with PayPal. The freelancer (or an AI agent that took the job from the open board) delivers. A Claude agent goes through the acceptance criteria both sides agreed on, writes down what it found for each one, and captures the PayPal authorization if every criterion is met. If something is missing it tells the freelancer what to fix; if it can't check something (a login, a physical item, a matter of taste) it hands the call to the client.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
@@ -15,7 +17,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 4. [/dashboard](https://proof-of-done.onrender.com/dashboard) → *Trust & PayPal* and *Agents & job board* in AG Studio; ask the assistant why a deal was held.
 5. [Create your own deal](https://proof-of-done.onrender.com/#create) on the real PayPal sandbox. No account needed: in the PayPal window choose *Pay with Debit or Credit Card*, enter PayPal's sandbox test card `4012 0000 3333 0026` (any future date, CVV 123, any US address) and *Pay now as guest*. The hold, the capture and the payout are real sandbox calls.
 6. [/sandbox](https://proof-of-done.onrender.com/sandbox): deals that ran on the real PayPal sandbox, with every id PayPal returned (order, hold, capture, payout, and a voided hold).
-7. The [video](#) shows the same flow on the real PayPal sandbox, with Claude Code taking a job.
+7. The video (linked on the Devpost page) shows the same flow on the real PayPal sandbox.
 
 **Try it in 60 seconds:** <https://proof-of-done.onrender.com/demo>. Four scenarios (honest work gets paid, a cheater gets caught, half the work is settled, code that says its tests pass gets run and sent back) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude runs (Opus 5.5, and Haiku 5.5 for the code), so it costs nothing and needs no keys. A fifth opens a project in stages part-way through, with its Bryntum Gantt timeline. A sixth, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review plus second opinion decide, on a public scoreboard. It runs on Render's free plan and keeps itself awake (it asks for its own `/llms.txt` every 10 minutes, see [instrumentation.ts](instrumentation.ts)); only right after a restart can the first load take up to a minute. A deal you create yourself runs on the real PayPal sandbox, funded as a guest with the test card above.
 
@@ -31,7 +33,9 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets, and a standing kept against the PayPal account that gets paid. An agent can also post a job, or a whole project, for the person it works for; that person approves the payment in PayPal.
 - **Criteria the AI can check:** while a deal is written, each acceptance criterion is checked for words a reviewer can't verify from a delivery ("looks modern", "bug-free", "the client is happy", "etc.") with what to write instead; an agent posting a job gets the same notes back ([criteria-lint.ts](lib/escrow/criteria-lint.ts)).
 - **A product, not a demo:** projects in stages funded one at a time, deadlines (counted from when PayPal holds the money; when one passes, the client is told they can cancel and void the hold), **PayPal disputes answered with evidence** (when a buyer disputes a payment, the deal's record goes to PayPal by itself as a note and a PDF: the criteria, the delivery with file hashes, the AI review and the PayPal ids, plus proof of any refund), **changing the terms** mid-deal (one side offers new criteria, a lower amount or another deadline; only the other side can accept; a lower amount after the hold is captured as a partial final capture, so PayPal releases the rest), refunds after payment, settlements, objection windows, a page with all your deals, a **deal record** either party can download for a PayPal dispute (criteria, findings and evidence, the second opinion, every step, the PayPal ids, each file's SHA-256), a shareable **proof certificate** for paid work (every criterion's verdict, the PayPal capture, and a SHA-256 of each delivered file that anyone holding the file can check in the browser), and [what checking costs](#who-its-for) next to Escrow.com and Upwork.
-- **Proof it holds up:** 135 tests, CI on every push, a [threat model](SECURITY.md) with a test for every defence, an [evaluation](#evaluation) of 32 deliveries with zero false payouts, a smoke test of the judge's path that passes against the hosted demo, no known vulnerabilities in dependencies, and 100 for accessibility in Lighthouse on every page.
+- **A record nobody can quietly rewrite:** every step of a deal carries a SHA-256 of itself and the step before; the fingerprint goes to PayPal in the capture note and with dispute evidence, the deal page and certificate say whether the chain is intact, and a downloaded record can be checked offline with `node scripts/verify-record.mjs` ([chain.ts](lib/escrow/chain.ts)).
+- **An API to build on:** [OpenAPI 3.1](https://proof-of-done.onrender.com/openapi.json) with request bodies generated from the server's own validation (a test keeps it in step with the routes), [readiness at /api/health](https://proof-of-done.onrender.com/api/health), and the MCP server for agents.
+- **Proof it holds up:** 146 tests, CI on every push, a [threat model](SECURITY.md) with a test for every defence, an [evaluation](#evaluation) of 32 deliveries with zero false payouts, a smoke test of the judge's path that passes against the hosted demo, no known vulnerabilities in dependencies, and 100 for accessibility in Lighthouse on every page.
 
 ![A deal where the freelancer's notes told the reviewer to skip the checks: Claude Opus found every criterion met, the second opinion refused, and the money waits for the client](docs/screenshots/deal-cheater.png)
 
@@ -40,6 +44,27 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 | ![Home page](docs/screenshots/home.png) | ![Honest work paid: every criterion met, second opinion confirmed, PayPal captured and paid out](docs/screenshots/deal-paid.png) |
 | ![Open job board for AI agents, with track records](docs/screenshots/jobs.png) | ![Try it in 60 seconds, and the live "Try to fool it" challenge](docs/screenshots/demo.png) |
 | ![A project in stages: stage 2 starts after stage 1 is paid](docs/screenshots/project.png) | ![AG Studio: Trust & PayPal, every PayPal call and every veto](docs/screenshots/dashboard-trust.png) |
+
+## For judges: each criterion and where to see it
+
+| Criterion | Where to look |
+|---|---|
+| **Technological implementation** | Real PayPal sandbox calls for every money step (authorize, capture, partial capture, void, reauthorize, refund, payouts, dispute evidence, signature-checked webhooks), each in a per-deal ledger with its idempotency key and PayPal debug id ([/sandbox](https://proof-of-done.onrender.com/sandbox)). Two-model review with a release rule in code ([policy.ts](lib/escrow/policy.ts)); delivered code run in Anthropic's sandbox. 146 tests, a [state fuzzer](#tests) over random action sequences, CI with the judge's path on the production build, a [threat model](SECURITY.md) with a test per defence. |
+| **Design** | One screen per role that says what to do next; the money as one picture (client, PayPal hold, two AIs, payout); every page fits a phone and scores 100 for accessibility in Lighthouse. AG Studio report with four custom widgets; a Bryntum Gantt for projects. |
+| **Potential impact** | The approval step that stalls escrow becomes a check that costs about $0.10 ($0.003 with Haiku) next to Escrow.com's $50 minimum on a $250 job ([who it's for](#who-its-for)). Agents can take paid work under the same checks as people, which nothing else on PayPal offers today. |
+| **Quality of the idea** | Escrow released by proof, not by a click: the criteria both sides agreed on are the contract, the AI writes down the evidence for each, a second model can veto, and when things go wrong (changed scope, a missed deadline, half the work, a problem after payment, a PayPal dispute) each case has a path with PayPal doing the money part. |
+| **Presentation** | [Try it in 60 seconds](https://proof-of-done.onrender.com/demo) with no keys or sign-up; this README; the video on the Devpost page. |
+
+## What is real and what is simulated
+
+| Part | On the hosted demo | Notes |
+|---|---|---|
+| PayPal for deals you create | **Real sandbox** (Orders v2, Payments v2, Payouts, Disputes, webhooks) | Fund as a guest with PayPal's published test card. No real money anywhere. |
+| PayPal for the ready-made demos and the demo history | Simulated, labelled on every page | So anyone can play both sides without a PayPal login. |
+| The AI review of your own deals and of "Try to fool it" | **Live Claude** (Haiku 5.5 on the hosted demo, to keep it under a cent; Opus 5.5 by default) | Capped per day so a visitor can't run up the bill; after the cap it falls back to the simulated reviewer and says so. |
+| The AI review in the four ready-made demos | Replays of real recorded Claude runs | Exact recorded steps and verdicts, at no cost. |
+| Dispute evidence | Built and sent by code; checked against a fake PayPal in tests | A live sandbox dispute needs a buyer account to open one. |
+| Agents on the job board | Real MCP; demo jobs pay out in simulation | Point your own agent at `/api/mcp`. |
 
 ## Who it's for
 
@@ -249,18 +274,26 @@ It also runs with no keys at all, which is handy for a quick look, but the point
 
 ### Tests
 ```bash
-npm test        # 135 tests: escrow state machine (simulated, throwaway data dir) incl. objection
+npm test        # 146 tests: escrow state machine (simulated, throwaway data dir) incl. objection
                 # windows, settlements, hold renewal and demo replays; the open job board and the
                 # live challenge's limits; PayPal money calls and webhooks against a
                 # fake PayPal; the reviewer's tools without the API (policy gate, second opinion,
                 # one decision per review, link allowlist); roles and redaction, link guard,
-                # evidence handling, rate limits, Claude <-> AG Studio bridge
+                # evidence handling, rate limits, Claude <-> AG Studio bridge; the record's hash chain;
+                # the OpenAPI document against the routes; and a fuzzer that plays 120 random deals
+                # (any action, by the right side, the wrong side or nobody) checking the money rules
+                # after every step
 npm run lint
 npm run typecheck   # generates Next's route types first, so it works on a fresh clone
 npm run build
 npm run smoke -- https://proof-of-done.onrender.com
                 # the judge's path against a running copy: pages, the agent endpoint, and the four
                 # replayed demos ending paid / held / settled for part / sent back (no API cost)
+curl https://proof-of-done.onrender.com/api/health
+                # which mode a copy runs in (PayPal sandbox or simulated, live reviewer or not), never a key
+node scripts/verify-record.mjs proof-of-done-ms_xxxx.json
+                # checks a deal record downloaded from its page, offline: every step against its hash,
+                # and the fingerprint PayPal got in the capture note
 ```
 
 ## Project structure
@@ -349,7 +382,7 @@ A review costs about 18k input and 1-1.3k output tokens, roughly $0.10. The dash
 
 ## Built during the hackathon
 
-All of Proof of Done was built during the PayPal AI Hackathon submission period. It started from PayPal's official [PayPal × AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate), from which the dashboard shell, the AG Studio PayPal theme and the PayPal OAuth/GET helper are derived. Everything else - the escrow flow, PayPal authorize/capture/void/reauthorize/payouts and webhooks, the SDK v6 button, the Agent Toolkit integration, the Claude reviewer, second opinion and release policy, the demo with replays and the live challenge, the escrow analytics report, the Claude adapter, tools and WebMCP for AG Studio, the open job board and the MCP server - is new.
+All of Proof of Done was built during the PayPal AI Hackathon submission period: the first commit is from 26 October 2026, and every change since is in the git history. It started from PayPal's official [PayPal × AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate), from which the dashboard shell, the AG Studio PayPal theme and the PayPal OAuth/GET helper are derived. Everything else - the escrow flow, PayPal authorize/capture/void/reauthorize/payouts and webhooks, the SDK v6 button, the Agent Toolkit integration, the Claude reviewer, second opinion and release policy, the demo with replays and the live challenge, the escrow analytics report, the Claude adapter, tools and WebMCP for AG Studio, the open job board and the MCP server, the Bryntum Gantt, changed terms, refunds, dispute evidence, the sealed record and the OpenAPI document - is new.
 
 ## License
 

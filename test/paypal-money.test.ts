@@ -68,6 +68,18 @@ test('an amount lowered by agreement after the hold is captured as that amount, 
   assert.equal(result.capturedAmount, undefined, 'the deal amount is what was captured');
 });
 
+test('the capture note carries the record fingerprint, so PayPal holds it', async () => {
+  respond = (p) =>
+    p.endsWith('/capture')
+      ? { json: { id: 'CAP4', status: 'COMPLETED', amount: { value: '100.00', currency_code: 'USD' } } }
+      : { json: { batch_header: { payout_batch_id: 'B3', batch_status: 'PENDING' } } };
+  const hash = 'ab'.repeat(32);
+  const sealed = { ...milestone, timeline: [{ at: '', actor: 'client', type: 'approved', text: 'ok', hash }] } as Milestone;
+  const result = await payments.releaseFunds(sealed, 'Work accepted');
+  assert.equal(posted('/v2/payments/authorizations/AUTH1/capture')[0].body.note_to_payer, `Proof of Done record ${hash.slice(0, 16)}. Work accepted`);
+  assert.equal(result.anchoredRecord, hash);
+});
+
 test('a call PayPal never answered is sent again with the same idempotency key', async () => {
   let dropped = false;
   const real = globalThis.fetch;

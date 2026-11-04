@@ -2,12 +2,14 @@ import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { latestFindings } from '@/lib/escrow/policy';
+import { checkSeal } from '@/lib/escrow/chain';
+import { currentReview, latestFindings } from '@/lib/escrow/policy';
 import { readMilestone } from '@/lib/escrow/service';
 import { SiteHeader } from '@/app/components/site-header';
 import { fmtDay, fmtMoney, fmtTime } from '@/app/components/status';
 import { modelName } from '../ui';
 import { CheckFile } from './check-file';
+import { SealNote } from '../details';
 
 export async function generateMetadata(props: PageProps<'/m/[id]/proof'>): Promise<Metadata> {
   const { id } = await props.params;
@@ -24,7 +26,8 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
   const m = await readMilestone(id);
   if (!m) notFound();
   const paid = m.status === 'released';
-  const review = m.reviews.at(-1);
+  // A review made before the terms changed was against the old criteria.
+  const review = currentReview(m);
   const findings = review ? latestFindings(m.criteria, review.findings) : [];
   const aiPaid = m.timeline.some((e) => e.type === 'verified');
   const captured = m.payment.capturedAmount ?? m.amount;
@@ -71,6 +74,7 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
                 <Fact label="PayPal capture" value={m.payment.captureId ?? '-'} mono note={m.payment.mode === 'sandbox' ? 'PayPal sandbox' : 'simulated'} />
               </dl>
               <p className="mt-4 text-[15px] leading-relaxed text-pp-ink">{how}</p>
+              <SealNote seal={checkSeal(m)} anchor={m.payment.anchoredRecord} />
               {refunded > 0 && (
                 <p className="mt-3 rounded-xl bg-orange-50 px-4 py-3 text-[15px] text-orange-900 ring-1 ring-inset ring-orange-200">
                   After the payment {m.client.name} reported a problem, and {fmtMoney(refunded, m.currency)}

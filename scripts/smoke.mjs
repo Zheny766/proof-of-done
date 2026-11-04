@@ -59,11 +59,20 @@ for (const [path, text] of [
   ['/sandbox', 'ran on the real PayPal sandbox'],
   ['/opengraph-image.png', null],
   ['/llms.txt', '/api/mcp'],
+  ['/openapi.json', '"openapi":"3.1.0"'],
 ]) {
   const res = await fetch(base + path);
   const body = text ? await res.text() : '';
   if (res.ok && (!text || body.includes(text))) ok(path);
   else fail(path, `${res.status}${text && res.ok ? `, no "${text}"` : ''}`);
+}
+
+try {
+  const health = await api('/api/health');
+  if (health.status === 'ok' && health.storage && health.sealedRecords) ok('/api/health', `PayPal ${health.payments}, reviewer ${health.reviewer.live ? health.reviewer.model : 'simulated'}, ${health.deals} deals, records sealed`);
+  else fail('/api/health', JSON.stringify(health).slice(0, 160));
+} catch (e) {
+  fail('/api/health', e.message);
 }
 
 {
@@ -94,7 +103,7 @@ try {
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
   });
   const names = ((await res.json()).result?.tools ?? []).map((t) => t.name).sort();
-  const want = ['claim_job', 'find_jobs', 'get_job', 'post_job', 'submit_work', 'wait_for_verdict'];
+  const want = ['change_terms', 'claim_job', 'find_jobs', 'get_job', 'post_job', 'submit_work', 'wait_for_verdict'];
   if (want.every((n) => names.includes(n))) ok('MCP endpoint', names.join(', '));
   else fail('MCP endpoint', `tools: ${names.join(', ') || 'none'}`);
 } catch (e) {

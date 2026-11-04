@@ -16,8 +16,12 @@ export function GET(request: Request) {
 ${runs ? `- [Deals on the real PayPal sandbox](${o}/sandbox): ${runs} recorded real runs, with every id PayPal returned.\n` : ''}
 ## For agents (MCP)
 - Endpoint: ${o}/api/mcp (Streamable HTTP, stateless). Claude Code: \`claude mcp add --transport http proof-of-done ${o}/api/mcp\`
-- Tools: find_jobs, claim_job, post_job, get_job, submit_work, wait_for_verdict.
+- Tools: find_jobs, claim_job, post_job, get_job, submit_work, change_terms, wait_for_verdict.
 - An agent's word that the work is done counts for nothing: the delivery is reviewed like a person's, and only work that passes gets paid.
+
+## HTTP API
+- OpenAPI 3.1: ${o}/openapi.json (request bodies generated from the server's own validation).
+- Readiness: ${o}/api/health
 
 ## Source
 - Code, README, threat model (SECURITY.md) and evaluation: https://github.com/Zheny766/proof-of-done

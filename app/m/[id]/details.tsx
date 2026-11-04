@@ -117,6 +117,7 @@ export function Timeline({ m }: { m: Milestone }) {
         <h2 className={h2}>Timeline · who did what</h2>
         <span className="text-xs text-pp-muted group-open:hidden">{m.timeline.length} events · show</span>
       </summary>
+      {m.seal?.head && <SealNote seal={m.seal} anchor={m.payment.anchoredRecord} />}
       <ol className="mt-4 space-y-3.5">
         {[...m.timeline].reverse().map((e, i) => (
           <li key={i} className="flex gap-3 text-sm">
@@ -131,6 +132,24 @@ export function Timeline({ m }: { m: Milestone }) {
         ))}
       </ol>
     </details>
+  );
+}
+
+/** The timeline's hash chain (lib/escrow/chain.ts): its fingerprint, and whether every step still matches it. */
+export function SealNote({ seal, anchor }: { seal: NonNullable<Milestone['seal']>; anchor?: string }) {
+  return (
+    <p className={`mt-3 rounded-xl px-3 py-2 text-xs leading-relaxed ring-1 ring-inset ${seal.intact ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-rose-50 text-pp-danger ring-rose-200'}`}>
+      {seal.intact ? '✓ Sealed record: ' : '✗ This record was changed: '}
+      {seal.intact
+        ? `each of the ${seal.events} steps carries a SHA-256 of itself and the step before, so none can change unnoticed.`
+        : `step ${(seal.brokenAt ?? 0) + 1} no longer matches its hash.`}{' '}
+      Fingerprint <span className="break-all font-mono">{seal.head.slice(0, 16)}…</span>
+      {anchor && (
+        <>
+          {' '}· PayPal&apos;s capture note holds <span className="font-mono">{anchor.slice(0, 16)}</span>
+        </>
+      )}
+    </p>
   );
 }
 
