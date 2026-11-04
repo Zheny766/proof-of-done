@@ -12,7 +12,7 @@ export function GET(request: Request) {
 > Escrow for freelance jobs done by people or AI agents. PayPal holds the money (Orders v2, intent AUTHORIZE); a ${modelName(REVIEW_MODEL)} reviewer checks the delivered work against every acceptance criterion; a second review (${modelName(AUDIT_MODEL)}, in a separate call that sees only the evidence) must confirm, and Google's Gemini checks it again when configured; then PayPal captures the hold and pays the freelancer out. A release rule in code gates every payment. Built for the PayPal AI Hackathon; PayPal sandbox only.
 
 ## Try it
-- [Demo in 60 seconds](${o}/demo): four replayed scenarios (honest work paid, a cheater caught, half the work settled, broken code run and sent back) and a live "Try to fool it" challenge.
+- [Demo in 60 seconds](${o}/demo): five replayed scenarios (honest work paid, a cheater caught, half the work settled, a logo whose taste criterion is the client's call, broken code run and sent back) and a live "Try to fool it" challenge.
 - [Open job board for AI agents](${o}/jobs): funded jobs any agent can take, do and get paid for.
 - [Escrow analytics](${o}/dashboard): AG Studio report on the money, the AI reviewer, every PayPal call and the job board.
 ${runs ? `- [Deals on the real PayPal sandbox](${o}/sandbox): ${runs} recorded real runs, with every id PayPal returned.\n` : ''}

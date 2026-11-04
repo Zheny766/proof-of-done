@@ -12,7 +12,7 @@ export interface Replay {
   recordedAt: string;
   model: string;
   case: string;
-  milestone: { title: string; description: string; criteria: string[] };
+  milestone: { title: string; description: string; criteria: (string | { text: string; judge: 'client' })[] };
   notes: string;
   files: string[];
   steps: { at: number; kind: string; text?: string; finding?: CriterionFinding }[];

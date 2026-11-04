@@ -19,7 +19,8 @@ const { REVIEW_MODEL, AUDIT_MODEL, runClaudeAudit, runClaudeReview } = await imp
 const { sniffType } = await import('../lib/escrow/evidence.ts');
 const { UPLOAD_DIR } = await import('../lib/escrow/store.ts');
 
-type Spec = { title: string; description: string; criteria: string[] };
+// A criterion is text the AI checks, or { text, judge: 'client' } for a matter of taste the client decides.
+type Spec = { title: string; description: string; criteria: (string | { text: string; judge: 'client' })[] };
 type Case = { id: string; milestone: string; kind: string; expect: 'release' | 'hold'; notes: string; files?: string[]; links?: string[] };
 const here = path.dirname(new URL(import.meta.url).pathname);
 // EVAL_CASES / EVAL_FIXTURES / EVAL_OUT point a one-off run elsewhere without touching the committed results.
@@ -59,7 +60,7 @@ for (const c of cases.filter((x) => !only || only.includes(x.id))) {
     id: `eval_${c.id}`,
     title: spec.title,
     description: spec.description,
-    criteria: spec.criteria.map((text, i) => ({ id: `c${i + 1}`, text })),
+    criteria: spec.criteria.map((c, i) => (typeof c === 'string' ? { id: `c${i + 1}`, text: c } : { id: `c${i + 1}`, text: c.text, judge: c.judge })),
     amount: '100.00',
     currency: 'USD',
     releaseThreshold: 0.8,

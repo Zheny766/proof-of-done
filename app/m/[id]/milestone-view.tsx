@@ -364,7 +364,7 @@ function Person({ name, tone }: { name: string; tone: string }) {
   );
 }
 
-const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', code: 'Code that doesn’t work', arena: 'Try to fool it', project: 'A project in stages' };
+const DEMO_TITLE: Record<string, string> = { honest: 'Honest work gets paid', cheater: 'A cheater gets caught', partial: 'Half the work, half the pay', code: 'Code that doesn’t work', logo: 'Taste is the client’s call', arena: 'Try to fool it', project: 'A project in stages' };
 
 /** The project demo's own tips; null where the general ones fit. */
 function projectTip(m: Milestone, role: Role): string | null {
@@ -436,6 +436,10 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
                 : 'You asked for changes. The money stays on hold until the freelancer delivers again.'
             : m.status === 'changes_requested'
             ? `The AI asked for changes and the money stays on hold. Offer a settlement (say $60), then switch to the ${other} to accept it.`
+            : m.status === 'verified' && m.criteria.some((c) => c.judge === 'client')
+              ? role === 'client'
+                ? 'The AI checked the facts and the other AIs agreed. “Feels warm and inviting” is yours to judge: pay now if you like it, or object. If you say nothing, PayPal pays when the window closes.'
+                : 'The AI checked the facts. The taste criterion is the client’s call: switch to the client to pay now or object.'
             : m.status === 'verified'
               ? 'Verified. Switch to the client to pay now or object.'
               : m.status === 'released' && m.complaint?.status === 'open'

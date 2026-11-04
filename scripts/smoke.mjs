@@ -111,7 +111,8 @@ try {
 }
 
 console.log('Demos (replayed reviews, no API cost)');
-const expected = { honest: 'released', cheater: 'escalated', partial: 'changes_requested', code: 'changes_requested' };
+// The logo's last criterion is the client's call (taste), so a passing check opens the objection window.
+const expected = { honest: 'released', cheater: 'escalated', partial: 'changes_requested', code: 'changes_requested', logo: 'verified' };
 const runs = await Promise.all(
   Object.keys(expected).map(async (scenario) => {
     try {

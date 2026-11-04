@@ -47,8 +47,17 @@ const SCENARIOS = [
     glance: '1 of 4 tests failed',
   },
   {
-    id: 'project',
+    id: 'logo',
     n: '5',
+    title: 'Taste is the client’s call',
+    who: 'Lena delivers a bakery logo. Three criteria are facts; one says it should feel warm and inviting.',
+    see: 'Claude Opus checks the name, the wheat mark and the files, Claude Haiku and Gemini confirm, and the taste criterion is left to the client: pay now, object, or let the window close.',
+    tone: 'border-amber-200',
+    glance: 'Facts by the AI · taste by you',
+  },
+  {
+    id: 'project',
+    n: '6',
     title: 'A project in stages',
     who: 'A bakery’s website in three stages, part-way through.',
     see: 'Stage 1 was verified and paid; PayPal holds the money for stage 2 only. A Bryntum Gantt shows the plan under what happened. Deliver stage 2 and watch the next one unlock.',
@@ -66,10 +75,10 @@ export default async function DemoPage() {
       <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Try it in 60 seconds</p>
-        <h1 className="mt-3 max-w-3xl font-display text-4xl leading-tight text-pp-navy sm:text-5xl">Five real situations and one live challenge. You play both sides.</h1>
+        <h1 className="mt-3 max-w-3xl font-display text-4xl leading-tight text-pp-navy sm:text-5xl">Six real situations and one live challenge. You play both sides.</h1>
         <p className="mt-4 max-w-3xl text-[17px] leading-relaxed text-pp-muted sm:text-lg">
           Each one opens a private deal with $100 already on hold. Hand in the work as the freelancer and watch the AIs decide.
-          <span className="hidden sm:inline"> The first four AI reviews are replays of real Claude runs, so it costs nothing and works without keys; the money is a simulated PayPal hold.</span>
+          <span className="hidden sm:inline"> Five of the AI reviews are replays of real Claude runs, so it costs nothing and works without keys; the money is a simulated PayPal hold.</span>
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
           <StartDemo scenario="honest" label="Start with honest work →" className="h-12 text-[15px]" />
@@ -124,7 +133,7 @@ export default async function DemoPage() {
             <StartDemo scenario="cheater" label="Start" tone="light" />
           </section>
         </div>
-        <div className="mt-5 grid gap-5 sm:grid-cols-3">
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {SCENARIOS.slice(2).map((s) => (
             <section key={s.id} className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-pp-border">
               <div className="flex items-start gap-3">

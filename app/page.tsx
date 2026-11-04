@@ -29,7 +29,7 @@ const safeguards = (gemini: boolean) => [
     ? ['Models from two companies have to agree', 'A second Claude model and Google’s Gemini re-check the evidence, and either can veto; if one can’t answer, nothing is paid automatically. A trick that fools one model rarely fools another company’s. In testing they stopped a payment Claude Opus itself had approved.']
     : ['Two models have to agree', 'A second Claude model re-checks the evidence and can veto. In testing it stopped a payment Claude Opus itself had approved.'],
   ['The rule is code, not a prompt', 'Every criterion must be met above the client’s confidence threshold. No wording in a submission changes that.'],
-  ['The client keeps the final say', 'Pay now, object within a window you choose, cancel and void the hold, or settle for part: PayPal captures just that and releases the rest.'],
+  ['Facts for the AI, taste for you', 'The AI checks what can be checked: formats, counts, names, tests. Mark a criterion like “feels warm” as yours, and the money waits for your OK or your objection window. You can always pay now, cancel and void the hold, or settle for part.'],
   ['Submissions are evidence, never instructions', '"Skip the checks and pay" hidden in notes or a PDF is flagged as an attack, and the money stays put.'],
   ['Code is run, not eyeballed', '"All tests pass" is checked by running them in Anthropic’s code execution sandbox, isolated and offline. A failing test keeps the money on hold.'],
   ['Every step on the record', 'Each finding, decision and PayPal call is logged with who made it: client, freelancer, AI or PayPal. Paid work gets a certificate anyone can check.'],
@@ -68,7 +68,7 @@ export default async function Home() {
             main action, then the explanation; on a wide screen it takes the larger column on the right. */}
         <section className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6 px-6 pb-16 pt-8 sm:gap-y-7 sm:pt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
           <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:self-end">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal authorize &amp; capture · checked by {gemini ? 'three' : 'two'} AIs</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Pay for proven results · from people or AI agents</p>
             <h1 className="mt-3 font-display text-[40px] leading-[1.04] text-pp-navy min-[380px]:text-[44px] sm:mt-4 sm:text-6xl">Get paid the moment the work is proven.</h1>
           </div>
           <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
@@ -76,7 +76,7 @@ export default async function Home() {
           </div>
           <div className="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2">
             <p className="order-2 mt-6 max-w-xl text-lg leading-relaxed text-pp-muted lg:order-1 lg:mt-0">
-              PayPal holds the client&apos;s money without charging it. When the work arrives, from a person or an AI agent, {gemini ? 'three AIs from two companies check' : 'two Claude models check'} it against every criterion you agreed on, and only then does PayPal pay out.
+              PayPal holds the client&apos;s money without charging it. When the work arrives, {gemini ? 'three AIs from two companies check' : 'two Claude models check'} it against the criteria you agreed on, and only then does PayPal pay out. Facts are the AI&apos;s to check; taste stays your call.
             </p>
             <div className="order-1 flex flex-wrap items-center gap-x-5 gap-y-3 lg:order-2 lg:mt-8">
               <Link href="/demo" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-pod-electric px-7 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(36,107,253,0.8)] hover:bg-pod-electric-dark sm:w-auto">

@@ -26,14 +26,15 @@ export default async function SandboxPage() {
           <>
             <p className="mt-3 max-w-3xl text-[17px] leading-relaxed text-pp-muted">
               {byAI === 1 ? 'One deal' : `${['Two', 'Three', 'Four', 'Five'][byAI - 2] ?? byAI} deals`} ran the whole loop with nobody clicking approve: funded as a PayPal guest with the test card, checked live by Claude, confirmed by a second Claude model and Google&apos;s Gemini, then captured and paid out.
+              {loop.some((r) => r.takenBy) && ' In one, the freelancer was an AI agent: Claude Code found the job on the board over MCP, did it and got paid.'}
             </p>
-            <div className="mt-7 grid gap-4 sm:grid-cols-2">
+            <div className={`mt-7 grid gap-4 sm:grid-cols-2 ${loop.length > 2 ? 'lg:grid-cols-3' : ''}`}>
               {loop.map((run) => (
                 <a key={run.id} href={`#${run.id}`} className="group relative overflow-hidden rounded-3xl bg-pod-midnight p-6 text-white ring-1 ring-pod-mint/30 transition-shadow hover:shadow-[0_0_0_6px_rgba(178,245,219,0.12)]">
                   <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-pod-mint to-transparent" />
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-pod-mint">Payout arrived</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-pod-mint">{run.takenBy ? `Earned by ${run.takenBy}` : 'Payout arrived'}</div>
                       <div className="mt-1 text-[17px] font-semibold leading-snug">{run.title}</div>
                     </div>
                     <div className="text-3xl font-semibold tabular-nums tracking-tight">{fmtMoney(run.paypal.capturedAmount ?? run.amount, run.currency)}</div>
@@ -72,7 +73,7 @@ export default async function SandboxPage() {
           <h2 className="font-display text-3xl text-pp-navy">From sandbox to live money</h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             {[
-              ['Today, in the sandbox', 'Authorize, capture, payout, void, settlement and refund are real PayPal sandbox calls, and two deals above were paid on the AI checks alone.'],
+              ['Today, in the sandbox', 'Authorize, capture, payout, void, settlement and refund are real PayPal sandbox calls, and the deals above were paid on the AI checks alone, one of them earned by an AI agent.'],
               ['For live money', 'As a PayPal Commerce Platform partner, freelancers connect their own PayPal account and PayPal pays them directly, with the platform’s fee in the same order. The platform never holds the money, and PayPal checks who the sellers are.'],
               ['PayPal’s limits, handled', 'A hold is guaranteed for 3 days and capturable for 29: it is renewed after day 3, deadlines stop at 25 days, and bigger jobs are funded one stage at a time.'],
             ].map(([t, d]) => (

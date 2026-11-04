@@ -1094,6 +1094,7 @@ const DEMO_FREELANCERS: Record<string, [string, string]> = {
   cheater: ['Sam Rivera', 'sam@studio.example'],
   partial: ['Priya Nair', 'priya@studio.example'],
   code: ['Kenji Sato', 'kenji@studio.example'],
+  logo: ['Lena Park', 'lena@studio.example'],
   arena: ['You', 'you@visitor.example'],
 };
 
@@ -1123,8 +1124,9 @@ export function startDemo(scenario: string): Milestone {
     criteria: replay.milestone.criteria,
     // The recorded reviews mention the amount, so the demo deals use the same one.
     amount: 100,
-    clientName: 'Ember & Oak',
-    clientEmail: 'maya@ember-oak.example',
+    // The logo is for the bakery from its brief; the other demos are for the cafe.
+    clientName: scenario === 'logo' ? 'Crumb & Co' : 'Ember & Oak',
+    clientEmail: scenario === 'logo' ? 'maya@crumb.example' : 'maya@ember-oak.example',
     freelancerName: freelancer[0],
     freelancerEmail: freelancer[1],
   });

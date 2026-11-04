@@ -62,6 +62,7 @@ export function sandboxRuns(): SandboxRun[] {
     .readdirSync(RUNS_DIR)
     .filter((f) => f.endsWith('.json'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(RUNS_DIR, f), 'utf8')) as SandboxRun)
-    // Runs the AI reviewed and PayPal then paid come first: they show the whole loop. Then oldest first.
-    .sort((a, b) => Number(!!b.review?.decision) - Number(!!a.review?.decision) || a.createdAt.localeCompare(b.createdAt));
+    // Runs the AI reviewed and PayPal then paid come first: they show the whole loop, and one an agent
+    // took from the board leads them. Then oldest first.
+    .sort((a, b) => Number(!!b.review?.decision) - Number(!!a.review?.decision) || Number(!!b.takenBy) - Number(!!a.takenBy) || a.createdAt.localeCompare(b.createdAt));
 }

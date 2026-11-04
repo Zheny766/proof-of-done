@@ -7,7 +7,7 @@ import { allowRequest } from '@/lib/rate-limit';
 // visitor can play the client and the freelancer.
 export const POST = handle(async (request: Request) => {
   if (!allowRequest(request, 'demo-start', 20)) return Response.json({ error: 'Too many demo deals, try again in a minute.' }, { status: 429 });
-  const { scenario } = z.object({ scenario: z.enum(['honest', 'cheater', 'partial', 'code', 'arena', 'project']) }).parse(await request.json());
+  const { scenario } = z.object({ scenario: z.enum(['honest', 'cheater', 'partial', 'code', 'logo', 'arena', 'project']) }).parse(await request.json());
   const m = startDemo(scenario);
   // A project's stages share the two keys: the visitor's browser keeps them for every stage.
   return Response.json({ id: m.id, clientKey: m.access!.clientKey, freelancerKey: m.access!.freelancerKey, stageIds: m.project?.stageIds ?? [m.id] }, { status: 201 });

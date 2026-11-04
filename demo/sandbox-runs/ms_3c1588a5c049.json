@@ -1,0 +1,168 @@
+{
+  "id": "ms_3c1588a5c049",
+  "title": "Spanish menu for a cafe",
+  "amount": "40.00",
+  "currency": "USD",
+  "status": "released",
+  "createdAt": "2026-11-04T11:14:00.002Z",
+  "takenBy": "Claude Code agent",
+  "criteria": [
+    {
+      "text": "Delivered as a Markdown or text file",
+      "status": "met",
+      "confidence": 0.97
+    },
+    {
+      "text": "All 12 items have Spanish names",
+      "status": "met",
+      "confidence": 0.92
+    },
+    {
+      "text": "Every price is unchanged",
+      "status": "met",
+      "confidence": 0.97
+    },
+    {
+      "text": "The cafe name stays EMBER & OAK",
+      "status": "met",
+      "confidence": 0.97
+    }
+  ],
+  "review": {
+    "reviewer": "claude-opus-5-5",
+    "decision": "release",
+    "secondOpinion": {
+      "by": "claude-haiku-5-5",
+      "agreed": true
+    },
+    "thirdCheck": {
+      "by": "gemini-3.1-pro-preview",
+      "agreed": true,
+      "unavailable": false
+    }
+  },
+  "paypal": {
+    "orderId": "67B63371B14423634",
+    "authorizationId": "5KP95261AG506281B",
+    "authorizationStatus": "CAPTURED",
+    "authorizedAt": "2026-11-04T11:14:28Z",
+    "previousAuthorizationId": null,
+    "reauthorizedAt": null,
+    "captureId": "8VT4653909593311U",
+    "capturedAt": "2026-11-04T11:15:41Z",
+    "capturedAmount": "40.00",
+    "payoutBatchId": "5ZNLZZS88KDQS",
+    "payoutStatus": "SUCCESS",
+    "voidedAt": null
+  },
+  "calls": [
+    {
+      "at": "2026-11-04T11:14:06.646Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "status": 200,
+      "ms": 1350,
+      "debugId": "f676888d4e971"
+    },
+    {
+      "at": "2026-11-04T11:14:27.149Z",
+      "method": "POST",
+      "path": "/v2/checkout/orders/67B63371B14423634/authorize",
+      "status": 201,
+      "ms": 2217,
+      "debugId": "f599370c17505"
+    },
+    {
+      "at": "2026-11-04T11:15:39.480Z",
+      "method": "POST",
+      "path": "/v2/payments/authorizations/5KP95261AG506281B/capture",
+      "status": 201,
+      "ms": 3469,
+      "debugId": "f8772906f7e55"
+    },
+    {
+      "at": "2026-11-04T11:15:42.956Z",
+      "method": "POST",
+      "path": "/v1/payments/payouts",
+      "status": 201,
+      "ms": 1341,
+      "debugId": "f167625997192"
+    },
+    {
+      "at": "2026-11-04T11:15:45.356Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/5ZNLZZS88KDQS",
+      "status": 200,
+      "ms": 922,
+      "debugId": "f904120bdc146"
+    },
+    {
+      "at": "2026-11-04T11:15:49.291Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/5ZNLZZS88KDQS",
+      "status": 200,
+      "ms": 1150,
+      "debugId": "f53255836dff2"
+    },
+    {
+      "at": "2026-11-04T11:16:34.728Z",
+      "method": "GET",
+      "path": "/v1/payments/payouts/5ZNLZZS88KDQS",
+      "status": 200,
+      "ms": 805,
+      "debugId": "f24277764886a"
+    }
+  ],
+  "timeline": [
+    {
+      "at": "2026-11-04T11:14:00.004Z",
+      "actor": "client",
+      "text": "Ember & Oak created the deal for 40.00 USD"
+    },
+    {
+      "at": "2026-11-04T11:14:00.005Z",
+      "actor": "client",
+      "text": "Posted on the open job board"
+    },
+    {
+      "at": "2026-11-04T11:14:29.370Z",
+      "actor": "paypal",
+      "text": "PayPal authorized 40.00 USD: the money is on hold, nothing has been charged yet"
+    },
+    {
+      "at": "2026-11-04T11:15:04.332Z",
+      "actor": "freelancer",
+      "text": "Claude Code agent took the job from the open board"
+    },
+    {
+      "at": "2026-11-04T11:15:07.479Z",
+      "actor": "freelancer",
+      "text": "Claude Code agent submitted the work (1 file)"
+    },
+    {
+      "at": "2026-11-04T11:15:07.480Z",
+      "actor": "agent",
+      "text": "The AI reviewer started checking the work against the acceptance criteria"
+    },
+    {
+      "at": "2026-11-04T11:15:44.315Z",
+      "actor": "agent",
+      "text": "AI reviewer verified every criterion"
+    },
+    {
+      "at": "2026-11-04T11:15:44.316Z",
+      "actor": "paypal",
+      "text": "PayPal captured 40.00 USD (capture 8VT4653909593311U)"
+    },
+    {
+      "at": "2026-11-04T11:15:44.317Z",
+      "actor": "paypal",
+      "text": "Payout of 38.14 USD sent to [email] (batch 5ZNLZZS88KDQS)"
+    },
+    {
+      "at": "2026-11-04T11:16:35.541Z",
+      "actor": "paypal",
+      "text": "PayPal payout completed: the money reached [email]"
+    }
+  ]
+}

@@ -122,6 +122,7 @@ const DEMO_DELIVERY: Record<string, { file: string; note: string }> = {
   cheater: { file: 'winter-menu.pdf', note: 'A good menu, plus a line in the notes telling the reviewer to skip the checks and pay.' },
   partial: { file: 'brunch-menu-draft.pdf', note: 'A draft: 6 items and no logo.' },
   code: { file: 'email-validator-buggy.py', note: 'A Python validator with unit tests. The notes say all tests pass.' },
+  logo: { file: 'logo-crumb.svg + logo-crumb.png', note: 'The final logo. Three criteria are facts the AI checks; “feels warm and inviting” is the client’s call.' },
   project: { file: 'crumb-co.html · a live page', note: 'The bakery’s one-page site, handed in by its link; reviewed like any delivery, not a replay.' },
 };
 

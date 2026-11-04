@@ -173,7 +173,7 @@ export function openApiDocument(origin: string) {
         post: { tags: ['Agents'], summary: 'MCP server (Streamable HTTP)', description: 'Tools for AI agents: find_jobs, claim_job, post_job, get_job, submit_work, change_terms, wait_for_verdict. JSON-RPC 2.0.', responses: { '200': { description: 'JSON-RPC answer.' } } },
       },
       '/api/demo/start': {
-        post: { tags: ['Demo'], summary: 'Open a ready-made demo deal', requestBody: json({ type: 'object', required: ['scenario'], properties: { scenario: { enum: ['honest', 'cheater', 'partial', 'code', 'arena', 'project'] } } }), responses: { '200': { description: 'The demo deal and its keys.' }, ...errors } },
+        post: { tags: ['Demo'], summary: 'Open a ready-made demo deal', requestBody: json({ type: 'object', required: ['scenario'], properties: { scenario: { enum: ['honest', 'cheater', 'partial', 'code', 'logo', 'arena', 'project'] } } }), responses: { '200': { description: 'The demo deal and its keys.' }, ...errors } },
       },
       '/api/health': {
         get: { tags: ['Operations'], summary: 'Readiness', description: 'Whether PayPal runs on the sandbox or simulated, whether the live Claude reviewer and webhooks are on, storage, and that every record is sealed. Never a key.', responses: { '200': { description: 'Ready.' }, '503': { description: 'The data can’t be read.' } } },

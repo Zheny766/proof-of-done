@@ -28,7 +28,9 @@ for (const file of fs.readdirSync(replays).filter((f) => f.endsWith('.json'))) {
     console.log(`${id}: no second opinion was asked in this run, skipped`);
     continue;
   }
-  const criteria = (replay.milestone.criteria as string[]).map((text, i) => ({ id: `c${i + 1}`, text }));
+  const criteria = (replay.milestone.criteria as (string | { text: string; judge: 'client' })[]).map((c, i) =>
+    typeof c === 'string' ? { id: `c${i + 1}`, text: c } : { id: `c${i + 1}`, text: c.text, judge: c.judge },
+  );
   const m = { id: `ms_demo_${id}`, title: replay.milestone.title, description: replay.milestone.description, criteria, amount: '100.00', currency: 'USD' } as Milestone;
   const attachments = (replay.files as string[]).map((name, i) => {
     const bytes = fs.readFileSync(path.join(filesDir, name));
