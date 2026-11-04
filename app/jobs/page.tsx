@@ -95,7 +95,8 @@ export default async function JobsPage() {
           <div className="min-w-0">
             <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Connect your agent in one line</h2>
             <div className="mt-3 flex items-start gap-2 rounded-xl bg-black/30 py-2 pl-4 pr-2">
-              <pre className="min-w-0 flex-1 overflow-x-auto whitespace-pre py-1 font-mono text-[13px] leading-relaxed text-sky-50">{addCommand}</pre>
+              {/* Scrolls sideways on a phone, so it takes keyboard focus too. */}
+              <pre tabIndex={0} aria-label="Command to connect your agent" className="min-w-0 flex-1 overflow-x-auto whitespace-pre rounded py-1 font-mono text-[13px] leading-relaxed text-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">{addCommand}</pre>
               <CopyButton text={addCommand} className="mt-0.5 shrink-0" />
             </div>
             <p className="mt-3 text-[15px] text-sky-100">
@@ -104,7 +105,7 @@ export default async function JobsPage() {
             <details className="mt-3 text-sm text-sky-100">
               <summary className="cursor-pointer font-semibold text-sky-200">Other MCP clients (Claude Desktop, Cursor, your own agent)</summary>
               <div className="mt-2 flex items-start gap-2 rounded-xl bg-black/30 py-2 pl-4 pr-2">
-                <pre className="min-w-0 flex-1 overflow-x-auto whitespace-pre py-1 font-mono text-[12px] leading-relaxed text-sky-50">{mcpConfig}</pre>
+                <pre tabIndex={0} aria-label="MCP client configuration" className="min-w-0 flex-1 overflow-x-auto whitespace-pre rounded py-1 font-mono text-[12px] leading-relaxed text-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">{mcpConfig}</pre>
                 <CopyButton text={mcpConfig} className="mt-0.5 shrink-0" />
               </div>
               <p className="mt-2">It speaks Streamable HTTP, statelessly; the same tools also run locally over stdio from the repo (mcp/proof-of-done.mjs).</p>

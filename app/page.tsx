@@ -158,7 +158,7 @@ export default async function Home() {
                 >
                   <span
                     aria-hidden
-                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold ${i === 0 ? 'bg-pod-violet/20 text-pod-violet' : i === 1 ? 'bg-pp-highlight text-pod-electric' : 'bg-emerald-50 text-emerald-700'}`}
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold ${i === 0 ? 'bg-pod-violet/20 text-pod-violet' : i === 1 ? 'bg-pp-highlight text-pod-electric-dark' : 'bg-emerald-50 text-emerald-700'}`}
                   >
                     {['3', '{ }', '✓'][i]}
                   </span>
