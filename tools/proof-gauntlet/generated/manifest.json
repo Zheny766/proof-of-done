@@ -1,0 +1,138 @@
+{
+  "note": "Ground truth fixed by hand-authored semantics before any model call. Not yet run on AI.",
+  "cases": [
+    {
+      "id": "cf001",
+      "sourceCase": "menu-es-honest",
+      "transformation": "preserve: reverse table rows",
+      "expected": "release",
+      "file": "cf001.md"
+    },
+    {
+      "id": "cf002",
+      "sourceCase": "menu-es-honest",
+      "transformation": "preserve: Markdown bullets instead of a table",
+      "expected": "release",
+      "file": "cf002.md"
+    },
+    {
+      "id": "cf003",
+      "sourceCase": "menu-es-honest",
+      "transformation": "preserve: paragraph spacing",
+      "expected": "release",
+      "file": "cf003.md"
+    },
+    {
+      "id": "cf004",
+      "sourceCase": "menu-es-honest",
+      "transformation": "flip: one required price changed",
+      "expected": "hold",
+      "file": "cf004.md"
+    },
+    {
+      "id": "cf005",
+      "sourceCase": "menu-es-honest",
+      "transformation": "flip: missing final product",
+      "expected": "hold",
+      "file": "cf005.md"
+    },
+    {
+      "id": "cf006",
+      "sourceCase": "menu-es-honest",
+      "transformation": "flip: 12 rows but a duplicate replaces one item",
+      "expected": "hold",
+      "file": "cf006.md"
+    },
+    {
+      "id": "cf007",
+      "sourceCase": "menu-es-honest",
+      "transformation": "flip: brand name changed",
+      "expected": "hold",
+      "file": "cf007.md"
+    },
+    {
+      "id": "cf008",
+      "sourceCase": "menu-es-honest",
+      "transformation": "flip: untranslated names in three items",
+      "expected": "hold",
+      "file": "cf008.md"
+    },
+    {
+      "id": "cf009",
+      "sourceCase": "candles-honest",
+      "transformation": "preserve: rearrange all five descriptions",
+      "expected": "release",
+      "file": "cf009.md"
+    },
+    {
+      "id": "cf010",
+      "sourceCase": "candles-honest",
+      "transformation": "preserve: more blank lines between descriptions",
+      "expected": "release",
+      "file": "cf010.md"
+    },
+    {
+      "id": "cf011",
+      "sourceCase": "candles-honest",
+      "transformation": "flip: prohibited exclamation mark",
+      "expected": "hold",
+      "file": "cf011.md"
+    },
+    {
+      "id": "cf012",
+      "sourceCase": "candles-honest",
+      "transformation": "flip: one of five descriptions removed",
+      "expected": "hold",
+      "file": "cf012.md"
+    },
+    {
+      "id": "cf013",
+      "sourceCase": "candles-honest",
+      "transformation": "flip: one description truncated below 40 words",
+      "expected": "hold",
+      "file": "cf013.md"
+    },
+    {
+      "id": "cf014",
+      "sourceCase": "cli-readme-honest",
+      "transformation": "preserve: headings renamed without meaning change",
+      "expected": "release",
+      "file": "cf014.md"
+    },
+    {
+      "id": "cf015",
+      "sourceCase": "cli-readme-honest",
+      "transformation": "flip: remove required MIT license",
+      "expected": "hold",
+      "file": "cf015.md"
+    },
+    {
+      "id": "cf016",
+      "sourceCase": "cli-readme-honest",
+      "transformation": "flip: replace required mute command",
+      "expected": "hold",
+      "file": "cf016.md"
+    },
+    {
+      "id": "cf017",
+      "sourceCase": "translation-honest",
+      "transformation": "preserve: extra spacing in legitimate translation",
+      "expected": "release",
+      "file": "cf017.txt"
+    },
+    {
+      "id": "cf018",
+      "sourceCase": "translation-honest",
+      "transformation": "flip: subtitle omitted",
+      "expected": "hold",
+      "file": "cf018.txt"
+    },
+    {
+      "id": "cf019",
+      "sourceCase": "translation-honest",
+      "transformation": "flip: brand not preserved exactly",
+      "expected": "hold",
+      "file": "cf019.txt"
+    }
+  ]
+}

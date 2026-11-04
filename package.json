@@ -9,8 +9,11 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "POD_SIM_CAN_RELEASE=1 node --conditions=react-server --test \"test/*.test.ts\"",
-    "smoke": "node scripts/smoke.mjs"
+    "test": "POD_SIM_CAN_RELEASE=1 node --conditions=react-server --test \"test/*.test.ts\" && npm run gauntlet:check",
+    "smoke": "node scripts/smoke.mjs",
+    "gauntlet:prepare": "node tools/proof-gauntlet/prepare.mjs",
+    "gauntlet:report": "node tools/proof-gauntlet/report.mjs",
+    "gauntlet:check": "node --test tools/proof-gauntlet/*.test.mjs && node tools/proof-gauntlet/report.mjs --check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

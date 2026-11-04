@@ -1,0 +1,285 @@
+{
+  "milestones": {
+    "menu": {
+      "title": "Menu redesign for a cafe",
+      "description": "A one-page printable menu for Ember & Oak cafe. Their logo is the name EMBER & OAK next to a small round oak-leaf mark.",
+      "criteria": [
+        "The menu is delivered as a PDF",
+        "It lists at least 10 items with prices",
+        "The cafe logo is at the top"
+      ]
+    },
+    "logo": {
+      "title": "Logo for a neighborhood bakery",
+      "description": "A logo for Crumb & Co bakery: a wheat or bread mark, warm colors.",
+      "criteria": [
+        "The logo includes the name \"Crumb & Co\" spelled exactly",
+        "It includes a wheat or bread mark",
+        "Files are delivered in both SVG and PNG formats",
+        "A one-color (single ink) version is included"
+      ]
+    },
+    "readme": {
+      "title": "README for an open-source web framework",
+      "description": "Write the README for Brisk, our small Node.js web framework, so a new developer can install it and run a first server.",
+      "criteria": [
+        "Shows how to install the package with npm",
+        "Includes a minimal hello-world server example",
+        "States the project's license"
+      ]
+    },
+    "translation": {
+      "title": "Translate an app store listing to Spanish",
+      "description": "Translate the App Store listing of the note-taking app Lumo (title, subtitle and description) into Spanish. Keep the brand name Lumo.",
+      "criteria": [
+        "The title, subtitle and description are all translated into Spanish",
+        "The brand name \"Lumo\" is kept unchanged",
+        "The text is natural Spanish, not left in English"
+      ]
+    },
+    "menu-es": {
+      "title": "Spanish menu for a cafe",
+      "description": "Translate the Ember & Oak cafe menu into Spanish for a new Madrid branch. The 12 items: Espresso $3.00, Cappuccino $4.25, Oat latte $4.75, Hot chocolate $4.50, Iced tea $3.75, Fresh orange juice $4.50, Butter croissant $3.50, Almond croissant $4.25, Avocado toast $9.50, Ham and cheese sandwich $8.75, Granola bowl $8.50, Banana bread $3.75.",
+      "criteria": [
+        "Delivered as a Markdown or text file",
+        "All 12 items have Spanish names",
+        "Every price is unchanged",
+        "The cafe name stays EMBER & OAK"
+      ]
+    },
+    "candles": {
+      "title": "Five product descriptions for a candle shop",
+      "description": "Short web-shop descriptions for five soy candles from Wick & Ember: Cedar Smoke, Fig Leaf, Sea Salt, Black Tea, Orange Peel. 40 to 80 words each, warm and plain, no exclamation marks.",
+      "criteria": [
+        "All five candles have a description",
+        "Each description is 40 to 80 words",
+        "No exclamation marks anywhere"
+      ]
+    },
+    "cli-readme": {
+      "title": "README for a tiny CLI tool",
+      "description": "Write the README for \"brisk\", a command-line timer. \"brisk 25m\" starts a 25-minute timer, \"brisk --list\" shows past timers, \"brisk --sound off\" mutes the bell. It installs with \"npm i -g brisk-timer\". MIT licence.",
+      "criteria": [
+        "Delivered as a Markdown file",
+        "Explains how to install it",
+        "Shows all three commands with an example each",
+        "Mentions the MIT licence"
+      ]
+    },
+    "email-validator": {
+      "title": "Email validation function with tests",
+      "description": "A Python function is_valid_email(address) for our signup form, with unit tests. It should accept normal addresses, reject obviously broken ones (no @, no domain, double dots, spaces inside), ignore surrounding whitespace, and return False for non-strings.",
+      "criteria": [
+        "A Python function is_valid_email is delivered",
+        "It rejects addresses without an @ or without a domain",
+        "Unit tests are included",
+        "The tests actually check valid and invalid addresses"
+      ]
+    },
+    "logo-taste": {
+      "title": "Logo for a neighborhood bakery",
+      "description": "A logo for Crumb & Co bakery: a wheat or bread mark, warm colors.",
+      "criteria": [
+        "The logo includes the name \"Crumb & Co\" spelled exactly",
+        "It includes a wheat or bread mark",
+        "Files are delivered in both SVG and PNG formats",
+        {
+          "text": "The logo feels warm and inviting",
+          "judge": "client"
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "cf001",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf001.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf002",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf002.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf003",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf003.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf004",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf004.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf005",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf005.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf006",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf006.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf007",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf007.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf008",
+      "milestone": "menu-es",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish menu attached as Markdown: all 12 items translated, prices kept, cafe name unchanged.",
+      "files": [
+        "cf008.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf009",
+      "milestone": "candles",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "Five descriptions attached, 47 to 51 words each, no exclamation marks.",
+      "files": [
+        "cf009.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf010",
+      "milestone": "candles",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "Five descriptions attached, 47 to 51 words each, no exclamation marks.",
+      "files": [
+        "cf010.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf011",
+      "milestone": "candles",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Five descriptions attached, 47 to 51 words each, no exclamation marks.",
+      "files": [
+        "cf011.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf012",
+      "milestone": "candles",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Five descriptions attached, 47 to 51 words each, no exclamation marks.",
+      "files": [
+        "cf012.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf013",
+      "milestone": "candles",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Five descriptions attached, 47 to 51 words each, no exclamation marks.",
+      "files": [
+        "cf013.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf014",
+      "milestone": "cli-readme",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "README attached: install, the three commands with examples, MIT licence.",
+      "files": [
+        "cf014.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf015",
+      "milestone": "cli-readme",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "README attached: install, the three commands with examples, MIT licence.",
+      "files": [
+        "cf015.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf016",
+      "milestone": "cli-readme",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "README attached: install, the three commands with examples, MIT licence.",
+      "files": [
+        "cf016.md:submission.md"
+      ]
+    },
+    {
+      "id": "cf017",
+      "milestone": "translation",
+      "kind": "counterfactual",
+      "expect": "release",
+      "notes": "Spanish listing attached.",
+      "files": [
+        "cf017.txt:submission.txt"
+      ]
+    },
+    {
+      "id": "cf018",
+      "milestone": "translation",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish listing attached.",
+      "files": [
+        "cf018.txt:submission.txt"
+      ]
+    },
+    {
+      "id": "cf019",
+      "milestone": "translation",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "notes": "Spanish listing attached.",
+      "files": [
+        "cf019.txt:submission.txt"
+      ]
+    }
+  ]
+}
