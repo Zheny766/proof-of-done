@@ -6,14 +6,12 @@ import { allowRequest } from '@/lib/rate-limit';
 
 const MAX_FILE = 15 * 1024 * 1024;
 const MAX_FILES = 8;
+// All files of one delivery together; the hosted demo runs on 512 MB of memory.
+const MAX_TOTAL = Number(process.env.POD_MAX_UPLOAD_MB ?? 40) * 1024 * 1024;
 
 // The freelancer submits work; the AI review runs after the response is sent and the page polls it.
 export const POST = handle(async (request: Request, ctx: RouteContext<'/api/escrow/milestones/[id]/submit'>) => {
   const { id } = await ctx.params;
-  // Checked before reading the body, so a huge upload is refused instead of buffered.
-  if (Number(request.headers.get('content-length') ?? 0) > MAX_FILE * MAX_FILES + 1_000_000) {
-    return Response.json({ error: 'Upload too large (8 files, 15 MB each at most).' }, { status: 413 });
-  }
   if (!allowRequest(request, 'submit', 10)) return Response.json({ error: 'Too many submissions, try again in a minute.' }, { status: 429 });
   const form = await request.formData().catch(() => null);
   if (!form) return Response.json({ error: 'Send the delivery as a form (multipart/form-data): notes, links and files.' }, { status: 400 });
@@ -33,4 +31,5 @@ export const POST = handle(async (request: Request, ctx: RouteContext<'/api/escr
   const { milestone, reviewId } = await submitWork(id, { notes, links, files, payoutEmail }, milestoneKey(request));
   after(() => runReview(id, reviewId));
   return Response.json({ milestone: publicMilestone(milestone), reviewId }, { status: 202 });
-});
+  // The size is checked (by handle) before the body is read, so a huge upload is refused, not buffered.
+}, { maxBytes: MAX_TOTAL + 1_000_000 });

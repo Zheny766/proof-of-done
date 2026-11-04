@@ -7,7 +7,9 @@ import { publicOrigin } from '@/lib/origin';
 export async function POST(request: Request) {
   const webhookId = process.env.PAYPAL_WEBHOOK_ID;
   if (!webhookId || !isPayPalConfigured()) return Response.json({ error: 'Webhooks are not configured.' }, { status: 503 });
-  if (Number(request.headers.get('content-length') ?? 0) > 200_000) return Response.json({ error: 'Too large.' }, { status: 413 });
+  const length = request.headers.get('content-length');
+  if (length === null) return Response.json({ error: 'Send a Content-Length.' }, { status: 411 });
+  if (Number(length) > 200_000) return Response.json({ error: 'Too large.' }, { status: 413 });
   let event: WebhookEvent;
   try {
     event = JSON.parse(await request.text());

@@ -54,12 +54,21 @@ function issueText(issue: ZodError['issues'][number]): string {
 /** The caller's milestone key (from their client or freelancer link), sent by the browser as a header. */
 export const milestoneKey = (request: Request) => request.headers.get('x-milestone-key');
 
-/** Wrap a route handler so domain, validation and PayPal errors become clean JSON responses. */
-export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response>) {
+/**
+ * Wrap a route handler so domain, validation and PayPal errors become clean JSON responses. A body
+ * must say its size and stay under `maxBytes` (1 MB unless a route needs more): it is refused before
+ * it is read, so a client can't make the server buffer an endless upload.
+ */
+export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response>, { maxBytes = 1_000_000 }: { maxBytes?: number } = {}) {
   return async (...args: A): Promise<Response> => {
     const request = args[0];
     if (request instanceof Request && request.method !== 'GET' && isCrossSite(request)) {
       return Response.json({ error: 'Cross-site request refused.' }, { status: 403 });
+    }
+    if (request instanceof Request && request.body) {
+      const length = request.headers.get('content-length');
+      if (length === null) return Response.json({ error: 'Send the body with a Content-Length.' }, { status: 411 });
+      if (Number(length) > maxBytes) return Response.json({ error: `The request is too large (at most ${Math.round(maxBytes / 1_000_000)} MB).` }, { status: 413 });
     }
     try {
       return await fn(...args);

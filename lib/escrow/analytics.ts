@@ -1,6 +1,7 @@
 import 'server-only';
 // Milestones flattened into six tables (milestones, reviews, findings, events, PayPal calls, board jobs) for AG Studio.
 
+import { defuseRows } from '../csv-safe.ts';
 import { viewerEventText } from './access.ts';
 import { paymentMode } from './payments.ts';
 import { latestFindings } from './policy.ts';
@@ -321,5 +322,6 @@ export function getEscrowDashboardData(): EscrowDashboardData {
     );
   }
 
-  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: mRows, reviews: rRows, findings: fRows, events: eRows, paypalCalls: pRows, boardJobs: bRows };
+  // Studio can export any of these to CSV: text a visitor typed must not run as a spreadsheet formula.
+  return { asOf: new Date().toISOString(), paymentMode: paymentMode(), milestones: defuseRows(mRows), reviews: defuseRows(rRows), findings: defuseRows(fRows), events: defuseRows(eRows), paypalCalls: pRows, boardJobs: defuseRows(bRows) };
 }

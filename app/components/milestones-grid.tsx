@@ -24,6 +24,7 @@ import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import type { Milestone } from '@/lib/escrow/types';
 import { api, fmtMoney, STATUS, StatusBadge } from './status';
 import { currentReview, latestFindings } from '@/lib/escrow/policy';
+import { defuseCell } from '@/lib/csv-safe';
 
 const modules = [ClientSideRowModelModule, TextFilterModule, NumberFilterModule, DateFilterModule, QuickFilterModule, CellStyleModule, RowStyleModule, HighlightChangesModule, CsvExportModule];
 
@@ -142,7 +143,8 @@ export function MilestonesGrid({ milestones: initial }: { milestones: Milestone[
               fileName: 'proof-of-done-deals.csv',
               allColumns: true,
               // The status as people read it ("Changes requested"), dates as ISO.
-              processCellCallback: ({ value, column }) => (column.getColId() === 'status' ? STATUS[value as Row['status']]?.label ?? value : value instanceof Date ? value.toISOString() : value),
+              // A title or name typed as "=..." stays text in Excel (lib/csv-safe.ts).
+              processCellCallback: ({ value, column }) => defuseCell(column.getColId() === 'status' ? STATUS[value as Row['status']]?.label ?? value : value instanceof Date ? value.toISOString() : value),
             })
           }
           className="h-10 shrink-0 rounded-md border border-pp-border bg-white px-3 text-sm font-semibold text-pp-ink hover:border-pp-blue"

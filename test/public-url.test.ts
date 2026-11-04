@@ -8,6 +8,11 @@ test('private and local addresses are recognised', () => {
     assert.equal(isPrivateIp(ip), true, ip);
   }
   assert.equal(isPrivateIp('239.255.255.250'), true, 'multicast');
+  // IPv4 inside IPv6, written the way URLs normalise it ([::ffff:127.0.0.1] becomes [::ffff:7f00:1]).
+  for (const ip of ['::ffff:7f00:1', '0:0:0:0:0:ffff:a9fe:a9fe', '::7f00:1', '::127.0.0.1', '64:ff9b::7f00:1', '2002:7f00:1::', '2002:c0a8:101::1', 'fe90::1', 'febf::1', 'fec0::1', 'ff02::1', '[::1]', 'fe80::1%en0', 'not-an-ip:zz']) {
+    assert.equal(isPrivateIp(ip), true, ip);
+  }
+  for (const ip of ['::ffff:808:808', '64:ff9b::808:808', '2002:808:808::', '2a00:1450:4001::200e']) assert.equal(isPrivateIp(ip), false, ip);
   for (const ip of ['8.8.8.8', '172.32.0.1', '1.1.1.1', '2606:4700:4700::1111']) {
     assert.equal(isPrivateIp(ip), false, ip);
   }
@@ -18,6 +23,7 @@ test('localhost is refused, including by name (checked inside the connection loo
   await assert.rejects(fetchPublic(new URL('http://localhost:1/')), /private or local/);
   await assert.rejects(fetchPublic(new URL('file:///etc/passwd')), /only http/);
   await assert.rejects(fetchPublic(new URL('http://[::1]:1/')), /private or local/);
+  await assert.rejects(fetchPublic(new URL('http://[::ffff:127.0.0.1]:1/')), /private or local/);
 });
 
 test('the guard runs before any request is made', async () => {

@@ -387,3 +387,25 @@ test('a project stage takes its planned days as its deadline; a board job has it
   assert.equal(stage.dueDays, 4);
   assert.equal(service.createMilestone({ ...input(), postToBoard: true, dueDays: 5 }).dueDays, undefined);
 });
+
+test('a deal takes at most 12 deliveries, and the server a day’s worth of files', async () => {
+  store.deleteAll();
+  const { id, freelancerKey } = await funded();
+  for (let i = 0; i < 12; i++) {
+    store.updateMilestone(id, (x) => void (x.status = 'changes_requested'));
+    await service.submitWork(id, { notes: `try ${i}`, links: [], files: [] }, freelancerKey);
+  }
+  store.updateMilestone(id, (x) => void (x.status = 'changes_requested'));
+  await assert.rejects(service.submitWork(id, { notes: 'one more', links: [], files: [] }, freelancerKey), /has had 12 deliveries/);
+
+  process.env.POD_UPLOAD_DAILY_MB = '1';
+  try {
+    const other = await funded();
+    const big = { name: 'big.pdf', type: 'application/pdf', bytes: Buffer.alloc(1024 * 1024 + 1) };
+    await assert.rejects(service.submitWork(other.id, { notes: 'here', links: [], files: [big] }, other.freelancerKey), /taken all the files it accepts today/);
+    // Links and notes still go through.
+    assert.equal((await service.submitWork(other.id, { notes: 'https://example.com/menu', links: ['https://example.com/menu'], files: [] }, other.freelancerKey)).milestone.status, 'reviewing');
+  } finally {
+    delete process.env.POD_UPLOAD_DAILY_MB;
+  }
+});

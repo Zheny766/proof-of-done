@@ -285,6 +285,14 @@ export interface IncomingFile {
 // `replay` is set only by deliverDemo (never from a request): the review plays a recording back.
 type SubmitInput = { notes: string; links: string[]; files: IncomingFile[]; payoutEmail?: string; replay?: string };
 
+const MAX_DELIVERIES = 12;
+const UPLOAD_DAILY_BYTES = () => Number(process.env.POD_UPLOAD_DAILY_MB ?? 1000) * 1024 * 1024;
+/** Bytes of files delivered in the last 24 hours, across every deal. */
+const uploadedToday = () => {
+  const since = Date.now() - 86_400_000;
+  return listMilestones().reduce((n, x) => n + x.submissions.filter((sub) => Date.parse(sub.at) > since).reduce((k, sub) => k + sub.attachments.reduce((j, a) => j + a.size, 0), 0), 0);
+};
+
 // Queued with the money operations, so a submission can't slip in while a cancel is waiting on PayPal.
 export const submitWork = (id: string, input: SubmitInput, key: string | null) => exclusive(id, async () => submitWorkNow(id, input, key));
 function submitWorkNow(id: string, input: SubmitInput, key: string | null): { milestone: Milestone; reviewId: string } {
@@ -299,6 +307,14 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     throw new EscrowError(m.status === 'awaiting_funding' ? 'You can deliver once the client puts the money on hold.' : `You can't hand in work now: ${dealIs(m)}.`);
   }
   if (!input.notes.trim() && input.links.length === 0 && input.files.length === 0) throw new EscrowError('Add notes, a link or a file.');
+  // Every delivery is stored and reviewed: a deal can't be used to fill the disk or the review budget.
+  if (m.submissions.length >= MAX_DELIVERIES) {
+    throw new EscrowError(`This deal has had ${MAX_DELIVERIES} deliveries. Settle it, change the terms, or the client can cancel and start a new one.`, 409);
+  }
+  const bytes = input.files.slice(0, 8).reduce((n, f) => n + f.bytes.length, 0);
+  if (bytes && uploadedToday() + bytes > UPLOAD_DAILY_BYTES()) {
+    throw new EscrowError('This server has taken all the files it accepts today. Deliver with links or notes, or try again tomorrow.', 429);
+  }
 
   const submissionId = newId('sub');
   const dir = path.join(UPLOAD_DIR, id, submissionId);

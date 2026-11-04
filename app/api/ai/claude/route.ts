@@ -26,8 +26,10 @@ const sse = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
 
 export async function POST(request: Request) {
   if (isCrossSite(request)) return Response.json({ error: { message: 'Cross-site request refused.' } }, { status: 403 });
-  if (Number(request.headers.get('content-length') ?? 0) > 5_000_000) {
-    return Response.json({ error: { message: 'Conversation too large.' } }, { status: 413 });
+  // The size has to be stated, so the cap can't be dodged with a body of unknown length.
+  const length = request.headers.get('content-length');
+  if (length === null || Number(length) > 5_000_000) {
+    return Response.json({ error: { message: length === null ? 'Send a Content-Length.' : 'Conversation too large.' } }, { status: length === null ? 411 : 413 });
   }
   if (!allowRequest(request, 'assistant', 30)) {
     return Response.json({ error: { message: 'Too many requests, try again in a minute.' } }, { status: 429 });

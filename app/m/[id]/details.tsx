@@ -164,7 +164,8 @@ export function Submissions({ m, fileKey }: { m: Milestone; fileKey: string | nu
           <li key={s.id} className="text-sm">
             <div suppressHydrationWarning className="text-xs text-pp-muted">{fmtDate(s.at)}</div>
             {s.notes && <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed [overflow-wrap:anywhere]">{s.notes}</p>}
-            {s.links.map((l) => (
+            {/* Only web links become clickable; the server refuses others too, this is the second lock. */}
+            {s.links.filter((l) => /^https?:\/\//i.test(l)).map((l) => (
               <a key={l} href={l} target="_blank" rel="noreferrer" className="mt-1 block truncate text-pp-blue hover:underline">
                 {l}
               </a>

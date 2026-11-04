@@ -39,3 +39,12 @@ test('the labelled demo history keeps its evidence, so the dashboard has somethi
   const { findings } = getEscrowDashboardData();
   assert.ok(findings.length > 0 && findings.every((f) => f.evidence));
 });
+
+test('text that would run as a spreadsheet formula is exported as plain text', async () => {
+  const { defuseCell, defuseRows } = await import('../lib/csv-safe.ts');
+  assert.equal(defuseCell('=HYPERLINK("http://evil.example","x")'), `'=HYPERLINK("http://evil.example","x")`);
+  for (const v of ['+1', '-2+3', '@SUM(A1)', '\t=1', '\r=1']) assert.equal(defuseCell(v), `'${v}`);
+  assert.equal(defuseCell('Logo for a cafe'), 'Logo for a cafe');
+  assert.equal(defuseCell(-5), -5, 'numbers stay numbers');
+  assert.deepEqual(defuseRows([{ title: '=cmd', amount: 10 }]), [{ title: "'=cmd", amount: 10 }]);
+});

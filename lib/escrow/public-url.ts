@@ -20,12 +20,47 @@ export function isPrivateIp(ip: string): boolean {
       (a === 169 && b === 254) || // link-local, incl. 169.254.169.254
       (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 168) ||
+      (a === 192 && b === 0) || // 192.0.0.0/24 protocol assignments, 192.0.2.0/24 documentation
+      (a === 198 && (b === 18 || b === 19)) || // benchmarking
       a >= 224 // multicast and reserved
     );
   }
-  const v6 = ip.toLowerCase();
-  if (v6.startsWith('::ffff:')) return isPrivateIp(v6.slice(7));
-  return v6 === '::' || v6 === '::1' || v6.startsWith('fc') || v6.startsWith('fd') || v6.startsWith('fe80');
+  const h = hextets(ip);
+  if (!h) return true; // not an address we can read: refuse rather than guess
+  const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  const zero = (from: number, to: number) => h.slice(from, to).every((x) => x === 0);
+  // IPv4 inside IPv6 reaches the IPv4 address: mapped (::ffff:a.b.c.d, which URLs write as
+  // ::ffff:7f00:1), compatible (::a.b.c.d), NAT64 (64:ff9b::a.b.c.d) and 6to4 (2002:aabb:ccdd::).
+  if (zero(0, 5) && h[5] === 0xffff) return isPrivateIp(v4(h[6], h[7]));
+  if (zero(0, 6)) return true; // ::, ::1 and the deprecated IPv4-compatible range
+  if (h[0] === 0x64 && h[1] === 0xff9b && zero(2, 6)) return isPrivateIp(v4(h[6], h[7]));
+  if (h[0] === 0x2002) return isPrivateIp(v4(h[1], h[2]));
+  return (
+    (h[0] & 0xfe00) === 0xfc00 || // unique local fc00::/7
+    (h[0] & 0xffc0) === 0xfe80 || // link-local fe80::/10
+    (h[0] & 0xffc0) === 0xfec0 || // site-local fec0::/10 (deprecated)
+    (h[0] & 0xff00) === 0xff00 || // multicast
+    (h[0] === 0x2001 && h[1] === 0x0db8) // documentation
+  );
+}
+
+/** The eight 16-bit groups of an IPv6 address (with "::" and a trailing dotted quad expanded), or null. */
+function hextets(ip: string): number[] | null {
+  let s = ip.toLowerCase().replace(/^\[|\]$/g, '').split('%')[0];
+  const dotted = s.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    if (!net.isIPv4(dotted[2])) return null;
+    const [a, b, c, d] = dotted[2].split('.').map(Number);
+    s = `${dotted[1]}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const halves = s.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  const parts = [...head, ...Array(Math.max(fill, 0)).fill('0'), ...tail];
+  if (parts.length !== 8 || parts.some((p) => !/^[0-9a-f]{1,4}$/.test(p))) return null;
+  return parts.map((p) => parseInt(p, 16));
 }
 
 const blocked = () => new Error('private or local addresses are not allowed');
