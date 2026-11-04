@@ -136,3 +136,41 @@ test('the old authorization ending after a renewal does not cancel the deal', as
   await service.applyWebhook({ id: 'WH-6', event_type: 'PAYMENT.AUTHORIZATION.VOIDED', resource: { id: 'AUTH-NEW' } as any });
   assert.equal(store.getMilestone(m.id)!.status, 'cancelled');
 });
+
+test('the right number in the wrong currency is not the right amount', async () => {
+  respond = (method, p) => (p.endsWith('/capture') ? { json: { ...completed('CAP-EUR'), amount: { value: '100.00', currency_code: 'EUR' } } } : { status: 404, json: {} });
+  const result = await payments.releaseFunds(deal(), 'Work accepted');
+  assert.match(result.payoutStatus ?? '', /^HELD: PayPal captured 100\.00 EUR/);
+  assert.equal(posts('/v1/payments/payouts').length, 0);
+});
+
+test('reconciling picks the capture of this hold and this amount, not whichever the order lists last', async () => {
+  respond = (method, p) =>
+    p.endsWith('/capture')
+      ? { status: 422, json: { details: [{ issue: 'AUTHORIZATION_ALREADY_CAPTURED' }] } }
+      : p === '/v2/checkout/orders/ORDER1'
+        ? {
+            json: {
+              purchase_units: [
+                {
+                  payments: {
+                    captures: [
+                      { ...completed('CAP-OURS'), supplementary_data: { related_ids: { authorization_id: 'AUTH1' } } },
+                      { ...completed('CAP-OTHER-HOLD'), supplementary_data: { related_ids: { authorization_id: 'AUTH-SOMEONE-ELSE' } } },
+                      { ...completed('CAP-OTHER-AMOUNT', '5.00'), supplementary_data: { related_ids: { authorization_id: 'AUTH1' } } },
+                    ],
+                  },
+                },
+              ],
+            },
+          }
+        : { json: { batch_header: { payout_batch_id: 'B7', batch_status: 'PENDING' } } };
+  assert.equal((await payments.releaseFunds(deal(), 'Work accepted')).captureId, 'CAP-OURS');
+});
+
+test('a batch PayPal calls successful is not a payout that arrived: the item decides', async () => {
+  respond = (method, p) => (p === '/v1/payments/payouts/BATCH-F' ? { json: { batch_header: { payout_batch_id: 'BATCH-F', batch_status: 'SUCCESS' }, items: [{ payout_item_id: 'I1', transaction_status: 'FAILED' }] } } : { json: {} });
+  const m = webhookDeal({ captureId: 'CAPF', payoutBatchId: 'BATCH-F', payoutStatus: 'PENDING' }, 'released');
+  await service.applyWebhook({ id: 'WH-7', event_type: 'PAYMENT.PAYOUTSBATCH.SUCCESS', resource: { batch_header: { payout_batch_id: 'BATCH-F' } } as any });
+  assert.equal(store.getMilestone(m.id)!.payment.payoutStatus, 'FAILED');
+});

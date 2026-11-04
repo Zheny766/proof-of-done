@@ -6,7 +6,7 @@ import { checkSeal } from '@/lib/escrow/chain';
 import { currentReview, latestFindings } from '@/lib/escrow/policy';
 import { readMilestone } from '@/lib/escrow/service';
 import { SiteHeader } from '@/app/components/site-header';
-import { fmtDay, fmtMoney, fmtTime } from '@/app/components/status';
+import { fmtDay, fmtMoney, fmtTime, payoutText } from '@/app/components/status';
 import { modelName } from '../ui';
 import { CheckFile } from './check-file';
 import { SealNote } from '../details';
@@ -96,6 +96,10 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
                 <Fact label="PayPal capture" value={m.payment.captureId ?? '-'} mono note={m.payment.mode === 'sandbox' ? 'PayPal sandbox' : 'simulated'} />
               </dl>
               <p className="mt-4 text-[15px] leading-relaxed text-pp-ink">{how}</p>
+              {/* "Paid" is PayPal's capture; whether the freelancer has the money yet is a separate fact. */}
+              {m.payment.payoutStatus && m.payment.payoutStatus !== 'SUCCESS' && (
+                <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-[15px] text-amber-900 ring-1 ring-inset ring-amber-200">{payoutText(m.payment.payoutStatus, m.freelancer.name)}</p>
+              )}
               <SealNote seal={seal} anchor={m.payment.anchoredRecord} />
               {refunded > 0 && (
                 <p className="mt-3 rounded-xl bg-orange-50 px-4 py-3 text-[15px] text-orange-900 ring-1 ring-inset ring-orange-200">

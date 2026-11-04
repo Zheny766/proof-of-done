@@ -21,6 +21,7 @@ type DbShape = { milestones: Milestone[] };
 // random keyring file made once next to the data.
 const KEYRING = path.join(DATA_DIR, '.keyring');
 let sealKey: Buffer | undefined;
+/** The key new seals use: POD_KEY_SECRET if set, else the keyring file (made once, the first time). */
 function accessKey(): Buffer {
   if (sealKey) return sealKey;
   const secret = process.env.POD_KEY_SECRET;
@@ -33,6 +34,17 @@ function accessKey(): Buffer {
   }
   return sealKey;
 }
+/** Every key a seal may have been made with: setting POD_KEY_SECRET later still opens the keyring's seals. */
+function openingKeys(): Buffer[] {
+  const keys = [accessKey()];
+  try {
+    const ring = fs.readFileSync(KEYRING);
+    if (!ring.equals(keys[0])) keys.push(ring);
+  } catch {
+    // no keyring file: only the secret
+  }
+  return keys;
+}
 type SealedAccess = { sealed: string };
 function sealAccess(access: MilestoneAccess): SealedAccess {
   const iv = crypto.randomBytes(12);
@@ -44,9 +56,39 @@ function openAccess(stored: MilestoneAccess | SealedAccess | undefined): Milesto
   // Deals saved before the keys were sealed still read; they are sealed on their next save.
   if (!stored || !('sealed' in stored)) return stored;
   const [, iv, tag, body] = stored.sealed.split('.');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', accessKey(), Buffer.from(iv, 'base64url'));
-  decipher.setAuthTag(Buffer.from(tag, 'base64url'));
-  return JSON.parse(Buffer.concat([decipher.update(Buffer.from(body, 'base64url')), decipher.final()]).toString('utf8'));
+  for (const key of openingKeys()) {
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64url'));
+      decipher.setAuthTag(Buffer.from(tag, 'base64url'));
+      return JSON.parse(Buffer.concat([decipher.update(Buffer.from(body, 'base64url')), decipher.final()]).toString('utf8'));
+    } catch {
+      // try the next key
+    }
+  }
+  // Data restored without its key: say so plainly, and never quietly hand out new links in its place.
+  throw new Error(`The deals' secret links can't be opened: they were sealed with another key. Restore ${KEYRING} or set the POD_KEY_SECRET they were sealed with (nothing was overwritten).`);
+}
+
+// One process writes the data file. A second one (two servers on one folder) would each keep its own
+// per-deal queue, so two captures could race: the second refuses to write instead.
+const LOCK = path.join(DATA_DIR, '.writer.pid');
+let ownLock = false;
+function claimWriter() {
+  if (ownLock) return;
+  try {
+    fs.writeFileSync(LOCK, String(process.pid), { flag: 'wx' });
+  } catch {
+    const pid = Number(fs.readFileSync(LOCK, 'utf8'));
+    let alive = false;
+    try {
+      alive = pid > 0 && pid !== process.pid && process.kill(pid, 0);
+    } catch {
+      alive = false;
+    }
+    if (alive) throw new Error(`Another process (pid ${pid}) is writing ${DATA_DIR}. Run one server per data folder.`);
+    fs.writeFileSync(LOCK, String(process.pid));
+  }
+  ownLock = true;
 }
 
 function load(): DbShape {
@@ -72,6 +114,7 @@ function load(): DbShape {
 }
 
 function save(db: DbShape) {
+  claimWriter();
   const tmp = `${DB_FILE}.${process.pid}.tmp`;
   const onDisk = { ...db, milestones: db.milestones.map((m) => (m.access ? { ...m, access: sealAccess(m.access) } : m)) };
   fs.writeFileSync(tmp, JSON.stringify(onDisk, null, 2));

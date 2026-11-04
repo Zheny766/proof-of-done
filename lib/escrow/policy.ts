@@ -81,3 +81,9 @@ export function objectionBlock(m: Milestone): string | null {
   }
   return null;
 }
+
+/**
+ * Real PayPal money moves only on a live AI review: never on the keyword stand-in (used when no AI key is
+ * set or the day's live reviews are used up) or a replayed recording, whatever their checks said.
+ */
+export const liveReviewRequired = (m: Milestone, engine: Review['engine']) => m.payment.mode === 'sandbox' && engine !== 'claude';

@@ -11,9 +11,15 @@ export const STATUS: Record<MilestoneStatus, { label: string; tone: string; hint
   cancelled: { label: 'Cancelled', tone: 'bg-rose-50 text-rose-700 ring-rose-200', hint: 'The hold was voided. Nothing was charged.' },
 };
 
-export function StatusBadge({ status }: { status: MilestoneStatus }) {
+/** "Paid" only once the payout arrived: a capture whose payout is on its way, or stuck, says so. */
+export function statusLabel(status: MilestoneStatus, payout?: string): string {
+  if (status !== 'released' || !payout || payout === 'SUCCESS') return STATUS[status].label;
+  return /^(PENDING|PROCESSING|ONHOLD|HELD)/.test(payout) ? 'Captured · payout on its way' : 'Captured · payout not through';
+}
+
+export function StatusBadge({ status, payout }: { status: MilestoneStatus; payout?: string }) {
   const s = STATUS[status];
-  return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${s.tone}`}>{s.label}</span>;
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${s.tone}`}>{statusLabel(status, payout)}</span>;
 }
 
 export const fmtMoney = (amount: string | number, currency: string) =>

@@ -20,6 +20,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/escrow/files
   if (!attachment || !abs || !abs.startsWith(path.resolve(UPLOAD_DIR) + path.sep) || !fs.statSync(abs, { throwIfNoEntry: false })?.isFile()) {
     return notFound();
   }
+  // A link planted in the uploads folder must not lead outside it.
+  if (!fs.realpathSync(abs).startsWith(fs.realpathSync(UPLOAD_DIR) + path.sep)) return notFound();
 
   const inline = INLINE.has(attachment.mime);
   return new Response(fs.readFileSync(abs), {

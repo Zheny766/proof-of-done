@@ -9,11 +9,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
-import { cancelBlock, isOverdue, MIN_REASON, objectionBlock } from './policy.ts';
+import { cancelBlock, isOverdue, liveReviewRequired, MIN_REASON, objectionBlock } from './policy.ts';
 import { sniffType } from './evidence.ts';
 import { disputeEvidence } from './disputes.ts';
 import { GEMINI_MODELS, isGeminiConfigured, runGeminiAudit } from './gemini.ts';
-import { answerDisputeOnPayPal, recoverRefund, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
+import { answerDisputeOnPayPal, recoverRefund, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, payoutItemStatus, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { isPayPalConfigured, onPayPalCall } from '../paypal.ts';
 import { AUDIT_MODEL, REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
@@ -323,6 +323,10 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
     throw new EscrowError('Enter a valid PayPal email for the payout.');
   }
   const payoutEmail = input.payoutEmail;
+  // Paying the client's own PayPal back to itself would turn the hold into a capture with a fee and no work.
+  if (payoutEmail && payoutEmail.trim().toLowerCase() === m.client.email.trim().toLowerCase()) {
+    throw new EscrowError('The payout can’t go to the client’s own PayPal email. Enter the freelancer’s.');
+  }
   if (!['funded', 'changes_requested'].includes(m.status)) {
     throw new EscrowError(m.status === 'awaiting_funding' ? 'You can deliver once the client puts the money on hold.' : `You can't hand in work now: ${dealIs(m)}.`);
   }
@@ -461,6 +465,13 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
         try {
           const latest = mustGet(id);
           if (latest.status !== 'reviewing') return { error: `${dealIs(latest)} now` };
+          if (liveReviewRequired(latest, review.engine)) {
+            updateMilestone(id, (x) => {
+              x.status = 'escalated';
+              pushEvent(x, 'system', 'live_review_required', 'Real PayPal money is released only after a live AI review, and this one was not live, so the client decides. The money stays on hold.');
+            });
+            return { error: 'Real PayPal money is released only after a live AI review; the client decides' };
+          }
           // Someone on probation gets paid only with the client's OK, however good this delivery looks.
           const trust = trustFor(latest.freelancer.email, id);
           if (trust.tier === 'probation' && !scripted(latest)) {
@@ -599,7 +610,7 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
     );
   }
   if (HOLDING.includes(m.status) && holdNeedsRenewal(m.payment) && retryDue(m.payment.reauthTriedAt)) return renewHoldNow(id);
-  if (!['PENDING', 'PROCESSING'].includes(m.payment.payoutStatus ?? '')) return m;
+  if (!['PENDING', 'PROCESSING', 'ONHOLD'].includes(m.payment.payoutStatus ?? '')) return m;
   return exclusive(id, async () => {
     const latest = mustGet(id);
     const status = await refreshPayoutStatus(latest);
@@ -1403,7 +1414,18 @@ export async function applyWebhook(e: WebhookEvent, origin = process.env.POD_PUB
         x.settlement = undefined;
         pushEvent(x, 'paypal', 'voided', `PayPal voided the authorization; nothing will be charged ${via}`);
       };
-    } else if (type === 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED' || type === 'PAYMENT.PAYOUTSBATCH.SUCCESS') {
+    } else if (type === 'PAYMENT.PAYOUTSBATCH.SUCCESS') {
+      // PayPal calls a batch successful once it has processed it, even when its one payout failed or sits
+      // unclaimed: what counts is the item. Read it, and record that.
+      const item = await payoutItemStatus(m);
+      if (item && item !== m.payment.payoutStatus) {
+        effect = (x) => {
+          x.payment.payoutStatus = item;
+          if (item === 'SUCCESS') pushEvent(x, 'paypal', 'payout_completed', `PayPal payout completed: the money reached ${x.freelancer.email} ${via}`);
+          else if (!['PENDING', 'PROCESSING', 'ONHOLD'].includes(item)) pushEvent(x, 'system', 'payout_failed', `The PayPal payout was ${item.toLowerCase()} ${via}`);
+        };
+      }
+    } else if (type === 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED') {
       effect = (x) => {
         if (x.payment.payoutStatus === 'SUCCESS') return;
         x.payment.payoutStatus = 'SUCCESS';
@@ -1539,6 +1561,7 @@ function mergeRelease(x: Milestone, payment: Partial<Milestone['payment']>) {
 export function panelVerdict(audit: Audit, gemini: Audit | null, required = process.env.POD_PANEL_REQUIRED !== '0'): Audit {
   if (!gemini || (gemini.unavailable && !required)) return audit;
   if (!gemini.unavailable) return combineChecks(audit, gemini);
+  gemini = { ...gemini, agreed: false };
   const why = gemini.summary.replace(/\.$/, '');
   return combineChecks(audit, { ...gemini, summary: `Google's Gemini could not answer (${why}), and its check is required: nothing is paid without it, so the client decides.` });
 }
@@ -1549,7 +1572,8 @@ export function combineChecks(first: Audit, ...more: Audit[]): Audit {
   const tag = (a: Audit) => (a === first ? '' : `${a.model ?? a.engine}: `);
   return {
     ...first,
-    agreed: all.every((a) => a.agreed),
+    // A check agrees only if it said so, answered, and named nothing wrong.
+    agreed: all.every((a) => a.agreed && !a.unavailable && a.disputed.length === 0 && a.redFlags.length === 0),
     model: all.map((a) => a.model ?? a.engine).join(' + '),
     summary: all.find((a) => !a.agreed)?.summary ?? first.summary,
     disputed: all.flatMap((a) => a.disputed.map((d) => ({ ...d, reason: tag(a) + d.reason }))),

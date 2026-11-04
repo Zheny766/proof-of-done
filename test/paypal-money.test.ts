@@ -44,27 +44,27 @@ test('a capture PayPal leaves pending holds the payout instead of paying from th
 test('a settlement captures only the agreed amount, as the final capture, and pays out that amount', async () => {
   respond = (p) =>
     p.endsWith('/capture')
-      ? { json: { id: 'CAP2', status: 'COMPLETED', amount: { value: '60.00', currency_code: 'USD' } } }
+      ? { json: { id: 'CAP2', status: 'COMPLETED', amount: { value: '60.00', currency_code: 'USD' }, seller_receivable_breakdown: { net_amount: { value: '58.05', currency_code: 'USD' } } } }
       : { json: { batch_header: { payout_batch_id: 'B1', batch_status: 'PENDING' } } };
   const result = await payments.releaseFunds(milestone, 'Settled', '60.00');
   const capture = posted('/v2/payments/authorizations/AUTH1/capture')[0].body;
   assert.deepEqual(capture.amount, { currency_code: 'USD', value: '60.00' });
   assert.equal(capture.final_capture, true, 'the rest of the hold goes back to the buyer');
-  assert.equal(posted('/v1/payments/payouts')[0].body.items[0].amount.value, '60.00');
+  assert.equal(posted('/v1/payments/payouts')[0].body.items[0].amount.value, '58.05', 'what PayPal left after its fee');
   assert.equal(result.capturedAmount, '60.00');
 });
 
 test('an amount lowered by agreement after the hold is captured as that amount, the final capture', async () => {
   respond = (p) =>
     p.endsWith('/capture')
-      ? { json: { id: 'CAP3', status: 'COMPLETED', amount: { value: '90.00', currency_code: 'USD' } } }
+      ? { json: { id: 'CAP3', status: 'COMPLETED', amount: { value: '90.00', currency_code: 'USD' }, seller_receivable_breakdown: { net_amount: { value: '87.09', currency_code: 'USD' } } } }
       : { json: { batch_header: { payout_batch_id: 'B2', batch_status: 'PENDING' } } };
   const lowered = { ...milestone, amount: '90.00', payment: { ...milestone.payment, authorizedAmount: '120.00' } } as Milestone;
   const result = await payments.releaseFunds(lowered, 'Work accepted');
   const capture = posted('/v2/payments/authorizations/AUTH1/capture')[0].body;
   assert.deepEqual(capture.amount, { currency_code: 'USD', value: '90.00' });
   assert.equal(capture.final_capture, true);
-  assert.equal(posted('/v1/payments/payouts')[0].body.items[0].amount.value, '90.00');
+  assert.equal(posted('/v1/payments/payouts')[0].body.items[0].amount.value, '87.09', 'what PayPal left after its fee');
   assert.equal(result.capturedAmount, undefined, 'the deal amount is what was captured');
 });
 
@@ -187,4 +187,22 @@ test('if PayPal refuses the renewal, the capture still tries the original hold',
   const result = await payments.releaseFunds(aged, 'Work accepted');
   assert.equal(posted('/v2/payments/authorizations/AUTH1/capture').length, 1);
   assert.equal(result.reauthorizedAt, undefined);
+});
+
+test('a capture answer without PayPal’s fee is read again, and with no fee reported nobody is paid blind', async () => {
+  respond = (p) => (p.endsWith('/capture') ? { json: { id: 'CAP9', status: 'COMPLETED', amount: { value: '100.00', currency_code: 'USD' } } } : { status: 404, json: {} });
+  const result = await payments.releaseFunds(milestone, 'Work accepted');
+  assert.equal(calls.filter((c) => c.path === '/v2/payments/captures/CAP9').length, 1, 'asked PayPal for the capture again');
+  assert.match(result.payoutStatus ?? '', /^HELD: PayPal did not report its fee/);
+  assert.equal(posted('/v1/payments/payouts').length, 0);
+});
+
+test('when PayPal’s fee takes the whole amount, no payout is sent', async () => {
+  respond = (p) =>
+    p.endsWith('/capture')
+      ? { json: { id: 'CAP10', status: 'COMPLETED', amount: { value: '1.00', currency_code: 'USD' }, seller_receivable_breakdown: { net_amount: { value: '0.00', currency_code: 'USD' } } } }
+      : { json: { batch_header: { payout_batch_id: 'B9', batch_status: 'PENDING' } } };
+  const result = await payments.releaseFunds({ ...milestone, amount: '1.00' } as Milestone, 'Work accepted');
+  assert.match(result.payoutStatus ?? '', /nothing was left after PayPal/);
+  assert.equal(posted('/v1/payments/payouts').length, 0);
 });

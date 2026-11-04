@@ -88,7 +88,7 @@ export function MyDeals() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge status={m.status} />
+                          <StatusBadge status={m.status} payout={m.payment.payoutStatus} />
                           {m.demo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">demo</span>}
                           {m.board && <span className="rounded-full bg-pp-highlight px-2 py-0.5 text-[11px] font-semibold text-pp-blue">job board</span>}
                           {m.project && (

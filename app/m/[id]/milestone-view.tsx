@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
 import type { StageSummary } from '@/lib/escrow/service';
-import { api, fmtDay, fmtMoney, keyHeader, STATUS, StatusBadge } from '@/app/components/status';
+import { api, fmtDay, fmtMoney, keyHeader, payoutText, STATUS, StatusBadge } from '@/app/components/status';
 import { AfterPayment, Disputes, NextStep, Settlement, ShareLink, TermsCard } from './actions';
 import { PaymentDetails, Submissions, Timeline } from './details';
 import { MoneyJourney } from './journey';
@@ -210,7 +210,7 @@ export function MilestoneView({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge status={m.status} />
+            <StatusBadge status={m.status} payout={m.payment.payoutStatus} />
             {!!refunded && (
               <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-inset ring-orange-200">Refunded {fmtMoney(refunded, m.currency)}</span>
             )}
@@ -232,7 +232,7 @@ export function MilestoneView({
             <Person name={m.freelancer.name} tone="bg-amber-400 text-amber-950" />
             {m.postedBy && <span className="text-xs">· posted by {m.postedBy}</span>}
           </div>
-          <p className="mt-2 text-sm text-pp-muted">{STATUS[m.status].hint}</p>
+          <p className="mt-2 text-sm text-pp-muted">{m.status === 'released' && m.payment.payoutStatus && m.payment.payoutStatus !== 'SUCCESS' ? payoutText(m.payment.payoutStatus, m.freelancer.name) : STATUS[m.status].hint}</p>
         </div>
         <div className="shrink-0 sm:text-right">
           <div className="text-4xl font-semibold tabular-nums tracking-tight text-pp-navy sm:text-5xl">{fmtMoney(paidNet ?? m.amount, m.currency)}</div>

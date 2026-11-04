@@ -143,7 +143,7 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
 
   const payerNote = anchoredRecord ? `Proof of Done record ${anchoredRecord.slice(0, 16)}. ${note}` : note;
   // The fingerprint also goes in as the invoice id: PayPal returns that on the capture, so it can be checked.
-  const capture = await captureOrReconcile(m, authId, () =>
+  const capture = await captureOrReconcile(m, authId, { value: amount, currency: m.currency }, () =>
     captureAuthorization(authId, payerNote, partial ? { currency_code: m.currency, value: amount } : undefined, anchoredRecord && `pod-${anchoredRecord}`),
   );
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
@@ -151,8 +151,11 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);
   }
   // PayPal keeps its fee from the capture; paying out the gross amount would pay it from the platform.
-  const net = capture.seller_receivable_breakdown?.net_amount?.value;
-  const fee = capture.seller_receivable_breakdown?.paypal_fee?.value;
+  // A capture answer without the breakdown is read again; if PayPal still doesn't say, nobody is paid blind.
+  const breakdown =
+    capture.seller_receivable_breakdown ?? (capture.status === 'COMPLETED' ? (await getCapture(capture.id).catch(() => null))?.seller_receivable_breakdown : undefined);
+  const net = breakdown?.net_amount?.value;
+  const fee = breakdown?.paypal_fee?.value;
   const result: Partial<PaymentState> = {
     ...extra,
     captureId: capture.id,
@@ -162,8 +165,8 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     ...(fee && { paypalFee: fee }),
   };
 
-  // PayPal took a different amount than this deal agreed: record it, but pay nobody until a person looks.
-  if (capture.amount && Number(capture.amount.value) !== Number(amount)) {
+  // PayPal took a different amount (or currency) than this deal agreed: record it, but pay nobody until a person looks.
+  if (capture.amount && (Number(capture.amount.value) !== Number(amount) || capture.amount.currency_code !== m.currency)) {
     result.payoutStatus = `HELD: PayPal captured ${capture.amount.value} ${capture.amount.currency_code}, the deal says ${amount}; the payout waits for a check`;
     return result;
   }
@@ -175,7 +178,8 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     return result;
   }
 
-  return { ...result, ...(await sendPayout(m, net ?? amount, note, owed)) };
+  if (!net) return { ...result, payoutStatus: 'HELD: PayPal did not report its fee, so the payout waits for a check' };
+  return { ...result, ...(await sendPayout(m, net, note, owed)) };
 }
 
 /**
@@ -183,7 +187,7 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
  * answer was lost, or the server stopped before saving it), find that capture on the order instead of
  * failing: the money moved once, and the deal should say so.
  */
-async function captureOrReconcile(m: Milestone, authId: string, capture: () => Promise<Capture>): Promise<Capture> {
+async function captureOrReconcile(m: Milestone, authId: string, expected: { value: string; currency: string }, capture: () => Promise<Capture>): Promise<Capture> {
   try {
     return await capture();
   } catch (error) {
@@ -193,7 +197,14 @@ async function captureOrReconcile(m: Milestone, authId: string, capture: () => P
     const order = await getOrder(m.payment.orderId);
     const unit = order.purchase_units?.[0]?.payments;
     const auths = new Set([authId, m.payment.authorizationId, m.payment.previousAuthorizationId].filter(Boolean));
-    const found = unit?.captures?.filter((c) => !c.supplementary_data?.related_ids?.authorization_id || auths.has(c.supplementary_data.related_ids.authorization_id)).at(-1);
+    // The capture of this hold, for this amount: never just whichever capture the order lists last.
+    const found = unit?.captures?.find(
+      (c) =>
+        auths.has(c.supplementary_data?.related_ids?.authorization_id) &&
+        Number(c.amount?.value) === Number(expected.value) &&
+        c.amount?.currency_code === expected.currency &&
+        ['COMPLETED', 'PENDING'].includes(c.status),
+    );
     if (!found) throw error;
     return found;
   }
@@ -209,7 +220,8 @@ function payoutSplit(amount: string, owed: number): Pick<PaymentState, 'payoutAm
 
 async function sendPayout(m: Milestone, amount: string, note: string, owed = 0, batchSuffix?: string): Promise<Partial<PaymentState>> {
   const split = payoutSplit(amount, owed);
-  // Everything went to cover an earlier refund: there is nothing left to send.
+  // Nothing left to send: PayPal's fee took it all, or it all covers an earlier refund.
+  if (Number(amount) <= 0) return { ...split, payoutAmount: '0.00', payoutStatus: 'NOT SENT: nothing was left after PayPal’s fee' };
   if (Number(split.payoutAmount) <= 0) return { ...split, payoutStatus: 'NOT SENT: all of it covered an earlier refund' };
   try {
     const batch = await createPayout({ milestoneId: m.id, receiverEmail: m.freelancer.email, amount: split.payoutAmount!, currency: m.currency, note, batchSuffix });
@@ -286,16 +298,25 @@ export async function cancelFunding(m: Milestone): Promise<Partial<PaymentState>
   return { voidedAt: new Date().toISOString(), authorizationStatus: authId ? 'VOIDED' : undefined };
 }
 
-/** A payout batch starts as PENDING; ask PayPal for its current status. Null when there is nothing to refresh. */
-export async function refreshPayoutStatus(m: Milestone): Promise<string | null> {
-  const { mode, payoutBatchId, payoutStatus } = m.payment;
-  if (mode !== 'sandbox' || !payoutBatchId || !['PENDING', 'PROCESSING'].includes(payoutStatus ?? '')) return null;
+/**
+ * Where the payout to the freelancer stands, from its one item: a batch PayPal processed "successfully"
+ * can still hold a payout that failed or sits unclaimed. Null when PayPal can't be asked.
+ */
+export async function payoutItemStatus(m: Milestone): Promise<string | null> {
+  if (m.payment.mode !== 'sandbox' || !m.payment.payoutBatchId) return null;
   try {
-    const batch = await getPayoutBatch(payoutBatchId);
-    return batch.batch_header.batch_status !== payoutStatus ? batch.batch_header.batch_status : null;
+    const batch = await getPayoutBatch(m.payment.payoutBatchId);
+    return batch.items?.[0]?.transaction_status ?? (batch.batch_header.batch_status === 'SUCCESS' ? null : batch.batch_header.batch_status);
   } catch {
     return null;
   }
+}
+
+/** A payout starts as PENDING; ask PayPal where it stands now. Null when there is nothing new. */
+export async function refreshPayoutStatus(m: Milestone): Promise<string | null> {
+  if (!['PENDING', 'PROCESSING', 'ONHOLD'].includes(m.payment.payoutStatus ?? '')) return null;
+  const status = await payoutItemStatus(m);
+  return status && status !== m.payment.payoutStatus ? status : null;
 }
 
 /**
