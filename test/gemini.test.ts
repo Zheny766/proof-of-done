@@ -11,7 +11,7 @@ import type { Audit, Milestone, Submission } from '../lib/escrow/types.ts';
 process.env.POD_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'pod-gemini-'));
 process.env.POD_GEMINI_RETRY_MS = '0';
 const { runGeminiAudit } = await import('../lib/escrow/gemini.ts');
-const { combineChecks } = await import('../lib/escrow/service.ts');
+const { combineChecks, panelVerdict } = await import('../lib/escrow/service.ts');
 const { UPLOAD_DIR } = await import('../lib/escrow/store.ts');
 const { modelName } = await import('../app/m/[id]/ui.ts');
 
@@ -76,4 +76,18 @@ test('every check that answered has to agree, and the reviewer hears every objec
   assert.equal(combineChecks(ok, { ...no, agreed: true, redFlags: [] }).agreed, true);
   assert.equal(modelName('gemini-3.6-flash'), 'Gemini 3.6 Flash');
   assert.equal(modelName('claude-sonnet-5-5'), 'Claude Sonnet 5.5');
+});
+
+test('with a Gemini key its check is required: if Google cannot answer, nothing is paid automatically', () => {
+  const ok: Audit = { engine: 'claude', model: 'claude-haiku-5-5', agreed: true, summary: 'Confirmed.', disputed: [], redFlags: [] };
+  const down: Audit = { engine: 'gemini', model: 'gemini-3.1-pro-preview', agreed: false, unavailable: true, summary: 'Gemini did not answer (503 busy).', disputed: [], redFlags: [] };
+  const held = panelVerdict(ok, down);
+  assert.equal(held.agreed, false);
+  assert.match(held.summary, /could not answer \(Gemini did not answer \(503 busy\)\), and its check is required/);
+  // Opted out with POD_PANEL_REQUIRED=0: the two Claude checks decide while Google is down.
+  assert.equal(panelVerdict(ok, down, false).agreed, true);
+  // No key, no third check: Claude's second opinion is the answer.
+  assert.equal(panelVerdict(ok, null), ok);
+  // A Gemini that answered always has to agree, required or not.
+  assert.equal(panelVerdict(ok, { ...down, unavailable: false, summary: 'No.' }, false).agreed, false);
 });

@@ -4,8 +4,9 @@
 // widgetApi.getData, so dashboard filters apply to it like to the built-in widgets.
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- AG Studio's widget registry types are generic over a custom registry */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgWidgetParams } from 'ag-studio';
+import { useNarrow } from './use-narrow';
 
 type Stage = { label: string; value: number; count: number };
 
@@ -32,15 +33,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
   // showing every stage, with the picked one outlined.
   const [picked, setPicked] = useState<string | null>(null);
   // Narrower than a row of stages fits (a phone): the stages go top to bottom instead.
-  const box = useRef<HTMLDivElement>(null);
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < 560));
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const [box, narrow] = useNarrow(560);
 
   useEffect(() => {
     let active = true;

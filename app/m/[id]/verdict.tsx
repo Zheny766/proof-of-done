@@ -122,7 +122,11 @@ function SecondOpinion({ audit, m, label }: { audit: Audit; m: Milestone; label:
       {!audit.agreed && !audit.unavailable && !audit.disputed.some((d) => d.reason) && !audit.redFlags.length && (
         <p className="mt-2 text-[13px] text-orange-900">Why is visible to the client and the freelancer.</p>
       )}
-      {audit.unavailable && <p className="mt-2 text-[13px] text-pp-muted">{COMPANY[audit.engine]} didn&apos;t answer, so the other checks decided. {audit.summary}</p>}
+      {audit.unavailable && (
+        <p className="mt-2 text-[13px] text-pp-muted">
+          {COMPANY[audit.engine]} didn&apos;t answer{audit.required === false ? ', so the other checks decided.' : '. Every check is required, so nothing was paid automatically and the money stays on hold.'} {audit.summary}
+        </p>
+      )}
       {!audit.agreed && !audit.unavailable && (
         <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px] text-orange-900">
           {audit.disputed.map((d) => (

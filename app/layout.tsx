@@ -27,7 +27,8 @@ export const metadata: Metadata = {
   description:
     "Escrow for work done by people or AI agents: PayPal holds the money, Claude checks the delivery against every criterion, models from two companies double-check, and PayPal pays out.",
   // Absolute URLs for the link preview image (app/opengraph-image.png).
-  metadataBase: new URL(process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000"),
+  // Render sets RENDER_EXTERNAL_URL, so link previews point at the public address there; locally, this server's own port.
+  metadataBase: new URL(process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`),
   openGraph: { siteName: "Proof of Done", type: "website" },
 };
 

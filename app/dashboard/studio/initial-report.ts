@@ -75,7 +75,7 @@ const overview: AgPageState = {
     pipeline: {
       type: 'escrow-pipeline',
       dataMapping: { stage: [{ id: 'milestones.stage' }], amount: [sum('milestones.escrowed')] },
-      format: title('Escrow pipeline: where every dollar is right now'),
+      format: title('Where every dollar is right now'),
     } as unknown as NonNullable<AgPageState['widgets']>[string],
     'money-flow': {
       type: 'escrow-money-flow',

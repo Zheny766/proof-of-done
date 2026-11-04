@@ -16,17 +16,18 @@ export async function SiteHeader() {
     <header className="border-b border-pp-border bg-white">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
         <Logo />
+        {/* Each link is 44px tall, a thumb-sized target on a phone. */}
         <nav className="flex min-w-0 items-center gap-3.5 text-sm font-semibold text-pp-muted sm:gap-5">
-          <Link href="/demo" className="hover:text-pp-blue">Demo</Link>
-          <Link href="/jobs" className="hover:text-pp-blue">
+          <Link href="/demo" className="inline-flex h-11 items-center hover:text-pp-blue">Demo</Link>
+          <Link href="/jobs" className="inline-flex h-11 items-center hover:text-pp-blue">
             <span className="sm:hidden">Jobs</span>
             <span className="hidden sm:inline">Jobs for agents</span>
           </Link>
-          <Link href="/mine" className="hover:text-pp-blue">
+          <Link href="/mine" className="inline-flex h-11 items-center hover:text-pp-blue">
             <span className="sm:hidden">Mine</span>
             <span className="hidden sm:inline">My deals</span>
           </Link>
-          <Link href="/dashboard" className="hover:text-pp-blue">
+          <Link href="/dashboard" className="inline-flex h-11 items-center hover:text-pp-blue">
             <span className="sm:hidden">Analytics</span>
             <span className="hidden sm:inline">Escrow analytics</span>
           </Link>

@@ -7,6 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- AG Studio's widget registry types are generic over a custom registry */
 import { useEffect, useState } from 'react';
 import type { AgWidgetParams } from 'ag-studio';
+import { useNarrow } from './use-narrow';
 
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const oneLine = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } as const;
@@ -72,6 +73,7 @@ const form = (items: [string, string][]) => (params: any) => params.createDefaul
 
 function MoneyFlowWidget(props: AgWidgetParams<any>) {
   const rows = useRows(props, ['paid', 'refunded', 'voided', 'held']);
+  const [box, narrow] = useNarrow(560);
   if (!rows?.length) return null;
   const sum = (k: string) => rows.reduce((s, r) => s + Number(r[k] ?? 0), 0);
   const refunded = sum('refunded');
@@ -82,12 +84,27 @@ function MoneyFlowWidget(props: AgWidgetParams<any>) {
   ];
   const total = parts.reduce((s, p) => s + p.value, 0) || 1;
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10, padding: '2px 4px', fontFamily: 'var(--pp-font)' }}>
+    <div ref={box} style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10, padding: '2px 4px', fontFamily: 'var(--pp-font)' }}>
       <div style={{ display: 'flex', flexShrink: 0, height: 14, borderRadius: 999, overflow: 'hidden', background: 'var(--pp-canvas)' }} role="img" aria-label={parts.map((p) => `${p.label} ${money(p.value)}`).join(', ')}>
         {parts.map((p) => p.value > 0 && <div key={p.label} title={`${p.label}: ${money(p.value)}`} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-        {parts.map((p) => (
+      {/* Too narrow for three columns (a phone): one row per part, label and note on the left, amount on the right. */}
+      <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))', gap: narrow ? 8 : 12 }}>
+        {parts.map((p) =>
+          narrow ? (
+            <div key={p.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--pp-ink)' }}>
+                  <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: p.color, flexShrink: 0 }} />
+                  {p.label}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--pp-muted)' }}>
+                  {Math.round((p.value / total) * 100)}% · {p.note}
+                </div>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--pp-ink)', flexShrink: 0 }}>{money(p.value)}</div>
+            </div>
+          ) : (
           <div key={p.label} style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--pp-muted)' }}>
               <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: p.color, flexShrink: 0 }} />
@@ -98,7 +115,8 @@ function MoneyFlowWidget(props: AgWidgetParams<any>) {
               {Math.round((p.value / total) * 100)}% · {p.note}
             </div>
           </div>
-        ))}
+          ),
+        )}
       </div>
     </div>
   );

@@ -85,6 +85,8 @@ export interface Audit {
   agreed: boolean;
   /** The check couldn't run at all (the provider was busy or down), so it gave no verdict. */
   unavailable?: boolean;
+  /** For a check that could not answer: whether the release needed it (then nothing was paid automatically). */
+  required?: boolean;
   summary: string;
   disputed: { criterionId: string; reason: string }[];
   redFlags: string[];

@@ -425,12 +425,9 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
       ]);
       patchReview((r) => {
         r.audit = audit;
-        if (gemini) r.panel = [gemini];
+        if (gemini) r.panel = [gemini.unavailable ? { ...gemini, required: process.env.POD_PANEL_REQUIRED !== '0' } : gemini];
       });
-      // A check that answered has to agree. One that couldn't answer at all (Google busy or down) is
-      // recorded as such, and the two Claude checks decide, unless POD_PANEL_REQUIRED=1 makes it required.
-      if (!gemini || (gemini.unavailable && process.env.POD_PANEL_REQUIRED !== '1')) return audit;
-      return combineChecks(audit, gemini);
+      return panelVerdict(audit, gemini);
     },
     release: (summary) =>
       exclusive(id, async () => {
@@ -1450,6 +1447,19 @@ function mergeRelease(x: Milestone, payment: Partial<Milestone['payment']>) {
     pushEvent(x, 'paypal', 'reauthorized', `PayPal reauthorized the hold after its 3-day honor period (authorization ${payment.authorizationId}), then captured it`);
   }
   x.payment = { ...x.payment, ...payment };
+}
+
+/**
+ * What the reviewer hears from the checks. With a Gemini key, Gemini's check is required like Claude's:
+ * if Google can't answer (busy or down, after every fallback model), nothing is paid automatically,
+ * the money stays on hold and the reviewer hands the call to the client. POD_PANEL_REQUIRED=0 lets the
+ * two Claude checks decide on their own when Google is down. Without a key there is no third check.
+ */
+export function panelVerdict(audit: Audit, gemini: Audit | null, required = process.env.POD_PANEL_REQUIRED !== '0'): Audit {
+  if (!gemini || (gemini.unavailable && !required)) return audit;
+  if (!gemini.unavailable) return combineChecks(audit, gemini);
+  const why = gemini.summary.replace(/\.$/, '');
+  return combineChecks(audit, { ...gemini, summary: `Google's Gemini could not answer (${why}), and its check is required: nothing is paid without it, so the client decides.` });
 }
 
 /** One answer for the reviewer from every independent check: agreed only if all agreed, with every objection. */

@@ -249,6 +249,11 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Said here before anything is sent; the server checks the same thing.
+    if (!notes.trim() && !links.trim() && !files.length) {
+      setError('Add notes, a link or a file: the AI checks the work against what you hand in.');
+      return;
+    }
     setBusy(true);
     setError('');
     const fd = new FormData();

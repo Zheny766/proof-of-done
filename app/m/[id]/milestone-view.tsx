@@ -277,7 +277,7 @@ export function MilestoneView({
             </div>
           )}
 
-          <div className="order-3">
+          <div id="next-step" className="order-3 scroll-mt-4">
             <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={changed} waitForStage={waitForStage} />
           </div>
 
@@ -387,7 +387,7 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
     ? 'You are seeing this demo deal from outside, without its private links: they stay in the browser that started it. Start your own from the demo page to play both sides.'
     : (s === 'project' && projectTip(m, role)) || (arena
     ? m.status === 'funded'
-      ? 'Write your trick in the notes and hand in the draft. A live Claude review decides, and a second model has to agree before anything is paid.'
+      ? 'Write your trick in the notes and hand in the draft. A live Claude review decides, and the other AI checks have to agree before anything is paid.'
       : m.status === 'reviewing'
         ? 'Claude is reviewing your delivery right now: a live run, not a replay. Watch the audit log.'
         : ['verified', 'released'].includes(m.status)
@@ -404,8 +404,8 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
         : m.status === 'escalated'
           ? m.reviews.at(-1)?.audit?.agreed === false
             ? role === 'client'
-              ? 'The second model refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
-              : 'The second model refused to confirm the release. Switch to the client to make the call.'
+              ? 'An independent AI check refused to confirm, so the money waits for you. Read why in the verdict, then decide.'
+              : 'An independent AI check refused to confirm the release. Switch to the client to make the call.'
             : role === 'client'
               ? 'The reviewer couldn’t verify everything on its own, so the money waits for you. Read the verdict, then decide.'
               : 'The reviewer handed the call to the client. Switch to the client to decide.'
@@ -436,9 +436,17 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
         <div className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Demo · {DEMO_TITLE[s] ?? s}</div>
         <div className="mt-1 text-[15px]">{tip}</div>
       </div>
-      <a href="/demo" className="shrink-0 self-start rounded-full bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20 sm:self-auto">
-        All scenarios
-      </a>
+      <div className="flex shrink-0 gap-2">
+        {/* On a phone the next step is below the progress and the parties: one tap gets there. */}
+        {role !== 'viewer' && (
+          <a href="#next-step" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-pp-navy hover:bg-sky-50 sm:hidden">
+            Your step ↓
+          </a>
+        )}
+        <a href="/demo" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">
+          All scenarios
+        </a>
+      </div>
     </div>
   );
 }

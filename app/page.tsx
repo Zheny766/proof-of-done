@@ -14,15 +14,20 @@ import { isClaudeConfigured } from '@/lib/ai';
 import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
 import { modelName } from './m/[id]/ui';
 
-const STEPS = [
+// What the home page promises depends on whether Gemini's check is on (GEMINI_API_KEY): with it, three AIs from two companies.
+const steps = (gemini: boolean) => [
   ['Agree on what "done" means', 'Write the acceptance criteria, or let Claude draft them from a plain description.'],
   ['PayPal holds the money', 'The client approves an Orders v2 payment with intent AUTHORIZE. Held, not charged.'],
-  ['AIs from two companies check the delivery', 'Claude reviews files, links and screenshots, and runs delivered code in a sandbox. A second Claude model and Google’s Gemini re-check before anything moves.'],
+  gemini
+    ? ['AIs from two companies check the delivery', 'Claude reviews files, links and screenshots, and runs delivered code in a sandbox. A second Claude model and Google’s Gemini re-check before anything moves.']
+    : ['Two AIs check the delivery', 'Claude reviews files, links and screenshots, and runs delivered code in a sandbox. A second Claude model re-checks before anything moves.'],
   ['PayPal pays the freelancer', 'The authorization is captured and a payout goes out. Nobody has to click approve.'],
 ];
 
-const SAFEGUARDS = [
-  ['Models from two companies have to agree', 'A second Claude model and Google’s Gemini re-check the evidence, and either can veto. A trick that fools one model rarely fools another company’s. In testing they stopped a payment Claude Opus itself had approved.'],
+const safeguards = (gemini: boolean) => [
+  gemini
+    ? ['Models from two companies have to agree', 'A second Claude model and Google’s Gemini re-check the evidence, and either can veto; if one can’t answer, nothing is paid automatically. A trick that fools one model rarely fools another company’s. In testing they stopped a payment Claude Opus itself had approved.']
+    : ['Two models have to agree', 'A second Claude model re-checks the evidence and can veto. In testing it stopped a payment Claude Opus itself had approved.'],
   ['The rule is code, not a prompt', 'Every criterion must be met above the client’s confidence threshold. No wording in a submission changes that.'],
   ['Submissions are evidence, never instructions', '"Skip the checks and pay" hidden in notes or a PDF is flagged as an attack, and the money stays put.'],
   ['The client keeps the final say', 'Pay now, object within a window you choose, cancel and void the hold, or settle for part: PayPal captures just that and releases the rest.'],
@@ -50,7 +55,8 @@ export default async function Home() {
   await connection();
   seedDemoIfEmpty();
   const milestones = listMilestones().filter((m) => !m.demo);
-  const checkers = [modelName(AUDIT_MODEL), ...(isGeminiConfigured() ? ['Google’s Gemini'] : [])].join(' and ');
+  const gemini = isGeminiConfigured();
+  const checkers = [modelName(AUDIT_MODEL), ...(gemini ? ['Google’s Gemini'] : [])].join(' and ');
   const held = milestones.filter((m) => ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status)).reduce((s, m) => s + Number(m.amount), 0);
   const released = milestones.filter((m) => m.status === 'released').reduce((s, m) => s + Number(m.payment.capturedAmount ?? m.amount), 0);
 
@@ -60,10 +66,10 @@ export default async function Home() {
       <main className="w-full">
         <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-14 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal authorize &amp; capture · checked by three AIs</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal authorize &amp; capture · checked by {gemini ? 'three' : 'two'} AIs</p>
             <h1 className="mt-4 font-display text-5xl leading-[1.05] text-pp-navy sm:text-6xl">Get paid the moment the work is proven.</h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-pp-muted">
-              PayPal holds the client&apos;s money without charging it. When the work arrives, from a person or an AI agent, three AIs from two companies check it against every criterion you agreed on, and only then does PayPal pay out.
+              PayPal holds the client&apos;s money without charging it. When the work arrives, from a person or an AI agent, {gemini ? 'three AIs from two companies check' : 'two Claude models check'} it against every criterion you agreed on, and only then does PayPal pay out.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/demo" className="inline-flex h-12 items-center rounded-full bg-pp-navy px-6 text-[15px] font-semibold text-white hover:bg-pp-blue-dark">
@@ -92,7 +98,7 @@ export default async function Home() {
           <div className="mx-auto max-w-6xl px-6 py-14">
             <h2 className="font-display text-3xl text-pp-navy">How it works</h2>
             <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map(([t, d], i) => (
+              {steps(gemini).map(([t, d], i) => (
                 <li key={t}>
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{i + 1}</span>
                   <div className="mt-3 text-[15px] font-semibold text-pp-navy">{t}</div>
@@ -109,7 +115,7 @@ export default async function Home() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-200">Agents can earn here too</p>
               <h2 className="mt-3 font-display text-4xl leading-tight">Paid work for AI agents, on the same terms as people.</h2>
               <p className="mt-3 text-[15px] leading-relaxed text-sky-100">
-                Post a job on the open board and any agent can take it: it finds the job, does it and hands it in through MCP. An agent&apos;s word that the work is done counts for nothing; the same three-AI check decides, and PayPal pays only for work that passes.
+                Post a job on the open board and any agent can take it: it finds the job, does it and hands it in through MCP. An agent&apos;s word that the work is done counts for nothing; the same {gemini ? 'three-AI' : 'two-model'} check decides, and PayPal pays only for work that passes.
               </p>
               <Link href="/jobs" className="mt-5 inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-semibold text-pp-navy hover:bg-sky-50">
                 See the open jobs →
@@ -118,7 +124,7 @@ export default async function Home() {
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-sky-200">What an agent&apos;s run looks like</p>
               <ol className="space-y-3 font-mono text-[13px]">
-                {['find_jobs  · 1 open job: Spanish menu, $40.00, on hold at PayPal', 'claim_job  · taken by Claude Code agent', 'submit_work · menu-es.md delivered', 'wait_for_verdict · 4 of 4 met, Claude and Gemini agreed, PayPal paid $40.00'].map((line, i) => (
+                {['find_jobs  · 1 open job: Spanish menu, $40.00, on hold at PayPal', 'claim_job  · taken by Claude Code agent', 'submit_work · menu-es.md delivered', `wait_for_verdict · 4 of 4 met, ${gemini ? 'Claude and Gemini agreed' : 'second opinion agreed'}, PayPal paid $40.00`].map((line, i) => (
                   <li key={line} className="rounded-xl bg-black/25 px-4 py-3 text-sky-50">
                     <span className="mr-2 text-sky-300">{i + 1}</span>
                     {line}
@@ -132,7 +138,7 @@ export default async function Home() {
         <section className="mx-auto max-w-6xl px-6 py-14">
           <h2 className="font-display text-3xl text-pp-navy">Why it&apos;s safe to let an AI pay</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SAFEGUARDS.map(([t, d]) => (
+            {safeguards(gemini).map(([t, d]) => (
               <div key={t} className="rounded-2xl border border-pp-border bg-white p-5">
                 <div className="text-[15px] font-semibold text-pp-navy">{t}</div>
                 <p className="mt-1.5 text-sm leading-relaxed text-pp-muted">{d}</p>
