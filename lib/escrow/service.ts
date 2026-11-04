@@ -12,7 +12,7 @@ import { roleFor, newAccess } from './access.ts';
 import { isOverdue } from './policy.ts';
 import { sniffType } from './evidence.ts';
 import { disputeEvidence } from './disputes.ts';
-import { answerDisputeOnPayPal, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
+import { answerDisputeOnPayPal, recoverRefund, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { isPayPalConfigured, onPayPalCall } from '../paypal.ts';
 import { AUDIT_MODEL, REVIEW_MODEL, runClaudeAudit, runClaudeReview, runSimulatedAudit, runSimulatedReview, type ReviewHooks } from './reviewer.ts';
@@ -444,7 +444,8 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
             scheduleRelease(id, releaseAt);
             return { releaseAt };
           }
-          const payment = await releaseFunds(await keepHoldFresh(id), `Work accepted: ${summary}`);
+          const fresh = await keepHoldFresh(id);
+          const payment = await releaseFunds(fresh, `Work accepted: ${summary}`, fresh.amount, owedBy(fresh));
           updateMilestone(id, (x) => {
             mergeRelease(x, payment);
             x.status = 'released';
@@ -557,6 +558,17 @@ export async function syncWithPayPal(id: string): Promise<{ id: string; status: 
 }
 
 const HOLDING = ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'];
+
+/**
+ * What a freelancer still owes for refunds made after they were paid (refunded, less what earlier
+ * payouts already kept back). It comes off their next payout here.
+ */
+function owedBy(m: Milestone): number {
+  const email = m.freelancer.email.toLowerCase();
+  const mine = listMilestones().filter((x) => x.freelancer.email.toLowerCase() === email);
+  const owed = mine.reduce((n, x) => n + Number(x.payment.refundOwed ?? 0) - Number(x.payment.payoutDeduction ?? 0), 0);
+  return Math.max(0, Math.round(owed * 100) / 100);
+}
 const retryDue = (triedAt?: string) => !triedAt || Date.now() - Date.parse(triedAt) > 6 * 3_600_000;
 
 // The job is outlasting PayPal's 3-day guarantee on the held money: reauthorize, once.
@@ -593,7 +605,8 @@ function releaseWhenDue(id: string): Promise<Milestone> {
     const m = mustGet(id);
     if (m.status !== 'verified' || !m.releaseAt || Date.parse(m.releaseAt) > Date.now()) return m;
     try {
-      const payment = await releaseFunds(await keepHoldFresh(id), 'Work accepted: verified, and the objection window closed');
+      const fresh = await keepHoldFresh(id);
+      const payment = await releaseFunds(fresh, 'Work accepted: verified, and the objection window closed', fresh.amount, owedBy(fresh));
       return updateMilestone(id, (x) => {
         mergeRelease(x, payment);
         x.status = 'released';
@@ -627,7 +640,8 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
     if (!['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status)) throw new EscrowError(`There is nothing to pay now: ${dealIs(m)}.`);
     // Nobody has taken the job yet: capturing would charge the client with no one to pay.
     if (isOpenJob(m)) throw new EscrowError('Nobody has taken this job yet, so there is no one to pay. Cancel to void the hold.', 409);
-    const payment = await releaseFunds(await keepHoldFresh(id), note || 'Released by the client');
+    const fresh = await keepHoldFresh(id);
+    const payment = await releaseFunds(fresh, note || 'Released by the client', fresh.amount, owedBy(fresh));
     return updateMilestone(id, (x) => {
       mergeRelease(x, payment);
       x.status = 'released';
@@ -720,7 +734,8 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
 
   if (offer.by === role) throw new EscrowError('The other party has to accept your offer.', 403);
   if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`The offer can't be accepted now: ${dealIs(m)}.`);
-  const payment = await releaseFunds(await keepHoldFresh(id), `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount);
+  const fresh = await keepHoldFresh(id);
+  const payment = await releaseFunds(fresh, `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount, owedBy(fresh));
   return updateMilestone(id, (x) => {
     mergeRelease(x, payment);
     x.status = 'released';
@@ -886,8 +901,12 @@ async function afterPaymentNow(id: string, input: z.infer<typeof AfterPaymentInp
   const amount = cents(input.amount ?? Number(open.amount));
   if (amount > left) throw new EscrowError(`At most ${money(left, m.currency)} can be refunded on this deal.`);
   const refund = await refundToClient(m, amount, input.note || `Refund for: ${m.title}`);
+  // The client has the money back; now it comes back from the freelancer's payout, if they had one.
+  const recovered = refund.status === 'FAILED' ? {} : await recoverRefund(m, amount);
+  const { cancelled, ...recoveredPayment } = recovered;
   return updateMilestone(id, (x) => {
     x.payment.refunds = [...(x.payment.refunds ?? []), refund];
+    x.payment = { ...x.payment, ...recoveredPayment };
     x.complaint = { ...open, status: 'refunded', reply: input.note, closedAt: nowIso() };
     pushEvent(x, 'freelancer', 'refund_agreed', `${x.freelancer.name} agreed to refund ${money(amount, x.currency)}${input.note ? `: ${input.note}` : ''}`);
     pushEvent(
@@ -898,6 +917,11 @@ async function afterPaymentNow(id: string, input: z.infer<typeof AfterPaymentInp
         ? `PayPal refunded ${money(amount, x.currency)} to ${x.client.name} (refund ${refund.id})`
         : `PayPal accepted the refund of ${money(amount, x.currency)} to ${x.client.name}; it is ${refund.status.toLowerCase()} (refund ${refund.id})`,
     );
+    if (cancelled) {
+      pushEvent(x, 'paypal', 'payout_cancelled', `${x.freelancer.name} hadn't claimed the payout yet, so PayPal cancelled it and the refund came back from it${Number(recoveredPayment.payoutAmount ?? 0) > 0 ? `; the remaining ${money(Number(recoveredPayment.payoutAmount), x.currency)} was sent again (batch ${recoveredPayment.payoutBatchId})` : ''}`);
+    } else if (recoveredPayment.refundOwed) {
+      pushEvent(x, 'system', 'refund_owed', `${x.freelancer.name} had already been paid, so the platform refunded ${x.client.name}; ${money(Number(recoveredPayment.refundOwed), x.currency)} comes off ${x.freelancer.name}'s next payout here`);
+    }
   });
 }
 
@@ -1267,7 +1291,7 @@ export async function applyWebhook(e: WebhookEvent, origin = process.env.POD_PUB
     const type = e.event_type;
     if (type === 'PAYMENT.CAPTURE.COMPLETED' && m.payment.payoutStatus?.startsWith('HELD')) {
       // The capture went through after all: only now does the freelancer get paid.
-      const payout = await payOutHeld(m);
+      const payout = await payOutHeld(m, owedBy(m));
       effect = (x) => {
         x.payment = { ...x.payment, ...payout };
         pushEvent(x, 'paypal', 'capture_completed', `PayPal completed the capture, so the payout goes out now ${via}`);
@@ -1413,7 +1437,11 @@ function mergeRelease(x: Milestone, payment: Partial<Milestone['payment']>) {
 }
 
 function pushPayoutEvent(m: Milestone, payment: Partial<Milestone['payment']>) {
-  if (payment.payoutBatchId) pushEvent(m, 'paypal', 'payout', `Payout sent to ${m.freelancer.email} (batch ${payment.payoutBatchId})`);
+  if (payment.payoutDeduction) {
+    pushEvent(m, 'system', 'payout_deduction', `${money(Number(payment.payoutDeduction), m.currency)} of this payout covers a refund ${m.freelancer.name} agreed to on an earlier deal, after being paid`);
+  }
+  if (payment.payoutBatchId) pushEvent(m, 'paypal', 'payout', `Payout of ${money(Number(payment.payoutAmount ?? 0), m.currency)} sent to ${m.freelancer.email} (batch ${payment.payoutBatchId})`);
+  else if (payment.payoutStatus?.startsWith('NOT SENT: all')) pushEvent(m, 'system', 'payout_kept', 'No payout this time: all of it covers a refund on an earlier deal');
   else if (payment.payoutStatus?.startsWith('HELD')) pushEvent(m, 'paypal', 'payout_held', `Payout waits until PayPal completes the capture`);
   else if (payment.payoutStatus) pushEvent(m, 'system', 'payout_failed', `Payout not sent: ${payment.payoutStatus}`);
 }

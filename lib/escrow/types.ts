@@ -113,6 +113,14 @@ export interface PaymentState {
   authorizedAmount?: string;
   /** Money PayPal returned to the client from the capture after the deal was paid, oldest first. */
   refunds?: { id: string; amount: string; status: string; at: string }[];
+  /** What the payout sent to the freelancer, after any amount kept back for an earlier refund. */
+  payoutAmount?: string;
+  /** Kept back from this payout to cover a refund on an earlier deal with the same freelancer. */
+  payoutDeduction?: string;
+  /** Refunded to the client after the freelancer had been paid: what they owe back from future payouts. */
+  refundOwed?: string;
+  /** PayPal cancelled the unclaimed payout so a refund could come back from it. */
+  payoutCancelledAt?: string;
   /** PayPal's fee on the capture and what was left; the payout is paid from what was left. */
   paypalFee?: string;
   capturedNet?: string;

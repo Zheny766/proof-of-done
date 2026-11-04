@@ -257,7 +257,10 @@ export function provideDisputeEvidence(disputeId: string, evidences: unknown[], 
   return post(`/v1/customer/disputes/${encodeURIComponent(disputeId)}/provide-evidence`, body, `evidence-${disputeId}-${n}`);
 }
 
-export type PayoutBatch = { batch_header: { payout_batch_id: string; batch_status: string } };
+export type PayoutBatch = {
+  batch_header: { payout_batch_id: string; batch_status: string };
+  items?: { payout_item_id: string; transaction_status?: string }[];
+};
 
 /** Pay the freelancer from the platform balance (Payouts API). */
 export function createPayout(input: {
@@ -266,12 +269,14 @@ export function createPayout(input: {
   amount: string;
   currency: string;
   note: string;
+  /** A second payout for the same deal (after an unclaimed one was cancelled) needs its own batch id. */
+  batchSuffix?: string;
 }): Promise<PayoutBatch> {
   return post<PayoutBatch>(
     '/v1/payments/payouts',
     {
       sender_batch_header: {
-        sender_batch_id: `pod-${input.milestoneId}`,
+        sender_batch_id: `pod-${input.milestoneId}${input.batchSuffix ?? ''}`,
         email_subject: 'You got paid: work verified by Proof of Done',
         email_message: input.note.slice(0, 1000),
       },
@@ -285,8 +290,13 @@ export function createPayout(input: {
         },
       ],
     },
-    `payout-${input.milestoneId}`,
+    `payout-${input.milestoneId}${input.batchSuffix ?? ''}`,
   );
+}
+
+/** Take back a payout nobody has claimed yet (the receiver has no PayPal account): the money returns to the sender. */
+export function cancelPayoutItem(itemId: string): Promise<unknown> {
+  return post(`/v1/payments/payouts-item/${encodeURIComponent(itemId)}/cancel`, undefined, `cancel-${itemId}`);
 }
 
 /** Current status of a payout batch (PENDING -> SUCCESS once the money reaches the receiver). */

@@ -588,6 +588,9 @@ export function AfterPayment({ m, role, milestoneKey, onChange }: { m: Milestone
           {confirming ? (
             <div role="alertdialog" aria-label="Confirm" className="rounded-xl bg-pp-canvas p-4 text-sm">
               <p>PayPal returns {fmtMoney(value, m.currency)} to {m.client.name} from the payment. This can&apos;t be undone.</p>
+              {m.payment.payoutAmount && Number(m.payment.payoutAmount) > 0 && (
+                <p className="mt-1 text-pp-muted">You were paid already: if you haven&apos;t claimed the payout yet, PayPal cancels it and sends you the rest; otherwise this amount comes off your next payout here.</p>
+              )}
               <div className="mt-3 flex gap-2">
                 <button onClick={() => send({ action: 'refund', ...(amount && { amount: value }), ...(note && { note }) })} autoFocus className={btn.pay}>
                   Yes, refund

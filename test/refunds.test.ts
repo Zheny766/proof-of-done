@@ -43,7 +43,7 @@ test('the client reports a problem, the freelancer refunds part of it, and PayPa
   assert.equal(done.payment.refunds?.length, 1);
   assert.equal(done.payment.refunds?.[0].amount, '25.00');
   assert.equal(payments.refundable(done), 75);
-  assert.match(done.timeline.at(-1)!.text, /PayPal refunded 25.00 USD to Maya/);
+  assert.match(done.timeline.find((e) => e.type === 'refunded')!.text, /PayPal refunded 25.00 USD to Maya/);
 });
 
 test('only what was captured and not refunded can come back, and only the right side can act', async () => {
@@ -122,6 +122,52 @@ test('on the PayPal sandbox the refund goes to the capture, with an idempotency 
     assert.equal(calls[0].body.amount.value, '30.00');
     assert.equal(calls[0].key, 'refund-CAP1-2', 'the second refund on this capture');
     assert.equal(refund.id, 'REF1');
+  } finally {
+    globalThis.fetch = real;
+    delete process.env.PAYPAL_CLIENT_ID;
+    delete process.env.PAYPAL_SECRET;
+  }
+});
+
+
+test('a refund after the payout comes off the same freelancer’s next payout here', async () => {
+  const first = await paid();
+  await service.afterPayment(first.id, { action: 'complain', text: 'Two prices are wrong', amount: 30 }, first.clientKey);
+  const refunded = await service.afterPayment(first.id, { action: 'refund' }, first.freelancerKey);
+  assert.equal(refunded.payment.refundOwed, '30.00');
+  assert.match(refunded.timeline.at(-1)!.text, /Diego had already been paid, so the platform refunded Maya; 30.00 USD comes off Diego's next payout/);
+
+  // Diego's next deal: 30 of the payout covers that refund, and the debt is settled.
+  const next = await paid();
+  const m = store.getMilestone(next.id)!;
+  assert.deepEqual([m.payment.payoutDeduction, m.payment.payoutAmount], ['30.00', '70.00']);
+  assert.ok(m.timeline.some((e) => e.type === 'payout_deduction'));
+  const third = await paid();
+  assert.equal(store.getMilestone(third.id)!.payment.payoutDeduction, undefined, 'nothing more is owed');
+});
+
+test('on the sandbox an unclaimed payout is cancelled and the rest sent again, so nothing is owed', async () => {
+  const calls: { method: string; path: string; body?: { items?: { amount: { value: string } }[]; sender_batch_header?: { sender_batch_id: string } } }[] = [];
+  const real = globalThis.fetch;
+  process.env.PAYPAL_CLIENT_ID = 'test-id';
+  process.env.PAYPAL_SECRET = 'test-secret';
+  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
+    const { pathname } = new URL(url);
+    if (pathname === '/v1/oauth2/token') return new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }));
+    calls.push({ method: init.method ?? 'GET', path: pathname, body: init.body ? JSON.parse(String(init.body)) : undefined });
+    if (pathname === '/v1/payments/payouts/BATCH1') return new Response(JSON.stringify({ batch_header: { payout_batch_id: 'BATCH1', batch_status: 'SUCCESS' }, items: [{ payout_item_id: 'ITEM1', transaction_status: 'UNCLAIMED' }] }));
+    if (pathname === '/v1/payments/payouts') return new Response(JSON.stringify({ batch_header: { payout_batch_id: 'BATCH2', batch_status: 'PENDING' } }), { status: 201 });
+    return new Response(JSON.stringify({}), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const m = { id: 'ms_x', amount: '100.00', currency: 'USD', freelancer: { email: 'diego@example.com' }, payment: { mode: 'sandbox', captureId: 'CAP1', payoutBatchId: 'BATCH1', payoutAmount: '100.00' } } as unknown as Milestone;
+    const out = await payments.recoverRefund(m, 40);
+    assert.equal(out.cancelled, true);
+    assert.ok(calls.some((c) => c.path === '/v1/payments/payouts-item/ITEM1/cancel'));
+    const again = calls.find((c) => c.path === '/v1/payments/payouts')!;
+    assert.equal(again.body!.items![0].amount.value, '60.00');
+    assert.equal(again.body!.sender_batch_header!.sender_batch_id, 'pod-ms_x-2', 'its own batch id');
+    assert.equal(out.refundOwed, undefined);
   } finally {
     globalThis.fetch = real;
     delete process.env.PAYPAL_CLIENT_ID;

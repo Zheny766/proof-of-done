@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import {
   authorizeOrder,
   captureAuthorization,
+  cancelPayoutItem,
   getCapture,
   getDispute,
   provideDisputeEvidence,
@@ -107,7 +108,7 @@ export async function renewHold(m: Milestone): Promise<Partial<PaymentState> | n
 }
 
 /** Capture the hold and pay the freelancer. `amount` (less than the full amount) settles for part of it. */
-export async function releaseFunds(m: Milestone, note: string, amount = m.amount): Promise<Partial<PaymentState>> {
+export async function releaseFunds(m: Milestone, note: string, amount = m.amount, owed = 0): Promise<Partial<PaymentState>> {
   // A hold past its honor period may no longer be guaranteed: renew it first, then capture the new one.
   const renewed = await renewHold(m).catch(() => null);
   const authId = renewed?.authorizationId ?? m.payment.authorizationId;
@@ -129,6 +130,7 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
       authorizationStatus: 'CAPTURED',
       payoutBatchId: fakeId('PAYOUT'),
       payoutStatus: 'SUCCESS',
+      ...payoutSplit(amount, owed),
     };
   }
 
@@ -158,28 +160,58 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     return result;
   }
 
-  return { ...result, ...(await sendPayout(m, net ?? amount, note)) };
+  return { ...result, ...(await sendPayout(m, net ?? amount, note, owed)) };
 }
 
 /** Pay the freelancer from captured money. A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it. */
-async function sendPayout(m: Milestone, amount: string, note: string): Promise<Partial<PaymentState>> {
+/** The freelancer's share of `amount` (after the platform fee), less what they owe for an earlier refund. */
+function payoutSplit(amount: string, owed: number): Pick<PaymentState, 'payoutAmount' | 'payoutDeduction'> {
+  const share = Math.round(Number(amount) * (1 - PLATFORM_FEE_PCT / 100) * 100) / 100;
+  const kept = Math.min(share, Math.round(owed * 100) / 100);
+  return { payoutAmount: (share - kept).toFixed(2), ...(kept > 0 && { payoutDeduction: kept.toFixed(2) }) };
+}
+
+async function sendPayout(m: Milestone, amount: string, note: string, owed = 0, batchSuffix?: string): Promise<Partial<PaymentState>> {
+  const split = payoutSplit(amount, owed);
+  // Everything went to cover an earlier refund: there is nothing left to send.
+  if (Number(split.payoutAmount) <= 0) return { ...split, payoutStatus: 'NOT SENT: all of it covered an earlier refund' };
   try {
-    const batch = await createPayout({
-      milestoneId: m.id,
-      receiverEmail: m.freelancer.email,
-      amount: (Number(amount) * (1 - PLATFORM_FEE_PCT / 100)).toFixed(2),
-      currency: m.currency,
-      note,
-    });
-    return { payoutBatchId: batch.batch_header.payout_batch_id, payoutStatus: batch.batch_header.batch_status };
+    const batch = await createPayout({ milestoneId: m.id, receiverEmail: m.freelancer.email, amount: split.payoutAmount!, currency: m.currency, note, batchSuffix });
+    return { ...split, payoutBatchId: batch.batch_header.payout_batch_id, payoutStatus: batch.batch_header.batch_status };
   } catch (error) {
-    return { payoutStatus: `FAILED: ${(error as Error).message.slice(0, 160)}` };
+    return { ...split, payoutStatus: `FAILED: ${(error as Error).message.slice(0, 160)}` };
   }
 }
 
+/**
+ * After a refund on a deal whose freelancer was already paid: if they haven't claimed the payout yet,
+ * PayPal cancels it (the money comes back) and the rest is sent again; otherwise what was refunded is
+ * owed, and comes off their next payout here.
+ */
+export async function recoverRefund(m: Milestone, refunded: number): Promise<Partial<PaymentState> & { cancelled?: boolean }> {
+  const paid = Number(m.payment.payoutAmount ?? 0);
+  if (!paid || !m.payment.payoutBatchId) return {};
+  const owedBefore = Number(m.payment.refundOwed ?? 0);
+  if (m.payment.mode === 'sandbox' && !m.payment.payoutCancelledAt) {
+    try {
+      const item = (await getPayoutBatch(m.payment.payoutBatchId)).items?.[0];
+      if (item?.transaction_status === 'UNCLAIMED') {
+        await cancelPayoutItem(item.payout_item_id);
+        const rest = Math.round((paid - refunded) * 100) / 100;
+        // The fee was taken already: re-send the freelancer's remaining share as it is.
+        const again = rest > 0 ? await sendPayout({ ...m }, (rest / (1 - PLATFORM_FEE_PCT / 100)).toFixed(2), 'The rest of your payment, after a refund', 0, '-2') : { payoutAmount: '0.00', payoutStatus: 'NOT SENT: the whole payout was refunded' };
+        return { ...again, payoutCancelledAt: new Date().toISOString(), cancelled: true };
+      }
+    } catch {
+      // PayPal wouldn't cancel it (claimed meanwhile, or another error): fall back to owing it.
+    }
+  }
+  return { refundOwed: Math.min(paid, owedBefore + refunded).toFixed(2) };
+}
+
 /** A held payout, once PayPal reports the capture completed. */
-export function payOutHeld(m: Milestone): Promise<Partial<PaymentState>> {
-  return sendPayout(m, m.payment.capturedNet ?? m.payment.capturedAmount ?? m.amount, 'Work accepted: the capture completed');
+export function payOutHeld(m: Milestone, owed = 0): Promise<Partial<PaymentState>> {
+  return sendPayout(m, m.payment.capturedNet ?? m.payment.capturedAmount ?? m.amount, 'Work accepted: the capture completed', owed);
 }
 
 /** What PayPal captured for this deal and has not refunded yet. */
