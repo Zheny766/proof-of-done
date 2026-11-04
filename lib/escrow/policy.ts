@@ -69,9 +69,15 @@ export function cancelBlock(m: Milestone, now = Date.now()): string | null {
   if (isOverdue(m)) return null;
   if (m.reviews.filter((r) => r.decision === 'request_changes').length >= 3) return null;
   const lastAsk = m.timeline.findLast((e) => ['changes_requested', 'escalated', 'submitted', 'review_failed'].includes(e.type));
-  const fixBy = Math.max(m.dueAt ? Date.parse(m.dueAt) : 0, (lastAsk ? Date.parse(lastAsk.at) : now) + FIX_WINDOW_MS);
+  const wanted = Math.max(m.dueAt ? Date.parse(m.dueAt) : 0, (lastAsk ? Date.parse(lastAsk.at) : now) + FIX_WINDOW_MS);
+  // A fix can only be paid from a hold that still exists: the window never runs past PayPal's.
+  const holdEnds = m.payment.expiresAt ? Date.parse(m.payment.expiresAt) : Infinity;
+  const fixBy = Math.min(wanted, holdEnds);
   if (now >= fixBy) return null;
-  return `${m.freelancer.name} delivered work and has until ${new Date(fixBy).toISOString().slice(0, 16).replace('T', ' ')} UTC to fix what’s asked. Until then, ask for changes, settle for part, or pay.`;
+  const when = new Date(fixBy).toISOString().slice(0, 16).replace('T', ' ');
+  return fixBy === holdEnds
+    ? `${m.freelancer.name} delivered work and has until ${when} UTC, when PayPal's hold ends, to fix what’s asked. Until then, ask for changes, settle for part, or pay.`
+    : `${m.freelancer.name} delivered work and has until ${when} UTC to fix what’s asked. Until then, ask for changes, settle for part, or pay.`;
 }
 
 /** Why the client can't object to (or ask changes on) the delivery now, or null when they can. */

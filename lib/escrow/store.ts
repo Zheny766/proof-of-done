@@ -175,3 +175,13 @@ export function deleteWhere(match: (m: Milestone) => boolean): number {
 export function deleteAll() {
   save({ milestones: [] });
 }
+
+/** Whether a stored file still matches the SHA-256 recorded at delivery: null when none was recorded or the file is gone. */
+export function storedFileIntact(a: { file: string; sha256?: string }): boolean | null {
+  if (!a.sha256) return null;
+  try {
+    return crypto.createHash('sha256').update(fs.readFileSync(path.join(UPLOAD_DIR, a.file))).digest('hex') === a.sha256;
+  } catch {
+    return null;
+  }
+}
