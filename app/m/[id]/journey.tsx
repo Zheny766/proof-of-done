@@ -64,7 +64,7 @@ export function MoneyJourney({ m }: { m: Milestone }) {
               : 'on hold, nothing charged yet'
             : 'nothing on hold yet',
     },
-    { icon: ICONS.check, title: 'Two AIs check the work', sub: checkSub },
+    { icon: ICONS.check, title: 'AIs check the work', sub: checkSub },
     {
       icon: ICONS.paid,
       title: payoutStuck ? 'Payout not sent yet' : settled ? `Freelancer paid ${fmtMoney(settled, m.currency)}` : stage === 4 ? `Freelancer paid ${amount}` : 'Freelancer paid',

@@ -66,6 +66,7 @@ export function viewerMilestone(m: Milestone): Milestone {
       log: [],
       findings: r.findings.map((f) => ({ ...f, evidence: '' })),
       audit: r.audit && { ...r.audit, summary: '', disputed: r.audit.disputed.map((d) => ({ ...d, reason: '' })), redFlags: [] },
+      panel: r.panel?.map((a) => ({ ...a, summary: '', disputed: a.disputed.map((d) => ({ ...d, reason: '' })), redFlags: [] })),
     })),
     settlement: undefined,
     termsChange: undefined,

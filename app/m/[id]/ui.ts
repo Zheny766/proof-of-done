@@ -25,4 +25,9 @@ export const initials = (name: string) =>
 
 /** "claude-opus-5-5" -> "Claude Opus 5.5" */
 export const modelName = (id?: string) =>
-  id ? `Claude ${id.replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/^\w/, (c) => c.toUpperCase())}` : '';
+  !id
+    ? ''
+    : id.startsWith('gemini')
+      ? // "gemini-3.6-flash" -> "Gemini 3.6 Flash"
+        id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      : `Claude ${id.replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/^\w/, (c) => c.toUpperCase())}`;

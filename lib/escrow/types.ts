@@ -75,12 +75,16 @@ export interface Review {
   usage?: { inputTokens: number; outputTokens: number };
   /** The independent second check that has to confirm a release before any money moves. */
   audit?: Audit;
+  /** More independent checks besides the second opinion (Gemini, from another company); all must agree. */
+  panel?: Audit[];
 }
 
 export interface Audit {
-  engine: 'claude' | 'simulated';
+  engine: 'claude' | 'simulated' | 'gemini';
   model?: string;
   agreed: boolean;
+  /** The check couldn't run at all (the provider was busy or down), so it gave no verdict. */
+  unavailable?: boolean;
   summary: string;
   disputed: { criterionId: string; reason: string }[];
   redFlags: string[];

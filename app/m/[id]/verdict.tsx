@@ -41,7 +41,7 @@ export function Verdict({ m }: { m: Milestone }) {
         )}
       </div>
       <p className="mt-1 text-sm text-pp-muted">
-        Every criterion has to be met with at least {Math.round(m.releaseThreshold * 100)}% confidence, and a second model has to agree, before any money moves.
+        Every criterion has to be met with at least {Math.round(m.releaseThreshold * 100)}% confidence, and the independent checks have to agree, before any money moves.
       </p>
       {stale && <p className="mt-3 rounded-lg bg-pp-highlight px-3 py-2 text-sm text-pp-navy">The terms changed after the last review: the next delivery is checked against these criteria.</p>}
       {/* The client's own words about the job: the reviewer reads them too (an outsider never gets them). */}
@@ -56,7 +56,8 @@ export function Verdict({ m }: { m: Milestone }) {
           <CriterionRow key={c.id} n={i + 1} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} />
         ))}
       </ul>
-      {review?.audit && <SecondOpinion audit={review.audit} m={m} />}
+      {review?.audit && <SecondOpinion audit={review.audit} m={m} label="Second opinion" />}
+      {review?.panel?.map((a, i) => <SecondOpinion key={i} audit={a} m={m} label={i === 0 ? 'Third check' : `Check ${i + 3}`} />)}
       {review?.finishedAt && <DecisionBanner m={m} />}
     </section>
   );
@@ -103,23 +104,26 @@ function CriterionRow({ n, text, finding, pending, threshold }: { n: number; tex
   );
 }
 
-// A second model has to confirm a release before any money moves.
-function SecondOpinion({ audit, m }: { audit: Audit; m: Milestone }) {
-  const who = audit.engine === 'claude' ? modelName(audit.model) : 'simulated check';
+// Each independent check (a second Claude model, Google's Gemini) has to confirm a release before any money moves.
+const COMPANY: Record<Audit['engine'], string> = { claude: 'Anthropic', gemini: 'Google', simulated: '' };
+
+function SecondOpinion({ audit, m, label }: { audit: Audit; m: Milestone; label: string }) {
+  const who = audit.engine === 'simulated' ? 'simulated check' : `${modelName(audit.model)} · ${COMPANY[audit.engine]}`;
   const text = (id: string) => m.criteria.find((c) => c.id === id)?.text ?? id;
   return (
-    <div className={`mt-4 rounded-xl px-4 py-3.5 text-sm ring-1 ring-inset [overflow-wrap:anywhere] ${audit.agreed ? 'bg-violet-50/70 ring-violet-200' : 'bg-orange-50 ring-orange-200'}`}>
+    <div className={`mt-4 rounded-xl px-4 py-3.5 text-sm ring-1 ring-inset [overflow-wrap:anywhere] ${audit.unavailable ? 'bg-slate-50 ring-slate-200' : audit.agreed ? 'bg-violet-50/70 ring-violet-200' : 'bg-orange-50 ring-orange-200'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className={`font-semibold ${audit.agreed ? 'text-violet-900' : 'text-orange-900'}`}>
-          {audit.agreed ? 'Second opinion: confirmed every criterion' : 'Second opinion: did not confirm the release'}
+          {label}: {audit.unavailable ? 'could not run this time' : audit.agreed ? 'confirmed every criterion' : 'did not confirm the release'}
         </span>
         <span className="text-xs text-pp-muted">{who}</span>
       </div>
       {/* Without a key the reasons are redacted; say where they are rather than show an empty list. */}
-      {!audit.agreed && !audit.disputed.some((d) => d.reason) && !audit.redFlags.length && (
+      {!audit.agreed && !audit.unavailable && !audit.disputed.some((d) => d.reason) && !audit.redFlags.length && (
         <p className="mt-2 text-[13px] text-orange-900">Why is visible to the client and the freelancer.</p>
       )}
-      {!audit.agreed && (
+      {audit.unavailable && <p className="mt-2 text-[13px] text-pp-muted">{COMPANY[audit.engine]} didn&apos;t answer, so the other checks decided. {audit.summary}</p>}
+      {!audit.agreed && !audit.unavailable && (
         <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px] text-orange-900">
           {audit.disputed.map((d) => (
             <li key={d.criterionId}>

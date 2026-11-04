@@ -12,6 +12,7 @@ import { roleFor, newAccess } from './access.ts';
 import { isOverdue } from './policy.ts';
 import { sniffType } from './evidence.ts';
 import { disputeEvidence } from './disputes.ts';
+import { GEMINI_MODELS, isGeminiConfigured, runGeminiAudit } from './gemini.ts';
 import { answerDisputeOnPayPal, recoverRefund, cancelFunding, completeFunding, holdNeedsRenewal, paymentMode, payOutHeld, refreshPayoutStatus, refundable, refundToClient, releaseFunds, renewHold, startFunding } from './payments.ts';
 import { claudeErrorMessage, isClaudeConfigured } from '../ai.ts';
 import { isPayPalConfigured, onPayPalCall } from '../paypal.ts';
@@ -21,7 +22,7 @@ import { deleteWhere, getMilestone, insertMilestone, listMilestones, newId, nowI
 import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
 
 export { CLAIM_LIMIT, trustFor, type Trust, type TrustTier } from './trust.ts';
-import type { Attachment, Milestone, MilestoneStatus, Review, Role, Terms } from './types.ts';
+import type { Attachment, Audit, Milestone, MilestoneStatus, Review, Role, Terms } from './types.ts';
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
@@ -382,7 +383,9 @@ export function readiness() {
   return {
     payments: paymentMode(),
     webhooks: Boolean(process.env.PAYPAL_WEBHOOK_ID && isPayPalConfigured()),
-    reviewer: isClaudeConfigured() ? { live: true, model: REVIEW_MODEL, secondOpinion: AUDIT_MODEL, liveReviewsLeftToday: Math.max(0, LIVE_REVIEWS_DAILY() - used) } : { live: false, engine: 'simulated (replays of real Claude runs in the demos)' },
+    reviewer: isClaudeConfigured()
+      ? { live: true, model: REVIEW_MODEL, secondOpinion: AUDIT_MODEL, thirdCheck: isGeminiConfigured() ? GEMINI_MODELS()[0] : null, liveReviewsLeftToday: Math.max(0, LIVE_REVIEWS_DAILY() - used) }
+      : { live: false, engine: 'simulated (replays of real Claude runs in the demos)' },
     storage,
     deals: deals.length,
     sealedRecords: deals.every((m) => m.timeline.every((e) => e.hash)),
@@ -409,12 +412,25 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
         r.findings = r.findings.filter((x) => x.criterionId !== f.criterionId);
         r.findings.push(f);
       }),
+    // Claude's second opinion and, with a key, Gemini's check run side by side; every one has to agree.
     audit: async (input) => {
-      const audit = review.engine === 'claude' ? await runClaudeAudit(m, submission, input) : runSimulatedAudit(mustGet(id), submission);
+      const live = review.engine === 'claude';
+      const [audit, gemini] = await Promise.all([
+        live ? runClaudeAudit(m, submission, input) : Promise.resolve(runSimulatedAudit(mustGet(id), submission)),
+        live && isGeminiConfigured()
+          ? runGeminiAudit(m, submission, input).catch(
+              (error: Error): Audit => ({ engine: 'gemini', model: GEMINI_MODELS()[0], agreed: false, unavailable: true, summary: `${error.message.slice(0, 160)}.`, disputed: [], redFlags: [] }),
+            )
+          : Promise.resolve(null),
+      ]);
       patchReview((r) => {
         r.audit = audit;
+        if (gemini) r.panel = [gemini];
       });
-      return audit;
+      // A check that answered has to agree. One that couldn't answer at all (Google busy or down) is
+      // recorded as such, and the two Claude checks decide, unless POD_PANEL_REQUIRED=1 makes it required.
+      if (!gemini || (gemini.unavailable && process.env.POD_PANEL_REQUIRED !== '1')) return audit;
+      return combineChecks(audit, gemini);
     },
     release: (summary) =>
       exclusive(id, async () => {
@@ -480,7 +496,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
   try {
     const replay = review.engine === 'replay' && m.demo ? loadReplay(m.demo.scenario) : null;
     const outcome = replay
-      ? await runReplayReview(replay, { ...hooks, setAudit: (a) => patchReview((r) => void (r.audit = a)) })
+      ? await runReplayReview(replay, { ...hooks, setAudit: (a, panel) => patchReview((r) => Object.assign(r, { audit: a }, panel?.length ? { panel } : {})) })
       : review.engine === 'claude'
         ? await runClaudeReview(m, submission, hooks)
         : await runSimulatedReview(m, submission, hooks);
@@ -1434,6 +1450,20 @@ function mergeRelease(x: Milestone, payment: Partial<Milestone['payment']>) {
     pushEvent(x, 'paypal', 'reauthorized', `PayPal reauthorized the hold after its 3-day honor period (authorization ${payment.authorizationId}), then captured it`);
   }
   x.payment = { ...x.payment, ...payment };
+}
+
+/** One answer for the reviewer from every independent check: agreed only if all agreed, with every objection. */
+export function combineChecks(first: Audit, ...more: Audit[]): Audit {
+  const all = [first, ...more];
+  const tag = (a: Audit) => (a === first ? '' : `${a.model ?? a.engine}: `);
+  return {
+    ...first,
+    agreed: all.every((a) => a.agreed),
+    model: all.map((a) => a.model ?? a.engine).join(' + '),
+    summary: all.find((a) => !a.agreed)?.summary ?? first.summary,
+    disputed: all.flatMap((a) => a.disputed.map((d) => ({ ...d, reason: tag(a) + d.reason }))),
+    redFlags: all.flatMap((a) => a.redFlags.map((r) => tag(a) + r)),
+  };
 }
 
 function pushPayoutEvent(m: Milestone, payment: Partial<Milestone['payment']>) {

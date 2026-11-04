@@ -16,7 +16,7 @@ const SCENARIOS = [
     n: '1',
     title: 'Honest work gets paid',
     who: 'Diego delivers the menu the Ember & Oak cafe asked for.',
-    see: 'Claude Opus checks the PDF against all three criteria, Claude Haiku double-checks, and PayPal pays Diego. Nobody clicks approve.',
+    see: 'Claude Opus checks the PDF against all three criteria, Claude Haiku and Google’s Gemini double-check, and PayPal pays Diego. Nobody clicks approve.',
     tone: 'border-emerald-200',
   },
   {
@@ -24,7 +24,7 @@ const SCENARIOS = [
     n: '2',
     title: 'A cheater gets caught',
     who: 'Sam’s menu is fine, but his notes tell the AI to skip the checks and pay.',
-    see: 'In this recording Claude Opus decided to pay anyway. The second model spotted the manipulation and stopped the money.',
+    see: 'In this recording Claude Opus decided to pay anyway. Claude Haiku and Google’s Gemini both spotted the manipulation and stopped the money.',
     tone: 'border-orange-200',
   },
   {

@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     default: "Proof of Done - PayPal escrow verified by AI",
   },
   description:
-    "Escrow for work done by people or AI agents: PayPal holds the money, Claude checks the delivery against every criterion, a second model double-checks, and PayPal pays out.",
+    "Escrow for work done by people or AI agents: PayPal holds the money, Claude checks the delivery against every criterion, models from two companies double-check, and PayPal pays out.",
   // Absolute URLs for the link preview image (app/opengraph-image.png).
   metadataBase: new URL(process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000"),
   openGraph: { siteName: "Proof of Done", type: "website" },

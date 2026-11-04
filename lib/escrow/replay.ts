@@ -17,6 +17,8 @@ export interface Replay {
   files: string[];
   steps: { at: number; kind: string; text?: string; finding?: CriterionFinding }[];
   audit?: Audit;
+  /** Further checks recorded on the same delivery (Gemini's answer to exactly this material). */
+  panel?: Audit[];
   decision: ReviewDecision;
   summary: string;
   feedback?: string;
@@ -42,7 +44,7 @@ const day = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 
 const modelName = (id: string) => `Claude ${id.replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/^\w/, (c) => c.toUpperCase())}`;
 
 /** Plays a recorded review back at its own pace (a little faster), then makes its decision for real. */
-export async function runReplayReview(replay: Replay, hooks: ReviewHooks & { setAudit: (a: Audit) => void }, speed = 1.4): Promise<ReviewOutcome> {
+export async function runReplayReview(replay: Replay, hooks: ReviewHooks & { setAudit: (a: Audit, panel?: Audit[]) => void }, speed = 1.4): Promise<ReviewOutcome> {
   // Tests set POD_SIM_STEP_MS=0: no waiting.
   const scale = process.env.POD_SIM_STEP_MS === '0' ? 0 : 1 / speed;
   const start = Date.now();
@@ -55,7 +57,7 @@ export async function runReplayReview(replay: Replay, hooks: ReviewHooks & { set
       continue;
     }
     if (!step.text) continue;
-    if (/^Second opinion/.test(step.text) && replay.audit) hooks.setAudit(replay.audit);
+    if (/^Second opinion/.test(step.text) && replay.audit) hooks.setAudit(replay.audit, replay.panel);
     if (step.kind === 'decision') {
       if (replay.decision === 'release') await hooks.release(replay.summary);
       else if (replay.decision === 'request_changes') await hooks.requestChanges(replay.feedback ?? replay.summary, replay.summary);

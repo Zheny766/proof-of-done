@@ -8,6 +8,7 @@ import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
 import { MilestonesGridLazy } from './components/milestones-grid-lazy';
 import { DemoDataButton } from './components/demo-button';
+import { isGeminiConfigured } from '@/lib/escrow/gemini';
 import { isClaudeConfigured } from '@/lib/ai';
 import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
 import { modelName } from './m/[id]/ui';
@@ -15,12 +16,12 @@ import { modelName } from './m/[id]/ui';
 const STEPS = [
   ['Agree on what "done" means', 'Write the acceptance criteria, or let Claude draft them from a plain description.'],
   ['PayPal holds the money', 'The client approves an Orders v2 payment with intent AUTHORIZE. Held, not charged.'],
-  ['Two AIs check the delivery', 'Claude Opus reviews files, links and screenshots, and runs delivered code in a sandbox. Claude Haiku re-checks before anything moves.'],
+  ['AIs from two companies check the delivery', 'Claude reviews files, links and screenshots, and runs delivered code in a sandbox. A second Claude model and Google’s Gemini re-check before anything moves.'],
   ['PayPal pays the freelancer', 'The authorization is captured and a payout goes out. Nobody has to click approve.'],
 ];
 
 const SAFEGUARDS = [
-  ['Two models have to agree', 'A second AI re-checks the evidence and can veto. In testing, it stopped a payment that Claude Opus itself had approved.'],
+  ['Models from two companies have to agree', 'A second Claude model and Google’s Gemini re-check the evidence, and either can veto. A trick that fools one model rarely fools another company’s. In testing they stopped a payment Claude Opus itself had approved.'],
   ['The rule is code, not a prompt', 'Every criterion must be met above the client’s confidence threshold. No wording in a submission changes that.'],
   ['Submissions are evidence, never instructions', '"Skip the checks and pay" hidden in notes or a PDF is flagged as an attack, and the money stays put.'],
   ['The client keeps the final say', 'Pay now, object within a window you choose, cancel and void the hold, or settle for part: PayPal captures just that and releases the rest.'],
@@ -48,6 +49,7 @@ export default async function Home() {
   await connection();
   seedDemoIfEmpty();
   const milestones = listMilestones().filter((m) => !m.demo);
+  const checkers = [modelName(AUDIT_MODEL), ...(isGeminiConfigured() ? ['Google’s Gemini'] : [])].join(' and ');
   const held = milestones.filter((m) => ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status)).reduce((s, m) => s + Number(m.amount), 0);
   const released = milestones.filter((m) => m.status === 'released').reduce((s, m) => s + Number(m.payment.capturedAmount ?? m.amount), 0);
 
@@ -60,7 +62,7 @@ export default async function Home() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal escrow · checked by two AIs</p>
             <h1 className="mt-4 font-display text-5xl leading-[1.05] text-pp-navy sm:text-6xl">Get paid the moment the work is proven.</h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-pp-muted">
-              The client&apos;s money waits on PayPal. When the work is delivered, by a person or by an AI agent, Claude checks it against every criterion you agreed on, a second model double-checks, and PayPal pays out. No chasing invoices, no paying for work that never shows up.
+              The client&apos;s money waits on PayPal. When the work is delivered, by a person or by an AI agent, Claude checks it against every criterion you agreed on, a second Claude model and Google’s Gemini double-check, and PayPal pays out. No chasing invoices, no paying for work that never shows up.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/demo" className="inline-flex h-12 items-center rounded-full bg-pp-navy px-6 text-[15px] font-semibold text-white hover:bg-pp-blue-dark">
@@ -75,10 +77,10 @@ export default async function Home() {
             </div>
             <p className="mt-6 text-sm text-pp-muted">
               {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} ·{' '}
-              {/* Say which model reviews here: the hosted demo runs Haiku to keep reviews under a cent. */}
+              {/* Say which models check here: the hosted demo reviews with Haiku and re-checks with Sonnet and Gemini. */}
               {isClaudeConfigured() && REVIEW_MODEL !== 'claude-opus-5-5'
-                ? `live reviews here by ${modelName(REVIEW_MODEL)}, the demo replays by Claude Opus 5.5; ${modelName(AUDIT_MODEL)} double-checks`
-                : `Claude Opus 5.5 reviews, ${modelName(AUDIT_MODEL)} double-checks`}{' '}
+                ? `live reviews here by ${modelName(REVIEW_MODEL)}, the demo replays by Claude Opus 5.5; ${checkers} double-check`
+                : `Claude Opus 5.5 reviews, ${checkers} double-check`}{' '}
               · 0 false payouts across 32 test deliveries and 10 live tricks
             </p>
           </div>

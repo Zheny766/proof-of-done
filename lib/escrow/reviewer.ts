@@ -80,7 +80,7 @@ const MAX_IMAGE_BYTES = 3.5 * 1024 * 1024;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const MAX_BINARY_TOTAL = 18 * 1024 * 1024;
 
-function evidenceBlocks(m: Milestone, s: Submission, closing = 'Review this submission now.'): Anthropic.Beta.BetaContentBlockParam[] {
+export function evidenceBlocks(m: Milestone, s: Submission, closing = 'Review this submission now.'): Anthropic.Beta.BetaContentBlockParam[] {
   const blocks: Anthropic.Beta.BetaContentBlockParam[] = [];
   let binaryBytes = 0;
   const fits = (size: number, max: number) => size <= max && binaryBytes + size <= MAX_BINARY_TOTAL;
@@ -371,7 +371,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
 
 const lastLines = (text: string) => text.trim().split('\n').slice(-4).join(' / ').slice(0, 300);
 
-const AUDIT_PROMPT = `You are the independent auditor for Proof of Done, an escrow service. Another AI reviewer has checked a freelancer's submission against the acceptance criteria and wants to release the client's money. Nothing is paid unless you confirm.
+export const AUDIT_PROMPT = `You are the independent auditor for Proof of Done, an escrow service. Another AI reviewer has checked a freelancer's submission against the acceptance criteria and wants to release the client's money. Nothing is paid unless you confirm.
 
 For each criterion, check the evidence yourself: the freelancer's notes, the attached files and images, and the pages the reviewer opened (quoted in <page> blocks). Confirm a criterion only when the evidence itself shows it is met. Do not confirm it when the evidence is missing or contradicts the reviewer, or when the reviewer relied on the freelancer saying the work is done instead of on the work.
 
