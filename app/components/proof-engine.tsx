@@ -94,7 +94,7 @@ export function ProofEngine() {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl bg-pod-midnight p-5 text-white shadow-[0_40px_80px_-40px_rgba(7,20,45,0.75)] ring-1 transition-shadow duration-700 sm:p-7 ${
+      className={`relative overflow-hidden rounded-3xl bg-pod-midnight p-5 text-white lg:p-8 shadow-[0_40px_80px_-40px_rgba(7,20,45,0.75)] ring-1 transition-shadow duration-700 sm:p-7 ${
         ended && !stopped ? 'ring-pod-mint/50 shadow-[0_0_0_6px_rgba(178,245,219,0.12),0_40px_80px_-40px_rgba(7,20,45,0.75)]' : ended ? 'ring-rose-400/40' : 'ring-white/10'
       }`}
     >
@@ -105,7 +105,7 @@ export function ProofEngine() {
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/55">Proof engine</div>
-          <div className="mt-0.5 text-xs text-white/45">Replay of a recorded run</div>
+          <div className="mt-0.5 text-xs text-white/60">Replay of a recorded run</div>
         </div>
         <div className="flex rounded-full bg-white/[0.07] p-1 text-xs font-semibold" role="group" aria-label="Which run to play">
           {RUNS.map((r, i) => (
@@ -133,7 +133,7 @@ export function ProofEngine() {
               <div className="mt-1 truncate text-sm text-white/70">{run.title}</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-semibold tabular-nums tracking-tight">$100.00</div>
+              <div className="text-2xl font-semibold tabular-nums tracking-tight lg:text-3xl">$100.00</div>
               <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${ended && !stopped ? TONE.ok.chip : 'bg-white/10 text-white/80 ring-white/15'}`}>
                 {ended && !stopped ? 'Captured' : 'On hold'}
               </span>
@@ -145,15 +145,15 @@ export function ProofEngine() {
           const checking = step === i + 1;
           return (
             <Node key={c.n} lit={lit(i + 1)} danger={stopped} last={false} dot={done ? c.tone : checking ? 'active' : 'idle'}>
-              <div className={`flex items-center justify-between gap-3 transition-opacity duration-500 ${done || checking ? 'opacity-100' : 'opacity-45'}`}>
+              <div className={`flex items-center justify-between gap-3 transition-opacity duration-500 ${done || checking ? 'opacity-100' : 'opacity-70'}`}>
                 <div className="flex min-w-0 items-baseline gap-2.5">
                   <span className="font-mono text-[11px] text-pod-violet">{c.n}</span>
                   <div className="min-w-0">
-                    <div className="text-[15px] font-semibold">{c.who}</div>
-                    <div className="text-xs text-white/50">{c.role}</div>
+                    <div className="text-[15px] font-semibold lg:text-base">{c.who}</div>
+                    <div className="text-xs text-white/60">{c.role}</div>
                   </div>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${done ? TONE[c.tone].chip : 'bg-white/[0.06] text-white/50 ring-white/10'}`}>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${done ? TONE[c.tone].chip : 'bg-white/[0.08] text-white/75 ring-white/15'}`}>
                   {done ? c.result : checking ? 'Checking…' : 'Waiting'}
                 </span>
               </div>
@@ -163,7 +163,7 @@ export function ProofEngine() {
         <Node lit={false} danger={stopped} last dot={ended ? run.outcome.tone : 'idle'}>
           <div
             className={`rounded-2xl px-4 py-3 ring-1 ring-inset transition-all duration-500 ${
-              !ended ? 'bg-white/[0.04] text-white/45 ring-white/10' : stopped ? 'bg-rose-500/15 ring-rose-400/40' : 'bg-pod-mint/15 ring-pod-mint/40'
+              !ended ? 'bg-white/[0.05] text-white/70 ring-white/15' : stopped ? 'bg-rose-500/15 ring-rose-400/40' : 'bg-pod-mint/15 ring-pod-mint/40'
             }`}
           >
             <div className="flex items-baseline justify-between gap-3">

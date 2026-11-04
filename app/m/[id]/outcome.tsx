@@ -30,7 +30,7 @@ export function Outcome({ m }: { m: Milestone }) {
     const byAI = m.timeline.some((e) => e.type === 'verified') && checks.length > 0 && checks.every((a) => a.agreed);
     const passed = (review ? 1 : 0) + checks.length;
     return (
-      <section className="pod-rise relative mt-6 overflow-hidden rounded-3xl bg-pod-midnight px-6 py-6 text-white ring-1 ring-pod-mint/40 sm:px-8">
+      <section id="outcome" className="pod-rise relative mt-6 scroll-mt-4 overflow-hidden rounded-3xl bg-pod-midnight px-6 py-6 text-white ring-1 ring-pod-mint/40 sm:px-8">
         <span aria-hidden className="pod-sweep absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-pod-mint to-transparent" />
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3 sm:gap-4">
@@ -76,7 +76,7 @@ export function Outcome({ m }: { m: Milestone }) {
   if (m.status === 'escalated' && refusals.length) {
     const reason = refusals.flatMap((a) => [...a.redFlags, ...a.disputed.map((d) => d.reason).filter(Boolean)])[0] ?? refusals[0].summary;
     return (
-      <section className="pod-rise relative mt-6 overflow-hidden rounded-3xl bg-pod-midnight px-6 py-6 text-white ring-1 ring-rose-400/40 sm:px-8">
+      <section id="outcome" className="pod-rise relative mt-6 scroll-mt-4 overflow-hidden rounded-3xl bg-pod-midnight px-6 py-6 text-white ring-1 ring-rose-400/40 sm:px-8">
         <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-300 via-rose-400 to-amber-300" />
         <div className="flex items-start gap-3 sm:gap-4">
           <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full sm:h-12 sm:w-12 bg-rose-400 text-2xl font-black text-pod-midnight shadow-[0_0_0_8px_rgba(251,113,133,0.15)]">
@@ -91,11 +91,38 @@ export function Outcome({ m }: { m: Milestone }) {
               {refusals.map(who).join(' and ')} refused to confirm the release, so nothing was paid and {m.client.name} decides.
             </p>
             {reason && (
-              <p className="mt-3 rounded-xl bg-white/[0.06] px-4 py-3 text-sm leading-relaxed text-white/85 ring-1 ring-inset ring-white/10 [overflow-wrap:anywhere]">
-                <span className="font-semibold text-amber-200">Why: </span>
-                {reason.replace(/^[\w.-]+: /, '')}
-              </p>
+              // The reason can run to several lines: on a phone two of them show, the rest opens on a tap.
+              <details className="group mt-3 rounded-xl bg-white/[0.06] px-4 py-3 text-sm leading-relaxed text-white/85 ring-1 ring-inset ring-white/10 [overflow-wrap:anywhere]">
+                <summary className="cursor-pointer list-none">
+                  <span className="line-clamp-2 group-open:line-clamp-none sm:line-clamp-none">
+                    <span className="font-semibold text-amber-200">Why: </span>
+                    {reason.replace(/^[\w.-]+: /, '')}
+                  </span>
+                  <span className="mt-1 block text-xs font-semibold text-amber-200 group-open:hidden sm:hidden">Read all</span>
+                </summary>
+              </details>
             )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+  if (m.status === 'changes_requested' && review?.decision === 'request_changes') {
+    const met = (review.findings ?? []).filter((f) => f.status === 'met').length;
+    return (
+      <section id="outcome" className="pod-rise mt-6 scroll-mt-4 rounded-3xl bg-amber-50 px-6 py-5 ring-1 ring-amber-200 sm:px-8">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-400 text-xl font-black text-white sm:h-12 sm:w-12">
+            !
+          </span>
+          <div className="min-w-0">
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-amber-800">Fix asked</div>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-pp-navy">
+              {fmtMoney(m.amount, m.currency)} <span className="text-pp-muted">stays on hold until a delivery passes.</span>
+            </h2>
+            <p className="mt-1.5 text-[15px] text-pp-ink">
+              The AI found {met} of {m.criteria.length} criteria met and asked {m.freelancer.name} for changes. Nothing was charged; the verdict below says what is missing.
+            </p>
           </div>
         </div>
       </section>

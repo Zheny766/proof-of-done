@@ -31,13 +31,15 @@ export async function SiteHeader() {
             <span className="sm:hidden">Analytics</span>
             <span className="hidden sm:inline">Escrow analytics</span>
           </Link>
-          <span className="hidden items-center gap-2 sm:flex">
-            <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset ${mode === 'sandbox' ? 'bg-blue-50 text-pp-blue ring-blue-200' : 'bg-slate-100 text-slate-600 ring-slate-300'}`}>
-              PayPal {mode === 'sandbox' ? 'sandbox' : 'simulated'}
-            </span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset ${claude ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-slate-100 text-slate-600 ring-slate-300'}`}>
-              {claude ? `Reviewer: ${modelName(REVIEW_MODEL)}` : 'Reviewer: simulated'}
-            </span>
+          {/* One honest indicator of what this server runs; the details are in its tooltip. */}
+          <span
+            title={`Payments: ${mode === 'sandbox' ? 'real PayPal sandbox' : 'simulated (no PayPal keys)'} · Reviewer: ${claude ? `${modelName(REVIEW_MODEL)}, live` : 'replays of real Claude runs and a simulated stand-in'}`}
+            className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset sm:inline-flex ${
+              mode === 'sandbox' && claude ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-300'
+            }`}
+          >
+            <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${mode === 'sandbox' && claude ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            {mode === 'sandbox' && claude ? 'Live: PayPal sandbox + AI' : mode === 'sandbox' ? 'PayPal sandbox · demo reviewer' : claude ? 'Demo payments · live AI' : 'Demo mode'}
           </span>
         </nav>
       </div>

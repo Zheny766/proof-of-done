@@ -177,6 +177,17 @@ export function MilestoneView({
   useEffect(() => {
     latest.current = m;
   }, [m]);
+  // When a review finishes while the page is open, bring its outcome into view: on a phone the
+  // reviewer's log has usually scrolled the page far below it.
+  const wasStatus = useRef(m.status);
+  useEffect(() => {
+    const was = wasStatus.current;
+    wasStatus.current = m.status;
+    if (was !== 'reviewing' || m.status === 'reviewing') return;
+    const target = document.getElementById('outcome') ?? document.getElementById('verdict-title');
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+  }, [m.status]);
   const agentTools = useMemo<WebMcpTool[]>(
     () => [
       {

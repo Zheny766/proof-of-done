@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/app/components/status';
 
 /** Creates a private demo deal and opens it as the freelancer, with the client's key kept too. */
-export function StartDemo({ scenario, label, className = 'mt-5 h-11 w-full text-sm' }: { scenario: string; label: string; className?: string }) {
+// primary: the electric main action; light: white, for dark panels; outline: for the smaller cards.
+const TONES = {
+  primary: 'bg-pod-electric text-white hover:bg-pod-electric-dark',
+  light: 'bg-white text-pod-midnight hover:bg-pod-mint',
+  outline: 'bg-white text-pp-navy ring-1 ring-inset ring-pp-border hover:ring-pod-electric',
+};
+
+export function StartDemo({ scenario, label, className = 'mt-5 h-11 w-full text-sm', tone = 'primary' }: { scenario: string; label: string; className?: string; tone?: keyof typeof TONES }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -32,7 +39,7 @@ export function StartDemo({ scenario, label, className = 'mt-5 h-11 w-full text-
           }
         }}
         disabled={busy}
-        className={`inline-flex items-center justify-center rounded-full bg-pod-electric px-5 font-semibold text-white hover:bg-pod-electric-dark disabled:opacity-60 ${className}`}
+        className={`inline-flex items-center justify-center rounded-full px-5 font-semibold disabled:opacity-60 ${TONES[tone]} ${className}`}
       >
         {busy ? 'Setting it up…' : label}
       </button>

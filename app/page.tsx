@@ -64,25 +64,33 @@ export default async function Home() {
     <>
       <SiteHeader />
       <main className="w-full">
-        <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-14 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
-          <div>
+        {/* The Proof Engine is the page's hero. On a phone it comes straight after the headline, then the one
+            main action, then the explanation; on a wide screen it takes the larger column on the right. */}
+        <section className="mx-auto grid max-w-6xl gap-x-12 gap-y-7 px-6 pb-16 pt-10 sm:pt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
+          <div className="lg:col-start-1 lg:row-start-1 lg:self-end">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal authorize &amp; capture · checked by {gemini ? 'three' : 'two'} AIs</p>
-            <h1 className="mt-4 font-display text-5xl leading-[1.05] text-pp-navy sm:text-6xl">Get paid the moment the work is proven.</h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-pp-muted">
+            <h1 className="mt-4 font-display text-[44px] leading-[1.04] text-pp-navy sm:text-6xl">Get paid the moment the work is proven.</h1>
+          </div>
+          <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
+            <ProofEngine />
+          </div>
+          <div className="flex flex-col lg:col-start-1 lg:row-start-2">
+            <p className="order-2 mt-6 max-w-xl text-lg leading-relaxed text-pp-muted lg:order-1 lg:mt-0">
               PayPal holds the client&apos;s money without charging it. When the work arrives, from a person or an AI agent, {gemini ? 'three AIs from two companies check' : 'two Claude models check'} it against every criterion you agreed on, and only then does PayPal pay out.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/demo" className="inline-flex h-12 items-center rounded-full bg-pod-electric px-6 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(36,107,253,0.8)] hover:bg-pod-electric-dark">
+            <div className="order-1 flex flex-wrap items-center gap-x-5 gap-y-3 lg:order-2 lg:mt-8">
+              <Link href="/demo" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-pod-electric px-7 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(36,107,253,0.8)] hover:bg-pod-electric-dark sm:w-auto">
                 Try it in 60 seconds
               </Link>
-              <a href="#create" className="inline-flex h-12 items-center rounded-full border border-pp-border bg-white px-6 text-[15px] font-semibold text-pp-ink hover:border-pp-blue">
+              {/* Secondary on purpose: one action leads, the others are there for whoever wants them. */}
+              <a href="#create" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
                 Create a deal
               </a>
-              <Link href="/jobs" className="inline-flex h-12 items-center rounded-full border border-pp-border bg-white px-6 text-[15px] font-semibold text-pp-ink hover:border-pp-blue">
+              <Link href="/jobs" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
                 Jobs for AI agents
               </Link>
             </div>
-            <p className="mt-6 text-sm text-pp-muted">
+            <p className="order-3 mt-6 text-sm text-pp-muted">
               {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} ·{' '}
               {/* Say which models check here: the hosted demo reviews with Haiku and re-checks with Sonnet and Gemini. */}
               {isClaudeConfigured() && REVIEW_MODEL !== 'claude-opus-5-5'
@@ -91,7 +99,6 @@ export default async function Home() {
               · 0 false payouts across 32 test deliveries and 10 live tricks
             </p>
           </div>
-          <ProofEngine />
         </section>
 
         <section className="border-y border-pp-border bg-white">

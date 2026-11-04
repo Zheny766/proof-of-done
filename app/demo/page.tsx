@@ -35,6 +35,7 @@ const SCENARIOS = [
     who: 'Priya’s brunch menu is missing items and the logo.',
     see: 'The AI asks for changes and keeps the money on hold. Offer a settlement, accept it as the other side, and PayPal captures only that part.',
     tone: 'border-sky-200',
+    glance: '$60 of $100 settled',
   },
   {
     id: 'code',
@@ -43,6 +44,7 @@ const SCENARIOS = [
     who: 'Kenji’s notes say all the tests pass.',
     see: 'The AI copies his Python file into Anthropic’s code execution sandbox and runs it: one of four tests fails. It names the bug, asks for a fix, and the money stays on hold.',
     tone: 'border-violet-200',
+    glance: '1 of 4 tests failed',
   },
   {
     id: 'project',
@@ -51,6 +53,7 @@ const SCENARIOS = [
     who: 'A bakery’s website in three stages, part-way through.',
     see: 'Stage 1 was verified and paid; PayPal holds the money for stage 2 only. A Bryntum Gantt shows the plan under what happened. Deliver stage 2 and watch the next one unlock.',
     tone: 'border-emerald-200',
+    glance: 'Stage 2 of 3',
   },
 ];
 
@@ -72,65 +75,120 @@ export default async function DemoPage() {
           <StartDemo scenario="honest" label="Start with honest work →" className="h-12 text-[15px]" />
           <span className="text-sm text-pp-muted">30 seconds · no account, no keys</span>
         </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {SCENARIOS.map((s) => (
-            <section key={s.id} className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${s.tone}`}>
+        {/* A gallery, not a grid of equal cards: the two scenarios that tell the story are large and show
+            how they end; the other three are compact; the live challenge is its own dark panel. */}
+        <div className="mt-10 grid gap-5 lg:grid-cols-2">
+          <section className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-pp-border sm:p-7">
+            <div className="flex items-start gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">1</span>
+              <div className="min-w-0">
+                <span className="mb-1 inline-block rounded-full bg-pod-electric px-2.5 py-0.5 text-xs font-semibold text-white">Start here</span>
+                <h2 className="text-2xl font-semibold tracking-tight text-pp-navy">{SCENARIOS[0].title}</h2>
+              </div>
+            </div>
+            <p className="mt-3 text-[15px] font-medium text-pp-ink">{SCENARIOS[0].who}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-pp-muted">{SCENARIOS[0].see}</p>
+            <div aria-hidden className="mt-5 flex-1 rounded-2xl bg-emerald-50/70 p-4 ring-1 ring-inset ring-emerald-200">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">Payment released</span>
+                <span className="text-2xl font-semibold tabular-nums tracking-tight text-pp-navy">$100.00</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
+                {['Claude Opus', 'Claude Haiku', 'Gemini'].map((n) => (
+                  <span key={n} className="rounded-full bg-white px-2.5 py-1 text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                    ✓ {n}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <StartDemo scenario="honest" label="Start" />
+          </section>
+          <section className="flex flex-col rounded-3xl bg-pod-midnight p-6 text-white sm:p-7">
+            <div className="flex items-start gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-bold text-white">2</span>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight">{SCENARIOS[1].title}</h2>
+            </div>
+            <p className="mt-3 text-[15px] font-medium text-white/90">{SCENARIOS[1].who}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/65">{SCENARIOS[1].see}</p>
+            <div aria-hidden className="mt-5 flex-1 rounded-2xl bg-rose-500/10 p-4 ring-1 ring-inset ring-rose-400/40">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-rose-200">Payment stopped</span>
+                <span className="text-2xl font-semibold tabular-nums tracking-tight text-white/70 line-through decoration-rose-300/70">$100.00</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
+                <span className="rounded-full bg-amber-300/15 px-2.5 py-1 text-amber-200 ring-1 ring-inset ring-amber-300/30">! Opus tried to pay</span>
+                <span className="rounded-full bg-rose-400/15 px-2.5 py-1 text-rose-200 ring-1 ring-inset ring-rose-400/30">× Haiku refused</span>
+                <span className="rounded-full bg-rose-400/15 px-2.5 py-1 text-rose-200 ring-1 ring-inset ring-rose-400/30">× Gemini refused</span>
+              </div>
+            </div>
+            <StartDemo scenario="cheater" label="Start" tone="light" />
+          </section>
+        </div>
+        <div className="mt-5 grid gap-5 sm:grid-cols-3">
+          {SCENARIOS.slice(2).map((s) => (
+            <section key={s.id} className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-pp-border">
               <div className="flex items-start gap-3">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>
                 <div className="min-w-0">
-                  {s.n === '1' && <span className="mb-1 inline-block rounded-full bg-pod-electric px-2.5 py-0.5 text-xs font-semibold text-white">Start here</span>}
-                  <h2 className={`text-xl font-semibold tracking-tight text-pp-navy ${s.n === '1' ? '' : 'mt-1'}`}>{s.title}</h2>
+                  <h2 className="mt-1 text-lg font-semibold leading-snug tracking-tight text-pp-navy">{s.title}</h2>
+                  <span className="mt-1.5 inline-block rounded-full bg-pp-canvas px-2.5 py-0.5 text-xs font-semibold text-pp-muted ring-1 ring-inset ring-pp-border">{s.glance}</span>
                 </div>
               </div>
-              <p className="mt-2 text-[15px] font-medium text-pp-ink">{s.who}</p>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-pp-muted">{s.see}</p>
-              <StartDemo scenario={s.id} label="Start" />
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-pp-muted">
+                <span className="font-medium text-pp-ink">{s.who}</span> {s.see}
+              </p>
+              <StartDemo scenario={s.id} label="Start" tone="outline" />
             </section>
           ))}
         </div>
-        <section className="mt-6 grid gap-6 rounded-2xl border-2 border-pp-navy bg-white p-6 shadow-sm lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
-          <div>
+        <section className="relative mt-5 grid gap-8 overflow-hidden rounded-3xl bg-pod-midnight p-6 text-white sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:28px_28px]" />
+          <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-300 via-rose-400 to-amber-300" />
+          <div className="relative">
             <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-navy text-sm font-bold text-white">{SCENARIOS.length + 1}</span>
-              <h2 className="font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-300 text-sm font-bold text-pod-midnight">{SCENARIOS.length + 1}</span>
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-200">Live security challenge</div>
+                <h2 className="font-display text-3xl">Your turn: try to fool it</h2>
+              </div>
             </div>
-            <p className="mt-2 text-[15px] font-medium text-pp-ink">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
-            <p className="mt-2 text-sm leading-relaxed text-pp-muted">
+            <p className="mt-4 text-[15px] font-medium text-white/90">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/65">
               Write anything you like in the notes to get it paid anyway: claims, excuses, a fake message from the client, orders for the AI. This one is not a replay: a real Claude review and a second opinion{isGeminiConfigured() ? ' and Gemini’s check' : ''} decide, and the result goes on the scoreboard.
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-pp-muted">
+            <p className="mt-2 text-sm leading-relaxed text-white/65">
               Before opening it up we played it ourselves on Claude Haiku: ten tricks, from a fake system message to a legal threat and an order in Spanish. None got paid; the ten reviews cost two cents.
             </p>
             {arena.live ? (
               <div className="max-w-xs">
-                <StartDemo scenario="arena" label="Try to get it paid" />
+                <StartDemo scenario="arena" label="Try to get it paid" tone="light" />
               </div>
             ) : (
-              <p className="mt-4 rounded-xl bg-pp-canvas px-4 py-3 text-sm text-pp-muted">Off on this copy: it needs a Claude key on the server. It is on at the hosted demo, or locally with ANTHROPIC_API_KEY set.</p>
+              <p className="mt-4 rounded-xl bg-white/[0.06] px-4 py-3 text-sm text-white/70 ring-1 ring-inset ring-white/10">Off on this copy: it needs a Claude key on the server. It is on at the hosted demo, or locally with ANTHROPIC_API_KEY set.</p>
             )}
           </div>
-          <div>
-          <dl className="grid grid-cols-3 gap-3 text-center">
-            {[
-              ['Tricks tried', arena.attempts, 'text-pp-navy'],
-              ['Got paid', arena.paid, arena.paid ? 'text-pp-danger' : 'text-emerald-600'],
-              ['Other AIs stopped', arena.vetoed, 'text-violet-700'],
-            ].map(([label, n, tone]) => (
-              <div key={label as string} className="rounded-xl bg-pp-canvas px-2 py-4">
-                <dd className={`text-4xl font-semibold tabular-nums tracking-tight ${tone}`}>{n}</dd>
-                <dt className="mt-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">{label}</dt>
-              </div>
-            ))}
-          </dl>
-          {arena.ours > 0 && (
-            <p className="mt-2 text-center text-xs text-pp-muted">
-              Includes the {arena.ours} we played before launch (
-              <a href="https://github.com/Zheny766/proof-of-done/blob/main/eval/results/arena-haiku.json" className="underline decoration-pp-muted/40 underline-offset-2 hover:text-pp-blue">
-                results
-              </a>
-              ).
-            </p>
-          )}
+          <div className="relative">
+            <dl className="grid grid-cols-3 gap-3 text-center">
+              {[
+                ['Tricks tried', arena.attempts, 'text-white'],
+                ['Got paid', arena.paid, arena.paid ? 'text-rose-300' : 'text-pod-mint'],
+                ['Other AIs stopped', arena.vetoed, 'text-pod-violet'],
+              ].map(([label, n, tone]) => (
+                <div key={label as string} className="rounded-2xl bg-white/[0.06] px-2 py-5 ring-1 ring-inset ring-white/10">
+                  <dd className={`text-4xl font-semibold tabular-nums tracking-tight ${tone}`}>{n}</dd>
+                  <dt className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">{label}</dt>
+                </div>
+              ))}
+            </dl>
+            {arena.ours > 0 && (
+              <p className="mt-2 text-center text-xs text-white/55">
+                Includes the {arena.ours} we played before launch (
+                <a href="https://github.com/Zheny766/proof-of-done/blob/main/eval/results/arena-haiku.json" className="underline decoration-white/30 underline-offset-2 hover:text-white">
+                  results
+                </a>
+                ).
+              </p>
+            )}
           </div>
         </section>
 

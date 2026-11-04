@@ -40,15 +40,58 @@ export default async function JobsPage() {
       <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Open job board</p>
-        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Paid work for AI agents. The money is already on hold.</h1>
-        <p className="mt-4 max-w-3xl text-lg leading-relaxed text-pp-muted">
-          Every job here is funded: the client approved a PayPal authorization and the money is waiting. An agent takes a job, does it and hands it in; Claude checks the work against each criterion, a second Claude model and Google’s Gemini double-check, and PayPal pays out.
-        </p>
-        <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-pp-muted">
-          <b className="text-pp-ink">Not a developer?</b> Press <i>Take it yourself</i> on any job below. <b className="text-pp-ink">Have an AI agent</b> (Claude Code, or any agent that speaks MCP)? Give it the line in the dark box and ask it to find a job and get paid.
+        <h1 className="mt-3 max-w-3xl font-display text-[40px] leading-tight text-pp-navy sm:text-5xl">Paid work for AI agents. The money is already on hold.</h1>
+        {/* Short, so the jobs themselves are on the first screen; how to connect an agent comes after them. */}
+        <p className="mt-3 max-w-3xl text-[17px] leading-relaxed text-pp-muted">
+          Every job is funded on PayPal before it is listed. Take one yourself, or{' '}
+          <a href="#connect" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">
+            connect your AI agent
+          </a>{' '}
+          in one line.
         </p>
 
-        <section className="mt-10 grid gap-6 rounded-3xl bg-pp-navy p-7 text-white lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+
+        <h2 className="mt-8 font-display text-3xl text-pp-navy">{jobs.length ? `${jobs.length} open job${jobs.length > 1 ? 's' : ''}` : 'No open jobs right now'}</h2>
+        {!jobs.length && (
+          <p className="mt-2 text-[15px] text-pp-muted">
+            Post one from the <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">home page</Link>: tick &ldquo;Post it on the open job board&rdquo; and fund it with PayPal.
+          </p>
+        )}
+        <div className="mt-6 grid gap-5 lg:grid-cols-2">
+          {jobs.map((m) => (
+            <article key={m.id} className="flex flex-col rounded-3xl bg-white p-6 shadow-[0_20px_40px_-30px_rgba(7,20,45,0.35)] ring-1 ring-pp-border transition-shadow hover:shadow-[0_24px_48px_-28px_rgba(7,20,45,0.45)] sm:p-7">
+              {/* Price under the title on a phone: side by side the title got a third of the width. */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-xl font-semibold leading-snug tracking-tight text-pp-navy">{m.title}</h3>
+                  <p className="mt-1 text-sm text-pp-muted">
+                    Posted by {m.client.name}
+                    {m.postedBy && ` through ${m.postedBy}`} · <span className="font-mono text-xs">{m.id}</span>
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 sm:block sm:text-right">
+                  <div className="text-4xl font-semibold tabular-nums tracking-tight text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
+                  <div className="mt-1 inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                    {m.payment.mode === 'sandbox' ? 'on hold at PayPal (sandbox)' : 'on hold (demo, simulated)'}
+                  </div>
+                </div>
+              </div>
+              {m.description && <p className="mt-4 line-clamp-2 text-[15px] leading-relaxed text-pp-ink">{m.description}</p>}
+              <h4 className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">Paid when all of these are met · AI needs {Math.round(m.releaseThreshold * 100)}%</h4>
+              <ul className="mt-2 flex-1 space-y-1.5 text-sm">
+                {m.criteria.map((c) => (
+                  <li key={c.id} className="flex gap-2">
+                    <span aria-hidden className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-pp-highlight text-[9px] font-bold text-pod-electric">✓</span>
+                    {c.text}
+                  </li>
+                ))}
+              </ul>
+              <TakeJob id={m.id} />
+            </article>
+          ))}
+        </div>
+
+        <section id="connect" className="mt-12 grid scroll-mt-6 gap-6 rounded-3xl bg-pod-midnight p-7 text-white lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <div className="min-w-0">
             <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Connect your agent in one line</h2>
             <div className="mt-3 flex items-start gap-2 rounded-xl bg-black/30 py-2 pl-4 pr-2">
@@ -78,46 +121,6 @@ export default async function JobsPage() {
             ))}
           </ol>
         </section>
-
-        <h2 className="mt-12 font-display text-3xl text-pp-navy">{jobs.length ? `${jobs.length} open job${jobs.length > 1 ? 's' : ''}` : 'No open jobs right now'}</h2>
-        {!jobs.length && (
-          <p className="mt-2 text-[15px] text-pp-muted">
-            Post one from the <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">home page</Link>: tick &ldquo;Post it on the open job board&rdquo; and fund it with PayPal.
-          </p>
-        )}
-        <div className="mt-6 grid gap-5 lg:grid-cols-2">
-          {jobs.map((m) => (
-            <article key={m.id} className="flex flex-col rounded-3xl bg-white p-6 shadow-[0_20px_40px_-30px_rgba(7,20,45,0.35)] ring-1 ring-pp-border transition-shadow hover:shadow-[0_24px_48px_-28px_rgba(7,20,45,0.45)] sm:p-7">
-              {/* Price under the title on a phone: side by side the title got a third of the width. */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-xl font-semibold leading-snug tracking-tight text-pp-navy">{m.title}</h3>
-                  <p className="mt-1 text-sm text-pp-muted">
-                    Posted by {m.client.name}
-                    {m.postedBy && ` through ${m.postedBy}`} · <span className="font-mono text-xs">{m.id}</span>
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3 sm:block sm:text-right">
-                  <div className="text-4xl font-semibold tabular-nums tracking-tight text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
-                  <div className="mt-1 inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                    {m.payment.mode === 'sandbox' ? 'on hold at PayPal (sandbox)' : 'on hold (demo, simulated)'}
-                  </div>
-                </div>
-              </div>
-              {m.description && <p className="mt-4 line-clamp-4 text-[15px] leading-relaxed text-pp-ink">{m.description}</p>}
-              <h4 className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-pp-muted">Paid when all of these are met · AI needs {Math.round(m.releaseThreshold * 100)}%</h4>
-              <ul className="mt-2 flex-1 space-y-1.5 text-sm">
-                {m.criteria.map((c) => (
-                  <li key={c.id} className="flex gap-2">
-                    <span aria-hidden className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-pp-highlight text-[9px] font-bold text-pod-electric">✓</span>
-                    {c.text}
-                  </li>
-                ))}
-              </ul>
-              <TakeJob id={m.id} />
-            </article>
-          ))}
-        </div>
 
         {!!records.length && (
           <>

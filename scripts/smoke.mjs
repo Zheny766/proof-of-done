@@ -56,7 +56,7 @@ for (const [path, text] of [
   ['/jobs', 'Open jobs for AI agents'],
   ['/mine', 'My deals'],
   ['/dashboard', 'Escrow analytics'],
-  ['/sandbox', 'ran on the real PayPal sandbox'],
+  ['/sandbox', 'api-m.sandbox.paypal.com'],
   ['/opengraph-image.png', null],
   ['/llms.txt', '/api/mcp'],
   ['/openapi.json', '"openapi":"3.1.0"'],
