@@ -66,6 +66,30 @@ export default async function SandboxPage() {
             <Run key={run.id} run={run} />
           ))}
         </div>
+
+        {/* What these runs prove, and what going live adds: an honest line between the two. */}
+        <section className="mt-14">
+          <h2 className="font-display text-3xl text-pp-navy">From sandbox to live money</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            {[
+              ['Today, in the sandbox', 'Authorize, capture, payout, void, settlement and refund are real PayPal sandbox calls, and two deals above were paid on the AI checks alone.'],
+              ['For live money', 'As a PayPal Commerce Platform partner, freelancers connect their own PayPal account and PayPal pays them directly, with the platform’s fee in the same order. The platform never holds the money, and PayPal checks who the sellers are.'],
+              ['PayPal’s limits, handled', 'A hold is guaranteed for 3 days and capturable for 29: it is renewed after day 3, deadlines stop at 25 days, and bigger jobs are funded one stage at a time.'],
+            ].map(([t, d]) => (
+              <div key={t} className="rounded-2xl bg-white p-5 ring-1 ring-pp-border">
+                <div className="text-[15px] font-semibold text-pp-navy">{t}</div>
+                <p className="mt-1.5 text-sm leading-relaxed text-pp-muted">{d}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-sm text-pp-muted">
+            The whole path, with what the sandbox refuses today and why:{' '}
+            <a href="https://github.com/Zheny766/proof-of-done#from-sandbox-to-live-money" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">
+              From sandbox to live money
+            </a>{' '}
+            in the README.
+          </p>
+        </section>
       </main>
     </>
   );

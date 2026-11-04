@@ -375,12 +375,27 @@ Run on October 27, 2026 against the Anthropic API (`claude-opus-5-5`), with simu
 
 A review costs about 18k input and 1-1.3k output tokens, roughly $0.10. The dashboard assistant makes a dozen or so model calls per question, each carrying Studio's tool schemas, so it runs best on a cheaper model: with `CLAUDE_MODELS=claude-haiku-5-5,claude-opus-5-5`, Haiku 5.5 answered *"How much money is on hold right now, and which 3 milestones have waited longest?"* correctly for a few cents.
 
+## From sandbox to live money
+
+The middle column runs and is tested today; the right-hand one is what a launch adds, and why.
+
+| | Today (PayPal sandbox, proven end to end) | For live money |
+|---|---|---|
+| **Who receives the money** | The platform's PayPal app captures the hold, then pays the freelancer with Payouts. | Become a PayPal Commerce Platform partner: freelancers connect their PayPal account (PayPal checks who they are), the order names the freelancer as the payee with the platform's fee, and PayPal pays them directly. The platform never holds the money. The sandbox refuses `platform_fees` and delayed disbursement for this app, because PayPal enables them only for approved partners. |
+| **Payouts** | Sandbox Payouts, net of PayPal's fee. | Live Payouts needs PayPal's approval; kept as the fallback for takers (or agents) without a seller account. |
+| **PayPal's hold limits** | A hold is guaranteed for 3 days and capturable for 29: it is reauthorized once after day 3, deadlines are capped at 25 days, and bigger jobs are split into stages funded one at a time. | The same, plus vaulted payment methods, so a client approves a whole project once and each stage is authorized when it starts. |
+| **A refund after the payout** | Comes back from the freelancer: an unclaimed payout is cancelled, a claimed one comes off their next payout here. | Delayed disbursement keeps the freelancer's share with PayPal until the complaint window closes. |
+| **Taste** | Criteria marked "I judge" are the client's call, with an objection window before PayPal captures. | The same, so the AI only ever pays on facts it can check. |
+| **Accounts and storage** | A secret link per party; a JSON file. | Log in with PayPal for both sides; a database with transactions. |
+| **Business model** | `POD_PLATFORM_FEE_PCT` already takes a fee from each payout. | A small percentage of each payout: a review costs $0.003 to $0.10 in AI fees, plus PayPal's own processing fee. |
+| **Legal** | A hackathon project. | Terms of service for both sides; whether a marketplace like this needs a licence depends on the market, and is part of the launch work. |
+
 ## Known limitations
 
 - **Storage** is a JSON file (`data/`) to keep the demo dependency-free; production needs a database and auth for the client and freelancer roles (today one page shows both views for demo purposes).
 - **Authorization lifetime.** PayPal honors an authorization for 3 days and allows capture for 29. The hold is reauthorized once after the honor period, which buys 3 more guaranteed days; a job that runs past that still has a hold PayPal can capture until day 29, just no longer guaranteed, and the deal page says so. Longer jobs would need the client to approve a new payment (or a vaulted payment method).
 - **Objection windows** close on a server timer, and again whenever the milestone is opened (in case the server restarted). With no visitors and no running server, the release happens on the next visit.
-- **AI can be wrong.** That's why release needs every criterion above a threshold the client picks, why uncertain cases escalate, and why the client can always override. Subjective criteria ("looks modern") should be avoided - the criteria drafter writes checkable ones.
+- **AI can be wrong.** That's why release needs every criterion it checks above a threshold the client picks, two other models from two companies have to agree, uncertain cases escalate, and the client can always override. Taste ("the logo feels warm") isn't the AI's to judge: the form flags it, and the client either rewrites it as something checkable or marks it "I judge", which keeps it out of the AI's verdict and gives the client an objection window before PayPal captures. Agreement between models lowers the odds of a shared mistake; it doesn't rule one out.
 - **Payouts** must be enabled on the sandbox REST app; if a payout fails, the capture still stands and the failure is shown on the deal. A capture that PayPal leaves pending holds the payout until the `PAYMENT.CAPTURE.COMPLETED` webhook arrives (so it needs `PAYPAL_WEBHOOK_ID` and a public URL).
 - **Secret links instead of accounts.** Roles and privacy are enforced with a per-milestone key for each party, but there are no logins. The AG Studio dashboard is an operator view with no login: it shows every milestone (email addresses removed). The routes that call Claude are rate-limited per IP, with a shared cap on top (X-Forwarded-For can be faked when no proxy overwrites it); writes from other sites are refused, and the app sends `frame-ancestors 'none'` and `Referrer-Policy: same-origin`.
 - **Refunds after the payout** are refunded to the client at once from the capture, then come back from the freelancer: an unclaimed payout is cancelled through the Payouts API (`POST /v1/payments/payouts-item/{id}/cancel`) and the rest sent again; a claimed one is owed and comes off their next payout here. A freelancer who never takes another job here leaves the platform short; PayPal's Multiparty with delayed disbursement would close that gap, but PayPal turns it on only for approved partner platforms (the sandbox refuses it for this app, see above).
