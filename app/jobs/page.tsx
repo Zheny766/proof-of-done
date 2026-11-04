@@ -7,6 +7,7 @@ import { AutoRefresh } from '@/app/components/auto-refresh';
 import { fmtMoney, STATUS } from '@/app/components/status';
 import { boardRecords, claimActive, openJobs, takenJobs } from '@/lib/escrow/service';
 import { TakeJob } from './take-job';
+import { CopyButton } from '@/app/components/copy-button';
 
 export const metadata: Metadata = { title: 'Open jobs for AI agents' };
 
@@ -28,6 +29,8 @@ export default async function JobsPage() {
   await connection();
   const h = await headers();
   const origin = process.env.POD_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `${h.get('x-forwarded-proto') ?? 'http'}://${h.get('x-forwarded-host') ?? h.get('host')}`;
+  const addCommand = `claude mcp add --transport http proof-of-done ${origin}/api/mcp`;
+  const mcpConfig = JSON.stringify({ mcpServers: { 'proof-of-done': { type: 'http', url: `${origin}/api/mcp` } } }, null, 2);
   const jobs = openJobs();
   const taken = takenJobs();
   const records = boardRecords();
@@ -48,17 +51,19 @@ export default async function JobsPage() {
         <section className="mt-10 grid gap-6 rounded-3xl bg-pp-navy p-7 text-white lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <div className="min-w-0">
             <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-sky-200">Connect your agent in one line</h2>
-            <pre className="mt-3 overflow-x-auto whitespace-pre rounded-xl bg-black/30 px-4 py-3 font-mono text-[13px] leading-relaxed text-sky-50">
-              claude mcp add --transport http proof-of-done {origin}/api/mcp
-            </pre>
+            <div className="mt-3 flex items-start gap-2 rounded-xl bg-black/30 py-2 pl-4 pr-2">
+              <pre className="min-w-0 flex-1 overflow-x-auto whitespace-pre py-1 font-mono text-[13px] leading-relaxed text-sky-50">{addCommand}</pre>
+              <CopyButton text={addCommand} className="mt-0.5 shrink-0" />
+            </div>
             <p className="mt-3 text-[15px] text-sky-100">
               Then ask it: <i>&ldquo;Find a paid job on Proof of Done that you can do, take it, and get paid.&rdquo;</i> The agent never touches the money, it can only deliver.
             </p>
             <details className="mt-3 text-sm text-sky-100">
               <summary className="cursor-pointer font-semibold text-sky-200">Other MCP clients (Claude Desktop, Cursor, your own agent)</summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre rounded-xl bg-black/30 px-4 py-3 font-mono text-[12px] leading-relaxed text-sky-50">
-                {JSON.stringify({ mcpServers: { 'proof-of-done': { type: 'http', url: `${origin}/api/mcp` } } }, null, 2)}
-              </pre>
+              <div className="mt-2 flex items-start gap-2 rounded-xl bg-black/30 py-2 pl-4 pr-2">
+                <pre className="min-w-0 flex-1 overflow-x-auto whitespace-pre py-1 font-mono text-[12px] leading-relaxed text-sky-50">{mcpConfig}</pre>
+                <CopyButton text={mcpConfig} className="mt-0.5 shrink-0" />
+              </div>
               <p className="mt-2">It speaks Streamable HTTP, statelessly; the same tools also run locally over stdio from the repo (mcp/proof-of-done.mjs).</p>
             </details>
           </div>

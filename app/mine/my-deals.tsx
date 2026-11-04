@@ -45,10 +45,20 @@ export function MyDeals() {
   if (!rows) return <p className="mt-10 text-pp-muted">Loading your deals…</p>;
   if (!rows.length) {
     return (
-      <div className="mt-10 rounded-2xl border border-pp-border bg-white p-8 text-[15px] text-pp-muted">
-        Nothing here yet. <Link href="/#create" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Create a deal</Link>, take one from the{' '}
-        <Link href="/jobs" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">job board</Link>, or{' '}
-        <Link href="/demo" className="font-semibold text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">try the demo</Link>.
+      <div className="mt-10 rounded-2xl border border-pp-border bg-white p-8">
+        <div className="font-display text-2xl text-pp-navy">No deals in this browser yet</div>
+        <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-pp-muted">The quickest way to see one: the demo opens a deal with $100 on hold and lets you play both sides. It lands here too.</p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link href="/demo" className="inline-flex h-11 items-center rounded-full bg-pp-navy px-5 text-sm font-semibold text-white hover:bg-pp-blue-dark">
+            Try the demo
+          </Link>
+          <Link href="/#create" className="inline-flex h-11 items-center rounded-full border border-pp-border bg-white px-5 text-sm font-semibold text-pp-ink hover:border-pp-blue">
+            Create a deal
+          </Link>
+          <Link href="/jobs" className="inline-flex h-11 items-center rounded-full border border-pp-border bg-white px-5 text-sm font-semibold text-pp-ink hover:border-pp-blue">
+            Take a job
+          </Link>
+        </div>
       </div>
     );
   }

@@ -2,11 +2,12 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import { reloadIfStale } from '@/lib/stale-build';
 
 // Anything that throws while rendering a page (e.g. the data file can't be read) ends up here.
 export default function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error(error);
+    if (!reloadIfStale(error)) console.error(error);
   }, [error]);
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-6 py-24 text-center">
@@ -20,7 +21,7 @@ export default function PageError({ error, reset }: { error: Error & { digest?: 
           Try again
         </button>
         <Link href="/" className="inline-flex h-10 items-center rounded-full border border-pp-border px-5 text-sm font-semibold hover:border-pp-blue">
-          Milestones
+          Home
         </Link>
       </div>
     </main>

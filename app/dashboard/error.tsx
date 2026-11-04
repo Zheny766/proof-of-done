@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { reloadIfStale } from '@/lib/stale-build';
 import { AlertIcon } from './components/ui/icons';
 import { AppShell } from './components/app-shell';
 import { SidebarSkeleton } from './components/skeleton';
@@ -9,7 +10,7 @@ import { Button } from './components/ui/ui';
 // Shown when the escrow data can't be read while loading the page.
 export default function DashboardError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
-    console.error(error);
+    if (!reloadIfStale(error)) console.error(error);
   }, [error]);
 
   return (

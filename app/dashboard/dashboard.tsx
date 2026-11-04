@@ -79,7 +79,12 @@ const LOCALE_TEXT = { valueNotApplicable: '—' };
 // it keeps a desktop-like width and scrolls sideways inside its box instead.
 const PHONE = '(max-width: 767px)';
 const LAYOUT = { widgetBorderEnabled: true };
+// Editing on a phone keeps the desktop layout, scrolling sideways; reading gets the phone layout (reportState.forPhone).
 const PHONE_LAYOUT = { widgetBorderEnabled: true, minWidth: 980 };
+const PHONE_VIEW_LAYOUT = { widgetBorderEnabled: true, minWidth: 0 };
+const onPhone = () => window.matchMedia(PHONE).matches;
+/** The state Studio shows in `mode`: on a phone in view mode, laid out for a narrow screen. */
+const forScreen = (mode: AgStudioMode, state: AgReportState) => (mode === 'view' && onPhone() ? reportState.forPhone(state) : state);
 // On a phone the filters rail would eat a fifth of the width; the pipeline's buttons filter the page instead.
 const PHONE_PANELS = { view: { right: [] }, edit: { right: ['edit', 'data', 'ai'] as ('edit' | 'data' | 'ai')[] } };
 const subscribePhone = (onChange: () => void) => {
@@ -115,7 +120,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   const saved = findReport(reports, store.activeId) ?? reports[0];
   // Studio reads initialState once, when it is created, and starts on the open report; after that,
   // its state is read from Studio.
-  const [initialState] = useState(() => reportState.withFiltersPanelFor('view', saved.state));
+  const [initialState] = useState(() => reportState.withFiltersPanelFor('view', forScreen('view', saved.state)));
   const state = studioState ?? initialState;
   const studioData = useMemo(() => buildStudioData(data), [data]);
   // Studio's built-in widgets plus our custom escrow pipeline widget.
@@ -133,10 +138,13 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
     const api = apiRef.current;
     if (!api) return;
     api.setState(
-      reportState.withFiltersPanelFor(nextMode, {
-        ...report.state,
-        selectedPageId,
-      }),
+      reportState.withFiltersPanelFor(
+        nextMode,
+        forScreen(nextMode, {
+          ...report.state,
+          selectedPageId,
+        }),
+      ),
     );
     // Undo shouldn't step back into the previous report.
     api.clearHistory();
@@ -150,7 +158,8 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
     if (api) api.setState(next(api.getState()));
   };
   const changeMode = (next: AgStudioMode) => {
-    updateState((s) => reportState.withFiltersPanelFor(next, s));
+    // On a phone, editing starts from the report's own layout and reading goes back to the phone one.
+    updateState((s) => reportState.withFiltersPanelFor(next, onPhone() ? forScreen(next, reportState.withLayoutOf(s, saved.state)) : s));
     setMode(next);
   };
 
@@ -171,7 +180,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
   // Anything that leaves the current report or edit mode asks first when it has unsaved changes.
   const guard = (then: () => void) => {
     const api = apiRef.current;
-    if (api && reportState.hasChanges(api.getState(), saved.state)) {
+    if (api && reportState.hasChanges(api.getState(), forScreen(mode, saved.state))) {
       setDialog({ kind: 'unsaved', then });
     } else then();
   };
@@ -264,6 +273,8 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
         pageTitle={pages.find((p) => p.id === state.selectedPageId)?.title}
         asOf={data.asOf}
         paymentMode={data.paymentMode}
+        demoDeals={data.milestones.filter((m) => m.isDemo).length}
+        deals={data.milestones.length}
         editing={editing}
         pageIsEmpty={studioState !== null && !reportState.pageHasWidgets(state)}
         canUndo={history.canUndo}
@@ -278,14 +289,14 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
       />
 
       <WebMcpTools tools={agentTools} />
-      {/* Studio lays a page out at least 600px wide; on a phone it scrolls inside this box instead of widening the page. */}
+      {/* Editing on a phone keeps the desktop layout, which scrolls inside this box instead of widening the page. */}
       <div className="min-h-0 flex-1 overflow-x-auto">
         {hasData(data) ? (
           <AgStudioProvider licenseKey={licenseKey} modules={ai ? [AgStudioAiModule] : undefined}>
             <AgStudio
               style={{ height: '100%', width: '100%' }}
               theme={agStudioPayPalTheme}
-              layout={phone ? PHONE_LAYOUT : LAYOUT}
+              layout={phone ? (mode === 'view' ? PHONE_VIEW_LAYOUT : PHONE_LAYOUT) : LAYOUT}
               {...(phone && { panels: PHONE_PANELS })}
               localeText={LOCALE_TEXT}
               data={studioData}

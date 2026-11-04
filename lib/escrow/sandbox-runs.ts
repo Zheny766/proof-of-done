@@ -30,6 +30,7 @@ export function publicRun(m: Milestone) {
           reviewer: review.engine === 'claude' ? review.model : review.engine,
           decision: review.decision ?? null,
           secondOpinion: review.audit ? { by: review.audit.engine === 'claude' ? review.audit.model : review.audit.engine, agreed: review.audit.agreed } : null,
+          thirdCheck: review.panel?.[0] ? { by: review.panel[0].model, agreed: review.panel[0].agreed, unavailable: !!review.panel[0].unavailable } : null,
         }
       : null,
     paypal: {
@@ -61,5 +62,6 @@ export function sandboxRuns(): SandboxRun[] {
     .readdirSync(RUNS_DIR)
     .filter((f) => f.endsWith('.json'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(RUNS_DIR, f), 'utf8')) as SandboxRun)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // Runs the AI reviewed and PayPal then paid come first: they show the whole loop. Then oldest first.
+    .sort((a, b) => Number(!!b.review?.decision) - Number(!!a.review?.decision) || a.createdAt.localeCompare(b.createdAt));
 }

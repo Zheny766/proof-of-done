@@ -56,7 +56,7 @@ test('a sandbox run keeps the PayPal ids, debug ids and verdicts, and nothing pr
   assert.equal(run.paypal.capturedAmount, '250.00');
   assert.equal(run.calls[0].debugId, 'f00dfeed1');
   assert.deepEqual(run.criteria, [{ text: 'A one-page PDF', status: 'met', confidence: 0.96 }]);
-  assert.deepEqual(run.review, { reviewer: 'claude-opus-5-5', decision: 'release', secondOpinion: { by: 'claude-haiku-5-5', agreed: true } });
+  assert.deepEqual(run.review, { reviewer: 'claude-opus-5-5', decision: 'release', secondOpinion: { by: 'claude-haiku-5-5', agreed: true }, thirdCheck: null });
   const json = JSON.stringify(run);
   for (const secret of [m.access!.clientKey, m.access!.freelancerKey, 'Secret brief', 'my work', 'saw the menu', 'read the secret brief', '@example.com', 'capture-A1', 'secret sauce', 'private reason'])
     assert.ok(!json.includes(secret), `leaked: ${secret}`);
@@ -70,12 +70,14 @@ test('only deals that ran on the PayPal sandbox can be exported', () => {
   assert.throws(() => publicRun(deal({ payment: { mode: 'sandbox' } })), /did not run on the PayPal sandbox/);
 });
 
-test('saved runs are read oldest first; no folder means no runs', () => {
+test('saved runs are read reviewed first, then oldest first; no folder means no runs', () => {
   assert.deepEqual(sandboxRuns(), []);
   const dir = path.join(cwd, 'demo', 'sandbox-runs');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'b.json'), JSON.stringify(publicRun(deal({ id: 'b', createdAt: '2026-10-29T00:00:00.000Z' }))));
   fs.writeFileSync(path.join(dir, 'a.json'), JSON.stringify(publicRun(deal({ id: 'a' }))));
+  // Paid by hand, no AI review: listed after the reviewed ones although it is the oldest.
+  fs.writeFileSync(path.join(dir, 'c.json'), JSON.stringify(publicRun(deal({ id: 'c', createdAt: '2026-01-01T00:00:00.000Z', reviews: [] }))));
   fs.writeFileSync(path.join(dir, 'notes.txt'), 'ignored');
-  assert.deepEqual(sandboxRuns().map((r) => r.id), ['a', 'b']);
+  assert.deepEqual(sandboxRuns().map((r) => r.id), ['a', 'b', 'c']);
 });

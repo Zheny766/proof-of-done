@@ -13,6 +13,50 @@ const durable = (state: AgReportState) =>
     pages: state.pages.map(({ id, widgets, widgetLayout, layout, filter }) => ({ id, widgets, widgetLayout, layout, filter })),
   });
 
+// On a phone a report is read, not edited, so its widgets are laid out again for a narrow screen:
+// KPI tiles two to a row, everything else full width and tall enough to read, in the order the
+// desktop layout reads (top to bottom, left to right). Filters go first, where a thumb finds them.
+// Edit mode and Save always work on the report's own layout (withLayoutOf).
+const PHONE_HEIGHT: Record<string, number> = { value: 6, 'escrow-pipeline': 19, 'escrow-money-flow': 12 };
+
+export const forPhone = (state: AgReportState): AgReportState => ({
+  ...state,
+  pages: state.pages.map((page) => {
+    const layout = page.widgetLayout ?? {};
+    const typeOf = (id: string) => String((page.widgets?.[id] as { type?: string } | undefined)?.type ?? '');
+    const isFilter = (id: string) => typeOf(id).endsWith('-filter');
+    const ids = Object.keys(layout).sort(
+      (a, b) => Number(isFilter(b)) - Number(isFilter(a)) || layout[a]!.yTrack - layout[b]!.yTrack || layout[a]!.xTrack - layout[b]!.xTrack,
+    );
+    const next: NonNullable<typeof page.widgetLayout> = {};
+    let x = 0;
+    let y = 0;
+    let rowHeight = 0;
+    for (const id of ids) {
+      const span = typeOf(id) === 'value' ? 12 : 24;
+      if (x + span > 24) {
+        y += rowHeight;
+        x = 0;
+        rowHeight = 0;
+      }
+      const height = PHONE_HEIGHT[typeOf(id)] ?? (isFilter(id) ? layout[id]!.ySpan : Math.max(layout[id]!.ySpan, 16));
+      next[id] = { xTrack: x, yTrack: y, xSpan: span, ySpan: height };
+      x += span;
+      rowHeight = Math.max(rowHeight, height);
+    }
+    return { ...page, widgetLayout: next };
+  }),
+});
+
+/** `state` with each page's widget layout taken back from `saved`, for pages and widgets it has. */
+export const withLayoutOf = (state: AgReportState, saved: AgReportState): AgReportState => ({
+  ...state,
+  pages: state.pages.map((page) => {
+    const own = saved.pages.find((p) => p.id === page.id)?.widgetLayout;
+    return own ? { ...page, widgetLayout: { ...page.widgetLayout, ...own } } : page;
+  }),
+});
+
 const narrowScreen = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
 const pageHasFilters = (state: AgReportState) => {

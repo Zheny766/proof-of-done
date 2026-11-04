@@ -84,6 +84,11 @@ function Run({ run }: { run: SandboxRun }) {
               {run.review.secondOpinion.agreed ? 'confirmed it' : 'refused'}
             </>
           )}
+          {run.review.thirdCheck && !run.review.thirdCheck.unavailable && (
+            <>
+              , and Google&apos;s check ({modelName(run.review.thirdCheck.by)}) {run.review.thirdCheck.agreed ? 'confirmed it too' : 'refused'}
+            </>
+          )}
           .
         </p>
       )}

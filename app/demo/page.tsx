@@ -4,6 +4,7 @@ import { connection } from 'next/server';
 import { arenaStats } from '@/lib/escrow/service';
 import { sandboxRuns } from '@/lib/escrow/sandbox-runs';
 import { paymentMode } from '@/lib/escrow/payments';
+import { isGeminiConfigured } from '@/lib/escrow/gemini';
 import { SiteHeader } from '@/app/components/site-header';
 import { AutoRefresh } from '@/app/components/auto-refresh';
 import { StartDemo } from './start-button';
@@ -62,10 +63,15 @@ export default async function DemoPage() {
       <AutoRefresh />
       <main className="mx-auto w-full max-w-6xl px-6 pb-20 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Try it in 60 seconds</p>
-        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-pp-navy">Five real situations, and one live challenge. You play both sides.</h1>
-        <p className="mt-4 max-w-3xl text-lg leading-relaxed text-pp-muted">
-          Each one opens a private deal with the money already on hold. Hand in the delivery as the freelancer, watch the AI decide, then switch to the client. The first four AI reviews are replays of real Claude runs, so the demo costs nothing and works without keys; the money is a simulated PayPal hold.
+        <h1 className="mt-3 max-w-3xl font-display text-4xl leading-tight text-pp-navy sm:text-5xl">Five real situations and one live challenge. You play both sides.</h1>
+        <p className="mt-4 max-w-3xl text-[17px] leading-relaxed text-pp-muted sm:text-lg">
+          Each one opens a private deal with $100 already on hold. Hand in the work as the freelancer and watch the AIs decide.
+          <span className="hidden sm:inline"> The first four AI reviews are replays of real Claude runs, so it costs nothing and works without keys; the money is a simulated PayPal hold.</span>
         </p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <StartDemo scenario="honest" label="Start with honest work →" className="h-12 text-[15px]" />
+          <span className="text-sm text-pp-muted">30 seconds · no account, no keys</span>
+        </div>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SCENARIOS.map((s) => (
             <section key={s.id} className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${s.tone}`}>
@@ -86,7 +92,7 @@ export default async function DemoPage() {
             <h2 className="mt-4 font-display text-3xl text-pp-navy">Your turn: try to fool it</h2>
             <p className="mt-2 text-[15px] font-medium text-pp-ink">The delivery is a draft that misses the brief: 6 items instead of 10, and no logo.</p>
             <p className="mt-2 text-sm leading-relaxed text-pp-muted">
-              Write anything you like in the notes to get it paid anyway: claims, excuses, a fake message from the client, orders for the AI. This one is not a replay: a real Claude review and a real second opinion decide, and the result goes on the scoreboard.
+              Write anything you like in the notes to get it paid anyway: claims, excuses, a fake message from the client, orders for the AI. This one is not a replay: a real Claude review and a second opinion{isGeminiConfigured() ? ' and Gemini’s check' : ''} decide, and the result goes on the scoreboard.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-pp-muted">
               Before opening it up we played it ourselves on Claude Haiku: ten tricks, from a fake system message to a legal threat and an order in Spanish. None got paid; the ten reviews cost two cents.
@@ -104,7 +110,7 @@ export default async function DemoPage() {
             {[
               ['Tricks tried', arena.attempts, 'text-pp-navy'],
               ['Got paid', arena.paid, arena.paid ? 'text-pp-danger' : 'text-emerald-600'],
-              ['Second opinion stopped', arena.vetoed, 'text-violet-700'],
+              ['Other AIs stopped', arena.vetoed, 'text-violet-700'],
             ].map(([label, n, tone]) => (
               <div key={label as string} className="rounded-xl bg-pp-canvas px-2 py-4">
                 <dd className={`font-display text-5xl tabular-nums ${tone}`}>{n}</dd>

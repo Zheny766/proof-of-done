@@ -12,6 +12,8 @@ export function ReportHeader({
   pageTitle,
   asOf,
   paymentMode,
+  demoDeals = 0,
+  deals = 0,
   editing,
   pageIsEmpty,
   canUndo,
@@ -26,6 +28,8 @@ export function ReportHeader({
   pageTitle?: string;
   asOf: string;
   paymentMode: 'sandbox' | 'simulated';
+  demoDeals?: number;
+  deals?: number;
   editing: boolean;
   pageIsEmpty: boolean;
   canUndo: boolean;
@@ -41,7 +45,7 @@ export function ReportHeader({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-pp-muted">{reportName}</p>
         <h1 className="text-[22px] font-semibold leading-tight text-pp-navy [overflow-wrap:anywhere] sm:truncate sm:text-[28px]">{pageTitle}</h1>
-        <DataFreshness asOf={asOf} paymentMode={paymentMode} />
+        <DataFreshness asOf={asOf} paymentMode={paymentMode} demoDeals={demoDeals} deals={deals} />
       </div>
       <div className="flex items-center gap-2">
         {editing && pageIsEmpty && (
@@ -101,13 +105,19 @@ function relativeTime(iso: string, at: number) {
   return hours < 24 ? `${hours} h ago` : new Date(iso).toLocaleDateString('en-GB');
 }
 
-function DataFreshness({ asOf, paymentMode }: { asOf: string; paymentMode: 'sandbox' | 'simulated' }) {
+function DataFreshness({ asOf, paymentMode, demoDeals, deals }: { asOf: string; paymentMode: 'sandbox' | 'simulated'; demoDeals: number; deals: number }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
   const at = useSyncExternalStore(subscribeNow, () => now, () => 0);
 
   return (
-    <p className="mt-1 flex items-center gap-2 text-sm text-pp-muted">
+    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-pp-muted">
+      {/* The seeded history is what makes the charts worth reading; its numbers aren't anyone's business results. */}
+      {demoDeals > 0 && (
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200" title="Generated sample history so the charts have something to show">
+          Demo data: {demoDeals} of {deals} deals are samples
+        </span>
+      )}
       <span className="inline-flex items-center gap-1.5">
         <span className={`size-2 rounded-full ${paymentMode === 'sandbox' ? 'bg-pp-success' : 'bg-pp-muted'}`} aria-hidden />
         {paymentMode === 'sandbox' ? 'PayPal sandbox' : 'Simulated payments'}

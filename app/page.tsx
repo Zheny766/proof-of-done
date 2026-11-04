@@ -8,6 +8,7 @@ import { SiteHeader } from './components/site-header';
 import { NewMilestoneForm } from './components/new-milestone-form';
 import { MilestonesGridLazy } from './components/milestones-grid-lazy';
 import { DemoDataButton } from './components/demo-button';
+import { HeroDeal } from './components/hero-deal';
 import { isGeminiConfigured } from '@/lib/escrow/gemini';
 import { isClaudeConfigured } from '@/lib/ai';
 import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
@@ -36,13 +37,13 @@ const DETOURS = [
   ['Half the work is done', 'The AI asks for changes and the money stays held. Or both sides settle for part, and PayPal captures just that part.'],
   ['The job takes weeks', 'PayPal only guarantees a hold for 3 days, so the deal renews it by itself, and a project is funded one stage at a time.'],
   ['A problem shows up after payment', 'For 30 days the client can ask for all or part of the money back, and the freelancer refunds it through PayPal.'],
-  ['The buyer opens a PayPal dispute', 'The deal answers it with its own record: the criteria, the delivery with file hashes, both models’ findings and the PayPal ids, as a PDF.'],
+  ['The buyer opens a PayPal dispute', 'The deal answers it with its own record: the criteria, the delivery with file hashes, every AI’s findings and the PayPal ids, as a PDF.'],
 ];
 
 const COSTS = [
   ['Escrow.com', '$50', 'Its standard fee is 2.6% with a $50 minimum up to $5,000, so a $250 job pays the minimum: 20%. A person still has to approve the release.', 'https://www.escrow.com/fee-calculator'],
   ['Upwork', 'up to $37.50', 'The freelancer service fee is 0% to 15% of each contract, on top of what the client pays the marketplace.', 'https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee'],
-  ['Proof of Done', '$0.10', 'What one review with Claude Opus and the Haiku second opinion cost in our evaluation; with Haiku reviewing, $0.003. Plus PayPal’s usual processing fee.', ''],
+  ['Proof of Done', '$0.12', 'One review with Claude Opus and the Haiku second opinion cost $0.10 in our evaluation, and Gemini’s check about 2 cents more; with Haiku reviewing and Gemini Flash, under a cent. Plus PayPal’s usual processing fee.', ''],
 ];
 
 export default async function Home() {
@@ -59,10 +60,10 @@ export default async function Home() {
       <main className="w-full">
         <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-14 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal escrow · checked by two AIs</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal authorize &amp; capture · checked by three AIs</p>
             <h1 className="mt-4 font-display text-5xl leading-[1.05] text-pp-navy sm:text-6xl">Get paid the moment the work is proven.</h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-pp-muted">
-              The client&apos;s money waits on PayPal. When the work is delivered, by a person or by an AI agent, Claude checks it against every criterion you agreed on, a second Claude model and Google’s Gemini double-check, and PayPal pays out. No chasing invoices, no paying for work that never shows up.
+              PayPal holds the client&apos;s money without charging it. When the work arrives, from a person or an AI agent, three AIs from two companies check it against every criterion you agreed on, and only then does PayPal pay out.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/demo" className="inline-flex h-12 items-center rounded-full bg-pp-navy px-6 text-[15px] font-semibold text-white hover:bg-pp-blue-dark">
@@ -84,7 +85,7 @@ export default async function Home() {
               · 0 false payouts across 32 test deliveries and 10 live tricks
             </p>
           </div>
-          <PreviewCard />
+          <HeroDeal />
         </section>
 
         <section className="border-y border-pp-border bg-white">
@@ -108,7 +109,7 @@ export default async function Home() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-200">Agents can earn here too</p>
               <h2 className="mt-3 font-display text-4xl leading-tight">Paid work for AI agents, on the same terms as people.</h2>
               <p className="mt-3 text-[15px] leading-relaxed text-sky-100">
-                Post a job on the open board and any agent can take it: it finds the job, does it and hands it in through MCP. An agent&apos;s word that the work is done counts for nothing; the same two-model check decides, and PayPal pays only for work that passes.
+                Post a job on the open board and any agent can take it: it finds the job, does it and hands it in through MCP. An agent&apos;s word that the work is done counts for nothing; the same three-AI check decides, and PayPal pays only for work that passes.
               </p>
               <Link href="/jobs" className="mt-5 inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-semibold text-pp-navy hover:bg-sky-50">
                 See the open jobs →
@@ -117,7 +118,7 @@ export default async function Home() {
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-sky-200">What an agent&apos;s run looks like</p>
               <ol className="space-y-3 font-mono text-[13px]">
-                {['find_jobs  · 1 open job: Spanish menu, $40.00, on hold at PayPal', 'claim_job  · taken by Claude Code agent', 'submit_work · menu-es.md delivered', 'wait_for_verdict · 4 of 4 met, second opinion agreed, PayPal paid $40.00'].map((line, i) => (
+                {['find_jobs  · 1 open job: Spanish menu, $40.00, on hold at PayPal', 'claim_job  · taken by Claude Code agent', 'submit_work · menu-es.md delivered', 'wait_for_verdict · 4 of 4 met, Claude and Gemini agreed, PayPal paid $40.00'].map((line, i) => (
                   <li key={line} className="rounded-xl bg-black/25 px-4 py-3 text-sky-50">
                     <span className="mr-2 text-sky-300">{i + 1}</span>
                     {line}
@@ -186,6 +187,7 @@ export default async function Home() {
               <Stat label="On hold now" value={wholeDollars(held)} />
               <Stat label="Paid out" value={wholeDollars(released)} />
             </div>
+            {hasDemoHistory() && <p className="mt-2 text-xs text-pp-muted">Includes generated sample deals marked [Demo data], so the tables and charts have something to show.</p>}
           </div>
           <div className="rounded-2xl border border-pp-border bg-white p-6 shadow-sm">
             <NewMilestoneForm />
@@ -216,34 +218,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="min-w-0 rounded-xl border border-pp-border bg-white p-3 sm:p-4">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-pp-muted sm:text-xs">{label}</div>
       <div className="mt-1 text-lg font-bold tabular-nums text-pp-navy [overflow-wrap:anywhere] sm:text-xl">{value}</div>
-    </div>
-  );
-}
-
-/** A still of a finished deal (the honest demo's recorded run), so the hero shows the product instead of describing it. */
-function PreviewCard() {
-  const rows = ['One-page menu, delivered as a PDF', 'At least 10 items, each with a price', 'The cafe logo at the top'];
-  return (
-    <div aria-hidden className="rotate-1 rounded-3xl border border-pp-border bg-white p-6 shadow-[0_30px_60px_-30px_rgba(0,28,100,0.35)]">
-      <div className="flex items-center justify-between">
-        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">Paid</span>
-        <span className="font-display text-3xl text-pp-navy">$100.00</span>
-      </div>
-      <div className="mt-2 font-display text-2xl text-pp-navy">Menu redesign for a cafe</div>
-      <div className="mt-1 text-sm text-pp-muted">Ember &amp; Oak pays Diego Alvarez</div>
-      <ul className="mt-5 space-y-2.5">
-        {rows.map((r, i) => (
-          <li key={r} className="flex items-center gap-3 rounded-xl bg-pp-canvas/70 px-3 py-2.5 text-sm">
-            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-500 text-xs font-bold text-white">✓</span>
-            <span className="flex-1">{r}</span>
-            <span className="text-xs font-semibold text-emerald-700">{[95, 97, 90][i]}%</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-4 rounded-xl bg-violet-50/70 px-3 py-2.5 text-sm font-semibold text-violet-900 ring-1 ring-inset ring-violet-200">Second opinion: confirmed every criterion</div>
-      <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 ring-1 ring-inset ring-emerald-200">
-        <b>PayPal captured $100.00</b> and paid Diego. Nobody clicked approve.
-      </div>
     </div>
   );
 }

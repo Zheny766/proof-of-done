@@ -68,10 +68,17 @@ export function NewMilestoneForm() {
     }
   }
   const [drafting, setDrafting] = useState(false);
+  // Said next to the button: a disabled button with only a tooltip read as broken.
+  const [draftHint, setDraftHint] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   async function draft() {
+    if (title.trim().length < 3) {
+      setDraftHint('Write what needs to be done first: the AI drafts the criteria from it.');
+      return;
+    }
+    setDraftHint('');
     setError('');
     setDrafting(true);
     try {
@@ -200,10 +207,11 @@ export function NewMilestoneForm() {
       <div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-medium">Acceptance criteria <span className="font-normal text-pp-muted">· the AI releases the money only when all are verified</span></span>
-          <button type="button" onClick={draft} disabled={drafting || title.trim().length < 3} title={title.trim().length < 3 ? 'Write what needs to be done first' : undefined} className="shrink-0 whitespace-nowrap rounded-md border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">
+          <button type="button" onClick={draft} disabled={drafting} className="shrink-0 whitespace-nowrap rounded-md border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">
             {drafting ? 'Drafting…' : 'Draft with AI'}
           </button>
         </div>
+        {draftHint && title.trim().length < 3 && <p className="mt-1 text-right text-xs text-violet-700">{draftHint}</p>}
         <ol className="mt-2 space-y-2">
           {criteria.map((c, i) => (
             <li key={i}>

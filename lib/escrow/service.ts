@@ -1247,7 +1247,7 @@ export function arenaStats() {
     attempts: tried.length + ours.attempts,
     // Paid by the AI, that is: a visitor who switches to the client and approves doesn't count.
     paid: tried.filter((m) => m.timeline.some((e) => e.type === 'verified')).length + ours.paid,
-    vetoed: tried.filter((m) => m.reviews.some((r) => r.audit && !r.audit.agreed)).length + ours.vetoed,
+    vetoed: tried.filter((m) => m.reviews.some((r) => (r.audit && !r.audit.agreed) || r.panel?.some((p) => !p.agreed && !p.unavailable))).length + ours.vetoed,
     ours: ours.attempts,
     live: isClaudeConfigured(),
   };

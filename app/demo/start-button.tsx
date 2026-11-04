@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/app/components/status';
 
 /** Creates a private demo deal and opens it as the freelancer, with the client's key kept too. */
-export function StartDemo({ scenario, label }: { scenario: string; label: string }) {
+export function StartDemo({ scenario, label, className = 'mt-5 h-11 w-full text-sm' }: { scenario: string; label: string; className?: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ export function StartDemo({ scenario, label }: { scenario: string; label: string
           }
         }}
         disabled={busy}
-        className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-pp-navy px-5 text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-60"
+        className={`inline-flex items-center justify-center rounded-full bg-pp-navy px-5 font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-60 ${className}`}
       >
         {busy ? 'Setting it up…' : label}
       </button>

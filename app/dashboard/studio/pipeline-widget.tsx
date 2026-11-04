@@ -4,7 +4,7 @@
 // widgetApi.getData, so dashboard filters apply to it like to the built-in widgets.
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- AG Studio's widget registry types are generic over a custom registry */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AgWidgetParams } from 'ag-studio';
 
 type Stage = { label: string; value: number; count: number };
@@ -31,6 +31,16 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
   // Clicking a stage filters the rest of the page to it (Studio cross-filter); this widget keeps
   // showing every stage, with the picked one outlined.
   const [picked, setPicked] = useState<string | null>(null);
+  // Narrower than a row of stages fits (a phone): the stages go top to bottom instead.
+  const box = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < 560));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -77,7 +87,7 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
   const showCounts = format?.style?.showCounts !== false;
 
   return (
-    <div style={{ display: 'flex', height: '100%', alignItems: 'stretch', gap: 6, padding: '8px 4px', fontFamily: 'var(--pp-font)' }}>
+    <div ref={box} style={{ display: 'flex', flexDirection: narrow ? 'column' : 'row', height: '100%', alignItems: 'stretch', gap: 6, padding: '8px 4px', fontFamily: 'var(--pp-font)', overflowY: narrow ? 'auto' : undefined }}>
       {stages.map((s, i) => {
         const color = TONES[i % TONES.length];
         const pct = Math.round((s.value / total) * 100);
@@ -101,27 +111,29 @@ export function EscrowPipelineWidget(props: AgWidgetParams<any>) {
               outline: on ? `2px solid ${color}` : 'none',
               outlineOffset: -2,
               opacity: picked && !on ? 0.55 : 1,
-              flex: Math.max(1, s.value / total) * 4 + 1,
-              minWidth: 92,
+              flex: narrow ? 'none' : Math.max(1, s.value / total) * 4 + 1,
+              minWidth: narrow ? 0 : 92,
               position: 'relative',
               background: `color-mix(in srgb, ${color} 8%, transparent)`,
-              borderTop: `4px solid ${color}`,
+              ...(narrow ? { borderLeft: `4px solid ${color}` } : { borderTop: `4px solid ${color}` }),
               borderRadius: 10,
-              padding: '10px 12px',
+              padding: narrow ? '8px 12px' : '10px 12px',
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: narrow ? 'row' : 'column',
+              alignItems: narrow ? 'center' : undefined,
               justifyContent: 'space-between',
+              gap: narrow ? 8 : undefined,
             }}
           >
             {/* Darkened, so light palette colours (amber, sky) still read as text. */}
             <div style={{ ...oneLine, fontSize: 11, fontWeight: 700, color: `color-mix(in srgb, ${color} 65%, black)`, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--pp-ink)' }}>{money(s.value)}</div>
+            <div style={narrow ? { textAlign: 'right', minWidth: 0 } : undefined}>
+              <div style={{ fontSize: narrow ? 17 : 20, fontWeight: 700, color: 'var(--pp-ink)' }}>{money(s.value)}</div>
               <div style={{ ...oneLine, fontSize: 11, color: 'var(--pp-muted)' }}>
                 {pct}% of escrow{showCounts && s.count ? ` · ${s.count} deal${s.count === 1 ? '' : 's'}` : ''}
               </div>
             </div>
-            {i < stages.length - 1 && (
+            {!narrow && i < stages.length - 1 && (
               <span aria-hidden style={{ position: 'absolute', right: -11, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--pp-muted)' }}>›</span>
             )}
           </button>
