@@ -155,7 +155,7 @@ export function build() {
     '',
     '## Fresh counterfactuals: a second recorded AI run',
     '',
-    'A separate generator produced **19 additional, pre-labelled cases**: 7 honest and 12 broken. These were evaluated in a **new recorded live-model run** ([full case-level report](PROOF-GAUNTLET-LIVE.md)): Haiku + Sonnet + Gemini correctly judged 19/19; Opus + Haiku + Gemini correctly judged 17/17 completed cases, with 2 API workspace-limit errors **excluded** from the accuracy denominator. These 19 are related variants, not independent samples; no PayPal captures were performed. The fixture generator is `npm run gauntlet:prepare`.',
+    'A separate generator produced **19 additional, pre-labelled cases**: 7 honest and 12 broken. These were evaluated in a **new recorded live-model run** ([full case-level report](PROOF-GAUNTLET-LIVE.md)): Haiku + Sonnet + Gemini correctly judged 19/19; Opus + Haiku + Gemini correctly judged 19/19. In the first Opus run two cases (cf018, cf019) hit the Anthropic workspace spending limit and got no judgement; they were never counted as passes, and after the limit was raised they were run again on their own, unchanged, and scored from that run (kept in a separate file). These 19 are related variants, not independent samples; no PayPal captures were performed. The fixture generator is `npm run gauntlet:prepare`.',
     '',
     '## Counterfactual and metamorphic relations',
     '',
