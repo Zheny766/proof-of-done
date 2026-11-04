@@ -4,6 +4,7 @@ import { SiteHeader } from '@/app/components/site-header';
 import { fmtDate, fmtMoney } from '@/app/components/status';
 import { sandboxRuns, type SandboxRun } from '@/lib/escrow/sandbox-runs';
 import { modelName } from '../m/[id]/ui';
+import { Bench } from './bench';
 
 export const metadata: Metadata = { title: 'Ran on the real PayPal sandbox' };
 
@@ -67,6 +68,8 @@ export default async function SandboxPage() {
             <Run key={run.id} run={run} />
           ))}
         </div>
+
+        <Bench />
 
         {/* What these runs prove, and what going live adds: an honest line between the two. */}
         <section className="mt-14">

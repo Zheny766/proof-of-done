@@ -5,6 +5,9 @@
 //
 //   node --conditions=react-server eval/run.ts [--only id,id] [--budget 0.50] [--gemini-budget 1] [--replays dir]
 //
+// --merge adds this run's cases to the results already written (same id: replaced), so a few new cases
+// don't wipe the full table.
+//
 // --forged skips the reviewer and hands the independent checks a reviewer that was fooled completely
 // (every criterion "met", 95%): it measures whether the second opinion and Gemini catch the trick on
 // their own. Written to eval/results/forged-<audit model>.{json,md}.
@@ -41,6 +44,14 @@ const budget = Number(arg('--budget') ?? 0.5);
 const replayDir = arg('--replays');
 const geminiBudget = Number(arg('--gemini-budget') ?? 1);
 const forged = process.argv.includes('--forged');
+const merge = process.argv.includes('--merge');
+/** The rows already written for this table, when merging; this run's rows replace any with the same id. */
+const merged = <T extends { id: string }>(file: string, fresh: T[]): T[] => {
+  if (!merge || !fs.existsSync(file)) return fresh;
+  const old = (JSON.parse(fs.readFileSync(file, 'utf8')).results ?? []) as T[];
+  const ids = new Set(fresh.map((r) => r.id));
+  return [...old.filter((r) => !ids.has(r.id)), ...fresh];
+};
 const gemini = isGeminiConfigured();
 
 // USD per million tokens, input / output (Haiku's rate for prompts up to 100k tokens).
@@ -59,7 +70,8 @@ const verdictOf = (a?: Audit) => (!a ? 'not asked' : a.unavailable ? 'could not 
 const MIME: Record<string, string> = { '.pdf': 'application/pdf', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.md': 'text/markdown', '.py': 'text/x-python' };
 
 type ForgedRow = { id: string; kind: string; expect: string; secondOpinion: string; secondOk?: boolean; thirdCheck: string; thirdOk?: boolean; cost: number };
-const results = [];
+type EvalRow = { id: string; kind: string; expect: string; outcome: string; pass: boolean; decision: string; reviewerTriedToPay: boolean; secondOpinion: string; thirdCheck: string; cost: number; [k: string]: unknown };
+const results: EvalRow[] = [];
 const forgedRows: ForgedRow[] = [];
 let spent = 0;
 let geminiSpent = 0;
@@ -173,6 +185,7 @@ const outDir = process.env.EVAL_OUT ?? path.join(here, 'results');
 fs.mkdirSync(outDir, { recursive: true });
 
 if (forged) {
+  forgedRows.splice(0, forgedRows.length, ...merged(path.join(outDir, `forged-${AUDIT_MODEL}.json`), forgedRows));
   const tally = (key: 'secondOk' | 'thirdOk', expect: string) => {
     const rows = forgedRows.filter((r) => r.expect === expect && r[key] !== undefined);
     return `${rows.filter((r) => r[key]).length}/${rows.length}`;
@@ -188,7 +201,7 @@ if (forged) {
     geminiCaught: tally('thirdOk', 'hold'),
     geminiConfirmedHonest: tally('thirdOk', 'release'),
     bothMissed: forgedRows.filter((r) => r.expect === 'hold' && r.secondOk === false && r.thirdOk === false).map((r) => r.id),
-    cost: Number((spent + geminiSpent).toFixed(4)),
+    cost: Number(forgedRows.reduce((n, r) => n + r.cost, 0).toFixed(4)),
   };
   console.log(JSON.stringify(summary));
   const name = `forged-${AUDIT_MODEL}`;
@@ -209,12 +222,14 @@ if (forged) {
   process.exit(0);
 }
 
+results.splice(0, results.length, ...merged(path.join(outDir, `${REVIEW_MODEL}.json`), results));
 const passed = results.filter((r) => r.pass).length;
 const falseReleases = results.filter((r) => r.expect === 'hold' && r.outcome === 'released').length;
 const falseHolds = results.filter((r) => r.expect === 'release' && r.outcome === 'held').length;
 // What the reviewer would have paid on its own: a bad delivery it went to pay, whatever the checks then said.
 const aloneWouldPay = results.filter((r) => r.expect === 'hold' && r.reviewerTriedToPay).map((r) => r.id);
-const summary = { reviewModel: REVIEW_MODEL, auditModel: AUDIT_MODEL, gemini, date: new Date().toISOString().slice(0, 10), cases: results.length, passed, falseReleases, falseHolds, aloneWouldPay, cost: Number(spent.toFixed(4)), geminiCost: Number(geminiSpent.toFixed(4)) };
+const total = (key: 'cost') => Number(results.reduce((n, r) => n + (r[key] ?? 0), 0).toFixed(4));
+const summary = { reviewModel: REVIEW_MODEL, auditModel: AUDIT_MODEL, gemini, date: new Date().toISOString().slice(0, 10), cases: results.length, passed, falseReleases, falseHolds, aloneWouldPay, cost: Number(spent.toFixed(4)), geminiCost: Number(geminiSpent.toFixed(4)), allCasesCost: total('cost') };
 console.log(JSON.stringify(summary));
 
 fs.writeFileSync(path.join(outDir, `${REVIEW_MODEL}.json`), JSON.stringify({ summary, results }, null, 2) + '\n');

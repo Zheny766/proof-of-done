@@ -32,7 +32,7 @@ const safeguards = (gemini: boolean, bench: BenchRow) => [
     : ['Two models have to agree', 'A second Claude model re-checks the evidence and can veto. In testing it stopped a payment Claude Opus itself had approved.'],
   [
     'Tested on deliveries built to fool it',
-    `On ${bench.cases} test deliveries, ${bench.bad} of them rigged or wrong, the reviewer on its own went to pay ${bench.aloneWouldPay === 1 ? 'one' : bench.aloneWouldPay}: a fake “system message” in the notes. The independent check refused, so ${bench.paid === 0 ? 'none was' : `${bench.paid} were`} paid.`,
+    `On ${bench.cases} test deliveries, ${bench.bad} of them rigged or wrong, ${bench.reviewer} on its own went to pay ${bench.aloneWouldPay}: fake system messages, look-alike letters, an order hidden in a screenshot. The independent checks refused ${bench.paid === 0 ? 'every one, so none was paid' : `all but ${bench.paid}`}, and held ${bench.honestHeld === 0 ? 'no honest work' : `${bench.honestHeld} honest ${bench.honestHeld === 1 ? 'delivery' : 'deliveries'}`}.`,
     '/sandbox#bench',
   ],
   ['Facts for the AI, taste for you', 'The AI checks what can be checked: formats, counts, names, tests. Mark a criterion like “feels warm” as yours, and the money waits for your OK or your objection window. Delivered work is protected too: verified work can’t just be cancelled, an objection needs a reason, and a fix gets time.'],
@@ -103,7 +103,7 @@ export default async function Home() {
               {isClaudeConfigured() && REVIEW_MODEL !== 'claude-opus-5-5'
                 ? `live reviews here by ${modelName(REVIEW_MODEL)}, the demo replays by Claude Opus 5.5; ${checkers} double-check`
                 : `Claude Opus 5.5 reviews, ${checkers} double-check`}{' '}
-              · 0 false payouts across 32 test deliveries and 10 live tricks
+              · 0 false payouts across {bench.cases} deliveries built to fool it and 10 live tricks
             </p>
           </div>
         </section>

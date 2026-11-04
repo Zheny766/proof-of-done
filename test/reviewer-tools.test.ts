@@ -133,3 +133,31 @@ test('the code sandbox is offered only when the delivery has code, and can be sw
   assert.equal(deliversCode(sub('validator.py')), false);
   delete process.env.POD_CODE_EXECUTION;
 });
+
+test('a delivery with code is never paid before the code was run in this review', async () => {
+  // The independent checks can't run code: a passing-tests screenshot would only have to fool the reviewer.
+  const code: Submission = { ...submission, attachments: [{ id: 'att1', name: 'validator.py', mime: 'text/x-python', size: 10, file: 'x/validator.py' }] };
+  for (const ran of [false, true]) {
+    const released: string[] = [];
+    const hooks = {
+      log: () => {},
+      finding: () => {},
+      audit: async (): Promise<Audit> => ({ engine: 'claude', model: 'second-model', summary: '', agreed: true, disputed: [], redFlags: [] }),
+      release: async () => ((released.push('release'), {}) as Record<string, never>),
+      requestChanges: async () => {},
+      escalate: async () => {},
+    };
+    const { tools } = reviewTools(milestone, code, hooks, () => ran);
+    const tool = (name: string) => {
+      const x = tools.find((y) => y.name === name)!;
+      return (input: unknown) => x.run(x.parse(input) as never) as Promise<string>;
+    };
+    for (const c of ['c1', 'c2']) await tool('record_finding')({ criterion_id: c, status: 'met', confidence: 0.95, evidence: ran ? 'python3 validator.py: 4 tests passed' : 'the screenshot shows 4 tests passing' });
+    const answer = await tool('release_payment')({ summary: 'All met' });
+    if (ran) assert.deepEqual(released, ['release']);
+    else {
+      assert.match(answer, /has not been run in the sandbox/);
+      assert.deepEqual(released, []);
+    }
+  }
+});

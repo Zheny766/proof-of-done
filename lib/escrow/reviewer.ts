@@ -143,7 +143,12 @@ async function fetchLink(link: string, allowedHosts: Set<string>): Promise<strin
 }
 
 /** The reviewer's tools, bound to one submission. Separate from the API loop so they can be tested. */
-export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks) {
+/**
+ * `codeRan` says whether delivered code has been run in the sandbox during this review. A delivery with
+ * code is never paid on reading it: the independent checks can't run code, so a passing-tests screenshot
+ * or a confident note would otherwise only have to fool the reviewer.
+ */
+export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks, codeRan: () => boolean = () => false) {
   const findings: CriterionFinding[] = [];
   const pages: AuditInput['pages'] = [];
   let outcome: ReviewOutcome | null = null;
@@ -246,6 +251,11 @@ export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks) {
         hooks.log({ kind: 'info', text: `Release blocked by policy: ${policy.reasons.join('; ')}` });
         return `Refused by the release policy: ${policy.reasons.join('; ')}. Choose request_changes or escalate_to_client, or correct a finding only if it was genuinely wrong.`;
       }
+      if (deliversCode(s) && !codeRan()) {
+        deciding = false;
+        hooks.log({ kind: 'info', text: 'Release blocked: the delivery includes code that has not been run in this review' });
+        return 'Refused: the delivery includes code, and it has not been run in the sandbox in this review. Run the delivered files and their tests first, then decide.';
+      }
       const refusal = vetoed ? 'The independent check already refused this release' : await secondOpinion(summary);
       if (refusal) {
         vetoed = true;
@@ -307,7 +317,8 @@ export function reviewTools(m: Milestone, s: Submission, hooks: ReviewHooks) {
 
 export async function runClaudeReview(m: Milestone, s: Submission, hooks: ReviewHooks): Promise<ReviewOutcome> {
   const client = new Anthropic();
-  const { tools, outcome: decided } = reviewTools(m, s, hooks);
+  let codeRan = false;
+  const { tools, outcome: decided } = reviewTools(m, s, hooks, () => codeRan);
   // A real sandbox order can be looked up through PayPal's own toolkit (read-only).
   const paypal =
     m.payment.mode === 'sandbox' && m.payment.orderId && isPayPalConfigured()
@@ -343,6 +354,7 @@ export async function runClaudeReview(m: Milestone, s: Submission, hooks: Review
         }
         if (block.type === 'bash_code_execution_tool_result') {
           const r = block.content;
+          if (r.type === 'bash_code_execution_result') codeRan = true;
           hooks.log(
             r.type === 'bash_code_execution_result'
               ? { kind: 'result', text: `Sandbox exit code ${r.return_code}: ${lastLines(r.stdout || r.stderr || '(no output)')}` }
