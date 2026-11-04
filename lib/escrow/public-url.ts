@@ -119,6 +119,10 @@ export async function fetchPublic(
     // The lookup above never runs for IP literals, so check those here.
     const host = url.hostname.replace(/^\[|\]$/g, '');
     if (net.isIP(host) && isPrivateIp(host)) throw blocked();
+    // A login inside the link would be sent on to whatever the link points at; ports beyond the web's
+    // usual ones are how a link reaches a service that isn't a web page.
+    if (url.username || url.password) throw new Error('links with a user name or password in them are not opened');
+    if (url.port && !['80', '443', '8080', '8443'].includes(url.port)) throw new Error('only the usual web ports are opened');
     const res = await getOnce(url, headers, signal, maxBytes);
     const location = res.headers.location;
     if (res.status >= 300 && res.status < 400 && location) {

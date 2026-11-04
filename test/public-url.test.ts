@@ -20,7 +20,7 @@ test('private and local addresses are recognised', () => {
 
 test('localhost is refused, including by name (checked inside the connection lookup)', async () => {
   await assert.rejects(fetchPublic(new URL('http://127.0.0.1:1/')), /private or local/);
-  await assert.rejects(fetchPublic(new URL('http://localhost:1/')), /private or local/);
+  await assert.rejects(fetchPublic(new URL('http://localhost/')), /private or local/);
   await assert.rejects(fetchPublic(new URL('file:///etc/passwd')), /only http/);
   await assert.rejects(fetchPublic(new URL('http://[::1]:1/')), /private or local/);
   await assert.rejects(fetchPublic(new URL('http://[::ffff:127.0.0.1]:1/')), /private or local/);
@@ -38,3 +38,14 @@ test('the guard runs before any request is made', async () => {
   server.close();
   assert.equal(hits, 0);
 });
+
+test('the other ways to write a local address, a login in the link and odd ports are refused', async () => {
+  // Decimal, octal and hex forms of 127.0.0.1, and the cloud metadata address, all normalise to an IP literal.
+  for (const u of ['http://2130706433/', 'http://0177.0.0.1/', 'http://0x7f.0.0.1/', 'http://169.254.169.254/latest/meta-data/', 'http://[::ffff:a9fe:a9fe]/', 'http://[0:0:0:0:0:ffff:127.0.0.1]/']) {
+    await assert.rejects(fetchPublic(new URL(u)), /private or local/, u);
+  }
+  await assert.rejects(fetchPublic(new URL('https://user:pass@example.com/')), /user name or password/);
+  await assert.rejects(fetchPublic(new URL('http://example.com:6379/')), /usual web ports/);
+  for (const u of ['gopher://example.com/', 'ftp://example.com/', 'data:text/html,hi', 'javascript:alert(1)']) await assert.rejects(fetchPublic(new URL(u)), /only http/, u);
+});
+

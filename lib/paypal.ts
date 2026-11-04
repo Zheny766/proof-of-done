@@ -138,6 +138,8 @@ export type Capture = {
   create_time?: string;
   /** What the merchant actually receives: the gross amount less PayPal's fee. */
   seller_receivable_breakdown?: { gross_amount?: Money; paypal_fee?: Money; net_amount?: Money };
+  /** On an order's captures: which authorization the capture took. */
+  supplementary_data?: { related_ids?: { authorization_id?: string } };
 };
 
 export type Order = {
@@ -189,6 +191,9 @@ export function createAuthorizeOrder(input: {
     `order-${input.milestoneId}-${Date.now().toString(36)}`,
   );
 }
+
+/** An order as PayPal has it now, with every authorization and capture made on it. */
+export const getOrder = (orderId: string) => get<Order>(`/v2/checkout/orders/${encodeURIComponent(orderId)}`);
 
 /** After the buyer approves, place the hold. Returns the order with its authorization. */
 export function authorizeOrder(orderId: string): Promise<Order> {
@@ -294,6 +299,16 @@ export function createPayout(input: {
     },
     `payout-${input.milestoneId}${input.batchSuffix ?? ''}`,
   );
+}
+
+/**
+ * The batch PayPal already has for a sender_batch_id we sent before: PayPal refuses the same id again
+ * with a 400 that links to the existing batch. Null for any other error.
+ */
+export function existingPayoutBatch(error: unknown): string | null {
+  if (!(error instanceof PayPalApiError) || error.status !== 400) return null;
+  if (!/already exists|DUPLICATE/i.test(error.message)) return null;
+  return error.message.match(/\/v1\/payments\/payouts\/([A-Z0-9]+)/i)?.[1] ?? null;
 }
 
 /** Take back a payout nobody has claimed yet (the receiver has no PayPal account): the money returns to the sender. */

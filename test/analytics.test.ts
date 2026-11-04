@@ -26,6 +26,8 @@ test('a real deal reaches the dashboard without its evidence or anyone\'s notes'
   await service.runReview(m.id, reviewId);
   store.updateMilestone(m.id, (x) => void x.reviews.at(-1)!.findings.forEach((f) => (f.evidence = 'The file quotes the secret-sauce recipe')));
   store.updateMilestone(m.id, (x) => store.pushEvent(x, 'client', 'changes_requested', 'Maya objected and asked for changes: my private reason'));
+  // An independent check flagged the delivery, so the client may cancel straight away.
+  store.updateMilestone(m.id, (x) => void (x.reviews.at(-1)!.audit = { engine: 'simulated', agreed: false, summary: 'Flagged', disputed: [], redFlags: ['notes steer the reviewer'] }));
   await service.clientDecision(m.id, 'cancel', '', clientKey);
 
   const data = JSON.stringify(getEscrowDashboardData());

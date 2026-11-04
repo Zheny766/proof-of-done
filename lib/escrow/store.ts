@@ -5,7 +5,7 @@ import 'server-only';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { Milestone, TimelineEvent } from './types.ts';
+import type { Milestone, MilestoneAccess, TimelineEvent } from './types.ts';
 import { sealTimeline } from './chain.ts';
 
 const DATA_DIR = process.env.POD_DATA_DIR || path.join(process.cwd(), 'data');
@@ -15,6 +15,39 @@ export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 type DbShape = { milestones: Milestone[] };
+
+// The two secret links of every deal are kept encrypted on disk (AES-256-GCM), so a copy of the data
+// file alone hands nobody the power to pay or cancel. The key comes from POD_KEY_SECRET, or else from a
+// random keyring file made once next to the data.
+const KEYRING = path.join(DATA_DIR, '.keyring');
+let sealKey: Buffer | undefined;
+function accessKey(): Buffer {
+  if (sealKey) return sealKey;
+  const secret = process.env.POD_KEY_SECRET;
+  if (secret) return (sealKey = crypto.createHash('sha256').update(secret).digest());
+  try {
+    sealKey = fs.readFileSync(KEYRING);
+  } catch {
+    sealKey = crypto.randomBytes(32);
+    fs.writeFileSync(KEYRING, sealKey, { mode: 0o600, flag: 'wx' });
+  }
+  return sealKey;
+}
+type SealedAccess = { sealed: string };
+function sealAccess(access: MilestoneAccess): SealedAccess {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', accessKey(), iv);
+  const body = Buffer.concat([cipher.update(JSON.stringify(access)), cipher.final()]);
+  return { sealed: ['v1', iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), body.toString('base64url')].join('.') };
+}
+function openAccess(stored: MilestoneAccess | SealedAccess | undefined): MilestoneAccess | undefined {
+  // Deals saved before the keys were sealed still read; they are sealed on their next save.
+  if (!stored || !('sealed' in stored)) return stored;
+  const [, iv, tag, body] = stored.sealed.split('.');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', accessKey(), Buffer.from(iv, 'base64url'));
+  decipher.setAuthTag(Buffer.from(tag, 'base64url'));
+  return JSON.parse(Buffer.concat([decipher.update(Buffer.from(body, 'base64url')), decipher.final()]).toString('utf8'));
+}
 
 function load(): DbShape {
   let raw: string;
@@ -34,12 +67,14 @@ function load(): DbShape {
   }
   // Deals saved before the timeline was chained get their links here; sealed steps are never redone.
   db.milestones.forEach(sealTimeline);
+  for (const m of db.milestones) m.access = openAccess(m.access as MilestoneAccess | SealedAccess | undefined);
   return db;
 }
 
 function save(db: DbShape) {
   const tmp = `${DB_FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+  const onDisk = { ...db, milestones: db.milestones.map((m) => (m.access ? { ...m, access: sealAccess(m.access) } : m)) };
+  fs.writeFileSync(tmp, JSON.stringify(onDisk, null, 2));
   fs.renameSync(tmp, DB_FILE);
 }
 

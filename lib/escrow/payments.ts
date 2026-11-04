@@ -10,9 +10,12 @@ import {
   getCapture,
   getDispute,
   provideDisputeEvidence,
+  type Capture,
   type EvidenceFile,
   createAuthorizeOrder,
   createPayout,
+  existingPayoutBatch,
+  getOrder,
   getPayoutBatch,
   isPayPalConfigured,
   PayPalApiError,
@@ -113,6 +116,10 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
   const renewed = await renewHold(m).catch(() => null);
   const authId = renewed?.authorizationId ?? m.payment.authorizationId;
   if (!authId) throw new Error('No PayPal authorization to capture');
+  // PayPal ends a hold on day 29: past that there is nothing to capture, so say so instead of asking.
+  if (m.payment.expiresAt && Date.parse(m.payment.expiresAt) <= Date.now()) {
+    throw new Error(`The PayPal hold ended on ${m.payment.expiresAt.slice(0, 10)}, so nothing can be captured. Cancel the deal; nothing was charged.`);
+  }
   // The record's fingerprint at this moment goes into PayPal's capture note (lib/escrow/chain.ts):
   // PayPal keeps it, so the deal's history up to the payment can be checked against PayPal later.
   const anchoredRecord = m.timeline?.at(-1)?.hash;
@@ -136,7 +143,9 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
 
   const payerNote = anchoredRecord ? `Proof of Done record ${anchoredRecord.slice(0, 16)}. ${note}` : note;
   // The fingerprint also goes in as the invoice id: PayPal returns that on the capture, so it can be checked.
-  const capture = await captureAuthorization(authId, payerNote, partial ? { currency_code: m.currency, value: amount } : undefined, anchoredRecord && `pod-${anchoredRecord}`);
+  const capture = await captureOrReconcile(m, authId, () =>
+    captureAuthorization(authId, payerNote, partial ? { currency_code: m.currency, value: amount } : undefined, anchoredRecord && `pod-${anchoredRecord}`),
+  );
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);
@@ -153,6 +162,12 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     ...(fee && { paypalFee: fee }),
   };
 
+  // PayPal took a different amount than this deal agreed: record it, but pay nobody until a person looks.
+  if (capture.amount && Number(capture.amount.value) !== Number(amount)) {
+    result.payoutStatus = `HELD: PayPal captured ${capture.amount.value} ${capture.amount.currency_code}, the deal says ${amount}; the payout waits for a check`;
+    return result;
+  }
+
   // Pay out only money that has actually arrived. A pending capture (e.g. an eCheck) would mean
   // paying the freelancer from the platform's own balance.
   if (capture.status !== 'COMPLETED') {
@@ -161,6 +176,27 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
   }
 
   return { ...result, ...(await sendPayout(m, net ?? amount, note, owed)) };
+}
+
+/**
+ * Capture, and if PayPal says the hold was captured already (our first try went through but the
+ * answer was lost, or the server stopped before saving it), find that capture on the order instead of
+ * failing: the money moved once, and the deal should say so.
+ */
+async function captureOrReconcile(m: Milestone, authId: string, capture: () => Promise<Capture>): Promise<Capture> {
+  try {
+    return await capture();
+  } catch (error) {
+    if (!(error instanceof PayPalApiError) || error.status !== 422) throw error;
+    if (/VOIDED|EXPIRED/.test(error.message)) throw new Error('PayPal says this hold was already voided or has expired, so nothing can be captured. Nothing was charged.');
+    if (!/ALREADY_CAPTURED|PREVIOUSLY_CAPTURED/.test(error.message) || !m.payment.orderId) throw error;
+    const order = await getOrder(m.payment.orderId);
+    const unit = order.purchase_units?.[0]?.payments;
+    const auths = new Set([authId, m.payment.authorizationId, m.payment.previousAuthorizationId].filter(Boolean));
+    const found = unit?.captures?.filter((c) => !c.supplementary_data?.related_ids?.authorization_id || auths.has(c.supplementary_data.related_ids.authorization_id)).at(-1);
+    if (!found) throw error;
+    return found;
+  }
 }
 
 /** Pay the freelancer from captured money. A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it. */
@@ -179,6 +215,12 @@ async function sendPayout(m: Milestone, amount: string, note: string, owed = 0, 
     const batch = await createPayout({ milestoneId: m.id, receiverEmail: m.freelancer.email, amount: split.payoutAmount!, currency: m.currency, note, batchSuffix });
     return { ...split, payoutBatchId: batch.batch_header.payout_batch_id, payoutStatus: batch.batch_header.batch_status };
   } catch (error) {
+    // This payout was sent before (the answer was lost): PayPal points at the batch it has. Never send a second one.
+    const existing = existingPayoutBatch(error);
+    if (existing) {
+      const batch = await getPayoutBatch(existing).catch(() => null);
+      return { ...split, payoutBatchId: existing, payoutStatus: batch?.batch_header.batch_status ?? 'PENDING' };
+    }
     return { ...split, payoutStatus: `FAILED: ${(error as Error).message.slice(0, 160)}` };
   }
 }

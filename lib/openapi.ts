@@ -142,7 +142,7 @@ export function openApiDocument(origin: string) {
           responses: { '202': { description: 'Delivered; the review is running. `{ milestone, reviewId }`' }, '413': { description: 'Upload too large.' }, ...errors },
         },
       },
-      '/api/escrow/milestones/{id}/decision': action('Client decision', 'Pay now, ask for changes, or cancel and void the PayPal hold (nothing is charged).', DecisionInput),
+      '/api/escrow/milestones/{id}/decision': action('Client decision', 'Pay now, ask for changes (with a reason, at least 10 characters), or cancel and void the PayPal hold (nothing is charged). After a delivery, cancelling is refused while the AI-verified work stands or the freelancer still has time to fix it; a delivery an independent check flagged can be cancelled at once.', DecisionInput),
       '/api/escrow/milestones/{id}/settlement': action('Settle for part', 'One side offers part of the amount; when the other accepts, PayPal captures only that part as the final capture and releases the rest.', SettlementInput),
       '/api/escrow/milestones/{id}/terms': action('Change the terms', 'Either side offers new criteria, a lower amount or another deadline; nothing changes until the other side accepts. After the hold the amount can only go down.', TermsInput),
       '/api/escrow/milestones/{id}/complaint': action('After the payment: complain, refund, decline', 'For 30 days the client can report a problem and ask for money back; the freelancer refunds it through PayPal (a refund on the capture) or declines.', AfterPaymentInput),

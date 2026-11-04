@@ -9,7 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { roleFor, newAccess } from './access.ts';
-import { isOverdue } from './policy.ts';
+import { cancelBlock, isOverdue, MIN_REASON, objectionBlock } from './policy.ts';
 import { sniffType } from './evidence.ts';
 import { disputeEvidence } from './disputes.ts';
 import { GEMINI_MODELS, isGeminiConfigured, runGeminiAudit } from './gemini.ts';
@@ -93,12 +93,15 @@ const CriteriaInput = z
 const toCriteria = (list: { text: string; judge: 'ai' | 'client' }[]): Criterion[] =>
   list.map((c, i) => ({ id: `c${i + 1}`, text: c.text, ...(c.judge === 'client' && { judge: 'client' as const }) }));
 
+const wholeCents = (n: number) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
+
 export const CreateMilestoneInput = z.object({
   title: z.string().trim().min(3).max(120),
   description: z.string().trim().max(4000).default(''),
   criteria: CriteriaInput,
-  // At least $1: anything smaller rounds to 0.00, which PayPal refuses.
-  amount: z.coerce.number().min(1).max(10_000),
+  // At least $1: anything smaller rounds to 0.00, which PayPal refuses. Whole cents only: a fraction
+  // would be rounded somewhere between the form and PayPal.
+  amount: z.coerce.number().min(1).max(10_000).refine(wholeCents, 'Use whole cents, like 120 or 120.50.'),
   // USD only for now: the dashboard and the home page totals add amounts up as dollars.
   currency: z.literal('USD').default('USD'),
   clientName: z.string().trim().min(1).max(80),
@@ -166,7 +169,7 @@ export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, am
     .array(
       z.object({
         title: z.string().trim().min(3).max(120),
-        amount: z.coerce.number().min(1).max(10_000),
+        amount: z.coerce.number().min(1).max(10_000).refine(wholeCents, 'Use whole cents.'),
         criteria: CriteriaInput,
         // The plan: how long the stage should take, which is also its deadline once it is funded. Each
         // stage starts when the one before is paid; at most 25 days, as PayPal holds money for 29.
@@ -307,6 +310,9 @@ const uploadedToday = () => {
   return listMilestones().reduce((n, x) => n + x.submissions.filter((sub) => Date.parse(sub.at) > since).reduce((k, sub) => k + sub.attachments.reduce((j, a) => j + a.size, 0), 0), 0);
 };
 
+const deliveryFingerprint = (notes: string, links: string[], files: string[]) =>
+  crypto.createHash('sha256').update(JSON.stringify([notes.trim(), [...links].sort(), [...files].sort()])).digest('hex');
+
 // Queued with the money operations, so a submission can't slip in while a cancel is waiting on PayPal.
 export const submitWork = (id: string, input: SubmitInput, key: string | null) => exclusive(id, async () => submitWorkNow(id, input, key));
 function submitWorkNow(id: string, input: SubmitInput, key: string | null): { milestone: Milestone; reviewId: string } {
@@ -325,6 +331,14 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
   if (m.submissions.length >= MAX_DELIVERIES) {
     throw new EscrowError(`This deal has had ${MAX_DELIVERIES} deliveries. Settle it, change the terms, or the client can cancel and start a new one.`, 409);
   }
+  // The same delivery again, after the AI sent it back, would only be a second roll of the dice.
+  const fingerprint = deliveryFingerprint(input.notes, input.links, input.files.slice(0, 8).map((f) => crypto.createHash('sha256').update(f.bytes).digest('hex')));
+  const sentBack = m.submissions.find((s) => {
+    const r = m.reviews.find((x) => x.submissionId === s.id);
+    const failed = r?.log.some((l) => l.kind === 'error');
+    return r?.finishedAt && !failed && deliveryFingerprint(s.notes, s.links, s.attachments.map((a) => a.sha256 ?? a.id)) === fingerprint;
+  });
+  if (sentBack) throw new EscrowError('This is exactly the delivery the AI already reviewed and sent back. Change the work first: the same delivery gets the same answer.', 409);
   const bytes = input.files.slice(0, 8).reduce((n, f) => n + f.bytes.length, 0);
   if (bytes && uploadedToday() + bytes > UPLOAD_DAILY_BYTES()) {
     throw new EscrowError('This server has taken all the files it accepts today. Deliver with links or notes, or try again tomorrow.', 429);
@@ -559,6 +573,24 @@ export async function readMilestone(id: string): Promise<Milestone | undefined> 
     });
   }
   if (m.status === 'verified' && m.releaseAt && Date.parse(m.releaseAt) <= Date.now()) return releaseWhenDue(id);
+  // PayPal ends a hold on day 29. Warn both sides three days ahead, and once it has ended, close the
+  // deal as PayPal left it: the money is back with the client, nobody was charged.
+  const ends = m.payment.expiresAt && !m.payment.captureId && !m.payment.voidedAt ? Date.parse(m.payment.expiresAt) : NaN;
+  if (HOLDING.includes(m.status) && m.status !== 'reviewing' && ends <= Date.now()) {
+    return updateMilestone(id, (x) => {
+      x.status = 'cancelled';
+      x.releaseAt = undefined;
+      x.settlement = undefined;
+      x.payment.authorizationStatus = 'EXPIRED';
+      x.payment.voidedAt = nowIso();
+      pushEvent(x, 'paypal', 'hold_expired', `PayPal's hold ended on ${m.payment.expiresAt!.slice(0, 10)} with nothing decided, so the money went back to ${x.client.name}. Nothing was charged.`);
+    });
+  }
+  if (HOLDING.includes(m.status) && ends - Date.now() < 3 * 86_400_000 && !m.timeline.some((e) => e.type === 'hold_ending')) {
+    return updateMilestone(id, (x) =>
+      pushEvent(x, 'system', 'hold_ending', `PayPal's hold ends on ${m.payment.expiresAt!.slice(0, 10)}. If nothing is decided by then, the money goes back to ${x.client.name} and ${x.freelancer.name} is not paid: pay, settle for part, or deliver the fix before then.`),
+    );
+  }
   // The deadline passed with no delivery that passed review: say so once, so the client knows they
   // can stop waiting.
   if (m.dueAt && Date.parse(m.dueAt) <= Date.now() && ['funded', 'changes_requested'].includes(m.status) && !isOverdue(m)) {
@@ -690,6 +722,10 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
     // Only makes sense once there is a reviewed submission to send back. In the objection window
     // this is the client's objection to the AI's verdict.
     if (m.status !== 'escalated' && m.status !== 'verified') throw new EscrowError(`You can ask for changes once the AI has reviewed a delivery; ${dealIs(m)}.`);
+    // A fix needs to know what to fix; and objections to verified work can't go on forever.
+    if (note.trim().length < MIN_REASON) throw new EscrowError('Say what should change, in a few words: the freelancer needs it to fix the work.');
+    const blocked = objectionBlock(m);
+    if (blocked) throw new EscrowError(blocked, 409);
     return updateMilestone(id, (x) => {
       const objected = x.status === 'verified';
       x.status = 'changes_requested';
@@ -704,6 +740,8 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
       m.status === 'reviewing' ? 'The AI is reviewing the work: wait for its verdict, then decide.' : m.status === 'cancelled' ? 'This deal is already cancelled.' : 'This deal is paid, so it can no longer be cancelled.',
     );
   }
+  const blocked = cancelBlock(m);
+  if (blocked) throw new EscrowError(blocked, 409);
   const payment = await cancelFunding(m);
   return updateMilestone(id, (x) => {
     x.payment = { ...x.payment, ...payment };
@@ -732,7 +770,7 @@ export const DecisionInput = z.object({ action: z.enum(['approve', 'request_chan
 
 /** Settling for part of the amount: one side offers, the other accepts or declines. */
 export const SettlementInput = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('propose'), amount: z.coerce.number().positive(), note: z.string().max(500).optional() }),
+  z.object({ action: z.literal('propose'), amount: z.coerce.number().positive().refine(wholeCents, 'Use whole cents.'), note: z.string().max(500).optional() }),
   z.object({ action: z.literal('accept') }),
   z.object({ action: z.literal('decline') }),
 ]);
@@ -801,7 +839,7 @@ export const TermsInput = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('propose'),
     criteria: Criteria,
-    amount: z.coerce.number().min(1).max(10_000),
+    amount: z.coerce.number().min(1).max(10_000).refine(wholeCents, 'Use whole cents.'),
     dueDays: z.coerce.number().int().min(1).max(25).optional(),
     note: z.string().trim().max(500).optional(),
   }),
@@ -889,9 +927,9 @@ async function changeTermsNow(id: string, input: z.infer<typeof TermsInput>, key
 export const COMPLAINT_DAYS = 30;
 
 export const AfterPaymentInput = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('complain'), text: z.string().trim().min(3).max(1000), amount: z.coerce.number().positive().optional() }),
+  z.object({ action: z.literal('complain'), text: z.string().trim().min(3).max(1000), amount: z.coerce.number().positive().refine(wholeCents, 'Use whole cents.').optional() }),
   z.object({ action: z.literal('withdraw') }),
-  z.object({ action: z.literal('refund'), amount: z.coerce.number().positive().optional(), note: z.string().trim().max(500).optional() }),
+  z.object({ action: z.literal('refund'), amount: z.coerce.number().positive().refine(wholeCents, 'Use whole cents.').optional(), note: z.string().trim().max(500).optional() }),
   z.object({ action: z.literal('decline'), note: z.string().trim().max(500).optional() }),
 ]);
 
@@ -1349,12 +1387,14 @@ export async function applyWebhook(e: WebhookEvent, origin = process.env.POD_PUB
         pushEvent(x, 'paypal', 'capture_completed', `PayPal completed the capture, so the payout goes out now ${via}`);
         pushPayoutEvent(x, payout);
       };
-    } else if (type === 'PAYMENT.CAPTURE.DENIED' || type === 'PAYMENT.CAPTURE.DECLINED') {
+    } else if ((type === 'PAYMENT.CAPTURE.DENIED' || type === 'PAYMENT.CAPTURE.DECLINED') && !m.payment.payoutBatchId) {
+      // Only a capture still waiting can be denied; a late or stale event can't unpay a sent payout.
       effect = (x) => {
         x.payment.payoutStatus = 'NOT SENT: PayPal denied the capture';
         pushEvent(x, 'paypal', 'capture_denied', `PayPal denied the capture; nothing is paid out ${via}`);
       };
-    } else if (type === 'PAYMENT.AUTHORIZATION.VOIDED' && m.status !== 'cancelled' && m.status !== 'released') {
+    } else if (type === 'PAYMENT.AUTHORIZATION.VOIDED' && m.status !== 'cancelled' && m.status !== 'released' && e.resource?.id === m.payment.authorizationId) {
+      // Only the hold in force: the old authorization ending after a renewal leaves the new one in place.
       effect = (x) => {
         x.payment.authorizationStatus = 'VOIDED';
         x.payment.voidedAt = nowIso();
@@ -1389,7 +1429,9 @@ export async function applyWebhook(e: WebhookEvent, origin = process.env.POD_PUB
           known ? `PayPal dispute ${r.dispute_id} is now ${status.toLowerCase().replace(/_/g, ' ')} ${via}` : `The buyer opened PayPal dispute ${r.dispute_id} (${reason}${amount ? `, ${amount}` : ''}) ${via}`,
         );
       };
-    } else if (/^PAYMENT\.PAYOUTS-ITEM\.(FAILED|RETURNED|UNCLAIMED|BLOCKED|DENIED|REFUNDED)$/.test(type)) {
+    } else if (/^PAYMENT\.PAYOUTS-ITEM\.(FAILED|RETURNED|UNCLAIMED|BLOCKED|DENIED|REFUNDED)$/.test(type) && !(m.payment.payoutStatus === 'SUCCESS' && /FAILED|UNCLAIMED|BLOCKED|DENIED/.test(type))) {
+      // Events can arrive out of order: a stale "unclaimed" or "failed" must not undo a payout that
+      // already succeeded. Returned and refunded do come after success.
       const outcome = type.split('.').pop()!;
       effect = (x) => {
         x.payment.payoutStatus = outcome;

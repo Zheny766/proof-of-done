@@ -379,7 +379,7 @@ function projectTip(m: Milestone, role: Role): string | null {
   if (m.status === 'reviewing') return 'The AI reviewer is checking this stage against its criteria.';
   if (m.status === 'escalated') {
     return role === 'client'
-      ? 'The reviewer couldn’t clear this stage on its own, so you decide: read the verdict, then pay, ask for changes or cancel.'
+      ? 'The reviewer couldn’t clear this stage on its own, so you decide: read the verdict, then pay, ask for changes or settle.'
       : 'The reviewer handed this stage to the client. Switch to the client to decide.';
   }
   if (m.status === 'changes_requested') return 'The AI asked for changes on this stage and the money stays on hold. Fix it and resubmit as the freelancer.';

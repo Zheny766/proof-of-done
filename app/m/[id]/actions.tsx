@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from 'react';
 import type { Milestone, Role } from '@/lib/escrow/types';
 import { api, fmtDate, fmtMoney, keyHeader, payoutText } from '@/app/components/status';
 import { PayPalFundButton } from '@/app/components/paypal-fund-button';
-import { isOverdue } from '@/lib/escrow/policy';
+import { cancelBlock, isOverdue, MIN_REASON, objectionBlock } from '@/lib/escrow/policy';
 import { btn, card, currentMinute, field, h2, noSubscribe } from './ui';
 import { DownloadRecord } from './details';
 
@@ -87,7 +87,7 @@ export function NextStep({
             <b>{m.postedBy}</b> wrote and posted this job for you. Check the brief and the criteria first: only you can approve the payment.
           </p>
         )}
-        <p className="mb-5 mt-3 text-[15px] leading-relaxed text-pp-muted">PayPal holds the money. Nothing is charged until the work is verified, and you can cancel any time before that.</p>
+        <p className="mb-5 mt-3 text-[15px] leading-relaxed text-pp-muted">PayPal holds the money. Nothing is charged until the work is verified, and you can cancel any time before the work arrives.</p>
         <PayPalFundButton milestoneId={m.id} milestoneKey={milestoneKey} clientId={paypalClientId} onFunded={onFunded} />
       </section>
     );
@@ -322,6 +322,11 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   const amount = fmtMoney(m.amount, m.currency);
   async function act(action: 'approve' | 'request_changes' | 'cancel') {
     setConfirming(null);
+    // A fix needs to know what to fix: say it before the server has to.
+    if (action === 'request_changes' && note.trim().length < MIN_REASON) {
+      setError('Say what should change, in a few words: the freelancer needs it to fix the work.');
+      return;
+    }
     setBusy(action);
     setError('');
     try {
@@ -343,6 +348,10 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   const probation = m.timeline.findLast((e) => e.type === 'probation' && e.at >= lastSubmitted);
   const vetoed = m.reviews.at(-1)?.audit?.agreed === false;
   const overdue = !onBoard && isOverdue(m);
+  // Once work is delivered the freelancer is protected too (lib/escrow/policy.ts): say why a button is off.
+  const noCancel = cancelBlock(m);
+  const noObjection = objectionBlock(m);
+  const canAsk = m.status === 'escalated' || verified;
   const title = overdue ? 'The deadline passed' : verified ? 'Your objection window' : m.status === 'escalated' ? 'The AI wants your call' : m.status === 'changes_requested' ? 'Waiting for a fix' : onBoard ? 'Waiting for someone to take it' : `Waiting for ${m.freelancer.name}`;
   return (
     <section className={`${card} ${m.status === 'escalated' ? 'border-orange-300' : verified ? 'border-teal-300' : ''}`}>
@@ -373,7 +382,13 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
           `${amount} is on hold. When ${m.freelancer.name} delivers, the AI checks it. You can still step in at any time.`
         )}
       </p>
-      <input aria-label="Note to the freelancer" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note to the freelancer" className={`${field} mt-4 h-11`} />
+      <input
+        aria-label="Note to the freelancer"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder={canAsk ? 'What should change? Needed to ask for changes' : 'Optional note to the freelancer'}
+        className={`${field} mt-4 h-11`}
+      />
       {confirming ? (
         <div role="alertdialog" aria-label="Confirm" className="mt-3 rounded-xl bg-pp-canvas p-4 text-sm">
           <p>
@@ -401,16 +416,17 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => act('request_changes')}
-              disabled={!!busy || (m.status !== 'escalated' && !verified)}
-              title={m.status === 'escalated' || verified ? undefined : 'Available once a submission has been reviewed'}
+              disabled={!!busy || !canAsk || !!noObjection}
+              title={noObjection ?? (canAsk ? undefined : 'Available once a submission has been reviewed')}
               className={`${btn.warn} px-2`}
             >
               {verified ? 'Object' : 'Ask for changes'}
             </button>
-            <button onClick={() => setConfirming('cancel')} disabled={!!busy} className={`${btn.danger} px-2`}>
+            <button onClick={() => setConfirming('cancel')} disabled={!!busy || !!noCancel} title={noCancel ?? undefined} className={`${btn.danger} px-2`}>
               {busy === 'cancel' ? '…' : 'Cancel & void'}
             </button>
           </div>
+          {(noCancel || noObjection) && <p className="text-xs leading-relaxed text-pp-muted">{noObjection ?? noCancel}</p>}
         </div>
       )}
       {error && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-pp-danger">{error}</p>}

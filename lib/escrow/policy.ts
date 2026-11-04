@@ -42,3 +42,42 @@ export const currentReview = (m: Milestone): Review | undefined => {
 /** The deadline passed with nothing that passed review (an overdue event since the terms last changed). */
 export const isOverdue = (m: Milestone) =>
   ['funded', 'changes_requested'].includes(m.status) && m.timeline.some((e) => e.type === 'overdue' && (!m.termsChangedAt || e.at > m.termsChangedAt));
+
+// Fair to both sides once work is delivered. Before any delivery the client can always cancel and void
+// the hold. After one, the client can't simply walk away with the work: a delivery the AI verified is
+// objected to with a reason or settled, and a freelancer asked for a fix gets time to make it. A
+// delivery an independent check flagged as a trick, a missed deadline, or three failed tries can be
+// cancelled at once.
+export const FIX_WINDOW_MS = 3 * 86_400_000;
+export const MAX_OBJECTIONS = 2;
+export const MIN_REASON = 10;
+
+/** How many times the client objected to a delivery the AI had verified. */
+export const objections = (m: Milestone) => m.timeline.filter((e) => e.type === 'changes_requested' && e.actor === 'client' && /objected/.test(e.text)).length;
+
+/** The latest review's independent checks found a trick, or refused to confirm. */
+export function flagged(m: Milestone): boolean {
+  const r = m.reviews.at(-1);
+  return [r?.audit, ...(r?.panel ?? [])].some((a) => !!a && !a.unavailable && (a.redFlags.length > 0 || !a.agreed));
+}
+
+/** Why the client can't cancel and void the hold now, or null when they can. */
+export function cancelBlock(m: Milestone, now = Date.now()): string | null {
+  if (!['funded', 'changes_requested', 'escalated', 'verified'].includes(m.status) || m.submissions.length === 0) return null;
+  if (flagged(m)) return null;
+  if (m.status === 'verified') return 'The AI verified this delivery, so it can’t just be cancelled: object and say what’s wrong. The freelancer then fixes it, or you settle for part.';
+  if (isOverdue(m)) return null;
+  if (m.reviews.filter((r) => r.decision === 'request_changes').length >= 3) return null;
+  const lastAsk = m.timeline.findLast((e) => ['changes_requested', 'escalated', 'submitted', 'review_failed'].includes(e.type));
+  const fixBy = Math.max(m.dueAt ? Date.parse(m.dueAt) : 0, (lastAsk ? Date.parse(lastAsk.at) : now) + FIX_WINDOW_MS);
+  if (now >= fixBy) return null;
+  return `${m.freelancer.name} delivered work and has until ${new Date(fixBy).toISOString().slice(0, 16).replace('T', ' ')} UTC to fix what’s asked. Until then, ask for changes, settle for part, or pay.`;
+}
+
+/** Why the client can't object to (or ask changes on) the delivery now, or null when they can. */
+export function objectionBlock(m: Milestone): string | null {
+  if (m.status === 'verified' && objections(m) >= MAX_OBJECTIONS) {
+    return `You objected ${MAX_OBJECTIONS} times already, so this time the work stands: pay now, or the payment goes out when the window closes.`;
+  }
+  return null;
+}

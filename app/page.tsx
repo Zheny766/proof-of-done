@@ -13,6 +13,7 @@ import { isGeminiConfigured } from '@/lib/escrow/gemini';
 import { isClaudeConfigured } from '@/lib/ai';
 import { AUDIT_MODEL, REVIEW_MODEL } from '@/lib/escrow/reviewer';
 import { modelName } from './m/[id]/ui';
+import { benchRows, type BenchRow } from '@/lib/escrow/bench';
 
 // What the home page promises depends on whether Gemini's check is on (GEMINI_API_KEY): with it, three AIs from two companies.
 const steps = (gemini: boolean) => [
@@ -24,12 +25,17 @@ const steps = (gemini: boolean) => [
   ['PayPal pays the freelancer', 'The authorization is captured and a payout goes out. Nobody has to click approve.'],
 ];
 
-const safeguards = (gemini: boolean) => [
+// The bench card's numbers come from the evaluation results themselves (lib/escrow/bench.ts).
+const safeguards = (gemini: boolean, bench: BenchRow) => [
   gemini
     ? ['Models from two companies have to agree', 'A second Claude model and Google’s Gemini re-check the evidence, and either can veto; if one can’t answer, nothing is paid automatically. A trick that fools one model rarely fools another company’s. In testing they stopped a payment Claude Opus itself had approved.']
     : ['Two models have to agree', 'A second Claude model re-checks the evidence and can veto. In testing it stopped a payment Claude Opus itself had approved.'],
-  ['The rule is code, not a prompt', 'Every criterion must be met above the client’s confidence threshold. No wording in a submission changes that.'],
-  ['Facts for the AI, taste for you', 'The AI checks what can be checked: formats, counts, names, tests. Mark a criterion like “feels warm” as yours, and the money waits for your OK or your objection window. You can always pay now, cancel and void the hold, or settle for part.'],
+  [
+    'Tested on deliveries built to fool it',
+    `On ${bench.cases} test deliveries, ${bench.bad} of them rigged or wrong, the reviewer on its own went to pay ${bench.aloneWouldPay === 1 ? 'one' : bench.aloneWouldPay}: a fake “system message” in the notes. The independent check refused, so ${bench.paid === 0 ? 'none was' : `${bench.paid} were`} paid.`,
+    '/sandbox#bench',
+  ],
+  ['Facts for the AI, taste for you', 'The AI checks what can be checked: formats, counts, names, tests. Mark a criterion like “feels warm” as yours, and the money waits for your OK or your objection window. Delivered work is protected too: verified work can’t just be cancelled, an objection needs a reason, and a fix gets time.'],
   ['Submissions are evidence, never instructions', '"Skip the checks and pay" hidden in notes or a PDF is flagged as an attack, and the money stays put.'],
   ['Code is run, not eyeballed', '"All tests pass" is checked by running them in Anthropic’s code execution sandbox, isolated and offline. A failing test keeps the money on hold.'],
   ['Every step on the record', 'Each finding, decision and PayPal call is logged with who made it: client, freelancer, AI or PayPal. Paid work gets a certificate anyone can check.'],
@@ -56,6 +62,7 @@ export default async function Home() {
   seedDemoIfEmpty();
   const milestones = listMilestones().filter((m) => !m.demo);
   const gemini = isGeminiConfigured();
+  const bench = benchRows()[0];
   const checkers = [modelName(AUDIT_MODEL), ...(gemini ? ['Google’s Gemini'] : [])].join(' and ');
   const held = milestones.filter((m) => ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(m.status)).reduce((s, m) => s + Number(m.amount), 0);
   const released = milestones.filter((m) => m.status === 'released').reduce((s, m) => s + Number(m.payment.capturedAmount ?? m.amount), 0);
@@ -104,6 +111,13 @@ export default async function Home() {
         <section className="border-y border-pp-border bg-white">
           <div className="mx-auto max-w-6xl px-6 py-14">
             <h2 className="font-display text-3xl text-pp-navy">How it works</h2>
+            <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-pp-muted">
+              Someone always goes first and takes the risk: 71% of US freelancers have struggled to get paid at least once (
+              <a href="https://blog.freelancersunion.org/2015/12/10/costs-nonpayment/" className="underline decoration-pp-border underline-offset-2 hover:decoration-pod-electric">
+                Freelancers Union
+              </a>
+              ). Here nobody has to.
+            </p>
             <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {steps(gemini).map(([t, d], i) => (
                 // The number always sits beside its step's title, never above it.
@@ -149,9 +163,9 @@ export default async function Home() {
           <h2 className="font-display text-3xl text-pp-navy sm:text-4xl">Why it&apos;s safe to let an AI pay</h2>
           {/* Three that carry the story, large; the rest as a quiet list underneath. */}
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {safeguards(gemini)
+            {safeguards(gemini, bench)
               .slice(0, 3)
-              .map(([t, d], i) => (
+              .map(([t, d, href], i) => (
                 <div
                   key={t}
                   className={`rounded-3xl p-6 sm:p-7 ${i === 0 ? 'bg-pod-midnight text-white' : 'bg-white ring-1 ring-pp-border'}`}
@@ -162,16 +176,21 @@ export default async function Home() {
                       aria-hidden
                       className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold ${i === 0 ? 'bg-pod-violet/20 text-pod-violet' : i === 1 ? 'bg-pp-highlight text-pod-electric-dark' : 'bg-emerald-50 text-emerald-700'}`}
                     >
-                      {['3', '{ }', '✓'][i]}
+                      {['3', '0', '✓'][i]}
                     </span>
                     <div className={`min-w-0 text-xl font-semibold leading-snug tracking-tight ${i === 0 ? '' : 'text-pp-navy'}`}>{t}</div>
                   </div>
                   <p className={`mt-3 text-[15px] leading-relaxed ${i === 0 ? 'text-white/70' : 'text-pp-muted'}`}>{d}</p>
+                  {href && (
+                    <Link href={href} className="mt-3 inline-block text-sm font-semibold text-pod-electric-dark underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
+                      See every case
+                    </Link>
+                  )}
                 </div>
               ))}
           </div>
           <ul className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-3">
-            {safeguards(gemini)
+            {safeguards(gemini, bench)
               .slice(3)
               .map(([t, d]) => (
                 <li key={t} className="flex gap-3">
