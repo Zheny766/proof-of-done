@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { arenaStats } from '@/lib/escrow/service';
 import { sandboxRuns } from '@/lib/escrow/sandbox-runs';
+import { paymentMode } from '@/lib/escrow/payments';
 import { SiteHeader } from '@/app/components/site-header';
 import { AutoRefresh } from '@/app/components/auto-refresh';
 import { StartDemo } from './start-button';
@@ -68,7 +69,10 @@ export default async function DemoPage() {
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SCENARIOS.map((s) => (
             <section key={s.id} className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${s.tone}`}>
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>
+              <div className="flex items-center gap-2">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{s.n}</span>
+                {s.n === '1' && <span className="rounded-full bg-pp-blue px-2.5 py-0.5 text-xs font-semibold text-white">Start here</span>}
+              </div>
               <h2 className="mt-4 font-display text-2xl text-pp-navy">{s.title}</h2>
               <p className="mt-2 text-[15px] font-medium text-pp-ink">{s.who}</p>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-pp-muted">{s.see}</p>
@@ -92,7 +96,7 @@ export default async function DemoPage() {
                 <StartDemo scenario="arena" label="Try to get it paid" />
               </div>
             ) : (
-              <p className="mt-4 rounded-xl bg-pp-canvas px-4 py-3 text-sm text-pp-muted">Needs an Anthropic key on the server, so it is off here. Run it locally with ANTHROPIC_API_KEY set.</p>
+              <p className="mt-4 rounded-xl bg-pp-canvas px-4 py-3 text-sm text-pp-muted">Off on this copy: it needs a Claude key on the server. It is on at the hosted demo, or locally with ANTHROPIC_API_KEY set.</p>
             )}
           </div>
           <div>
@@ -121,7 +125,10 @@ export default async function DemoPage() {
         </section>
 
         <div className="mt-10 rounded-2xl border border-pp-border bg-white p-6 text-[15px] leading-relaxed text-pp-muted">
-          <b className="text-pp-ink">Want to see it live?</b> <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Create your own deal</Link>: it goes through the real PayPal sandbox (no account needed: pay as a guest with PayPal&apos;s test card, shown next to the button), and with an Anthropic key set the review runs live on Claude.
+          <b className="text-pp-ink">Want to see it live?</b> <Link href="/#create" className="text-pp-blue underline decoration-pp-blue/40 underline-offset-2 hover:decoration-pp-blue">Create your own deal</Link>
+          {paymentMode() === 'sandbox'
+            ? ": it goes through the real PayPal sandbox (no account needed: pay as a guest with PayPal's test card, shown next to the button), and the review runs live on Claude."
+            : ': on this copy PayPal is simulated (it has no PayPal keys); the hosted demo runs your own deals on the real PayPal sandbox.'}
           {sandboxRuns().length > 0 && (
             <>
               {' '}Or look at{' '}

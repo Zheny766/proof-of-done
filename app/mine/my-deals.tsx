@@ -19,6 +19,8 @@ function savedDeals(): [string, Saved][] {
   }
 }
 
+
+const refundedOf = (m: Milestone) => (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((n, r) => n + Number(r.amount), 0);
 export function MyDeals() {
   const [rows, setRows] = useState<Row[] | null>(null);
   useEffect(() => {
@@ -53,12 +55,14 @@ export function MyDeals() {
   const paying = rows.filter((r) => r.role === 'client');
   const earning = rows.filter((r) => r.role === 'freelancer');
   const held = paying.filter((r) => ['funded', 'reviewing', 'changes_requested', 'escalated', 'verified'].includes(r.m.status)).reduce((s, r) => s + Number(r.m.amount), 0);
-  const earned = earning.filter((r) => r.m.status === 'released').reduce((s, r) => s + Number(r.m.payment.capturedAmount ?? r.m.amount), 0);
+  // What actually moved: the captured amount (less for a settlement), less any refund.
+  const net = (list: Row[]) => list.filter((r) => r.m.status === 'released').reduce((s, r) => s + Number(r.m.payment.capturedAmount ?? r.m.amount) - refundedOf(r.m), 0);
   return (
     <>
-      <div className="mt-8 grid max-w-xl grid-cols-2 gap-3">
-        <Stat label="You have on hold" value={fmtMoney(held, 'USD')} />
-        <Stat label="You were paid" value={fmtMoney(earned, 'USD')} />
+      <div className="mt-8 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
+        {paying.length > 0 && <Stat label="You have on hold" value={fmtMoney(held, 'USD')} />}
+        {paying.length > 0 && <Stat label="You paid" value={fmtMoney(net(paying), 'USD')} />}
+        {earning.length > 0 && <Stat label="You were paid" value={fmtMoney(net(earning), 'USD')} />}
       </div>
       {[
         ['You pay', paying],

@@ -80,6 +80,8 @@ const LOCALE_TEXT = { valueNotApplicable: '—' };
 const PHONE = '(max-width: 767px)';
 const LAYOUT = { widgetBorderEnabled: true };
 const PHONE_LAYOUT = { widgetBorderEnabled: true, minWidth: 980 };
+// On a phone the filters rail would eat a fifth of the width; the pipeline's buttons filter the page instead.
+const PHONE_PANELS = { view: { right: [] }, edit: { right: ['edit', 'data', 'ai'] as ('edit' | 'data' | 'ai')[] } };
 const subscribePhone = (onChange: () => void) => {
   const query = window.matchMedia(PHONE);
   query.addEventListener('change', onChange);
@@ -284,6 +286,7 @@ function ReportsDashboard({ data, licenseKey, aiModels }: DashboardProps) {
               style={{ height: '100%', width: '100%' }}
               theme={agStudioPayPalTheme}
               layout={phone ? PHONE_LAYOUT : LAYOUT}
+              {...(phone && { panels: PHONE_PANELS })}
               localeText={LOCALE_TEXT}
               data={studioData}
               widgets={widgets}

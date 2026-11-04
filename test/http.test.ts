@@ -14,8 +14,11 @@ const upload = handle(async (request: Request) => Response.json({ method: reques
 
 test('a body without a Content-Length is refused before it is read', async () => {
   const stream = new ReadableStream({ start: (c) => (c.enqueue(new TextEncoder().encode('{"a":1}')), c.close()) });
-  const res = await route(new Request('http://x/api', { method: 'POST', body: stream, duplex: 'half' } as RequestInit));
+  const res = await route(new Request('http://x/api', { method: 'POST', body: stream, duplex: 'half', headers: { 'transfer-encoding': 'chunked' } } as RequestInit));
   assert.equal(res.status, 411);
+  // A bare POST (no body, no length) is not refused for its size.
+  const bare = handle(async (request: Request) => Response.json({ method: request.method }));
+  assert.equal((await bare(new Request('http://x/api', { method: 'POST' }))).status, 200);
 });
 
 test('a body over the limit is refused; a route can allow more', async () => {

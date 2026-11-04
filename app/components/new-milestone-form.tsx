@@ -25,16 +25,19 @@ type Stage = { title: string; amount: string; days: string; criteria: string };
 
 const field = 'h-10 w-full rounded-md border border-pp-border bg-white px-3 text-sm outline-none focus:border-pp-blue focus:ring-2 focus:ring-pp-highlight';
 
+
+// One example per row, so a second criterion doesn't show the first one's hint again.
+const CRITERION_EXAMPLES = ['The page is live at a public URL', 'A menu lists at least 6 items with prices', 'Delivered as a PDF of one A4 page', 'Works at 375 px wide (phone)'];
 export function NewMilestoneForm() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [criteria, setCriteria] = useState<string[]>(['']);
   const [amount, setAmount] = useState('250');
-  const [clientName, setClientName] = useState('Lotus Flow Yoga');
-  const [clientEmail, setClientEmail] = useState('client@lotusflow.example');
-  const [freelancerName, setFreelancerName] = useState('Maya Okafor');
-  const [freelancerEmail, setFreelancerEmail] = useState('maya@freelance.example');
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [freelancerName, setFreelancerName] = useState('');
+  const [freelancerEmail, setFreelancerEmail] = useState('');
   const [threshold, setThreshold] = useState(0.8);
   const [objectionHours, setObjectionHours] = useState(0);
   const [dueDays, setDueDays] = useState(0);
@@ -206,7 +209,7 @@ export function NewMilestoneForm() {
             <li key={i}>
               <div className="flex items-center gap-2">
                 <span className="w-5 text-right text-xs text-pp-muted">{i + 1}.</span>
-                <input className={field} aria-label={`Acceptance criterion ${i + 1}`} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Page is live at a public URL" />
+                <input className={field} aria-label={`Acceptance criterion ${i + 1}`} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder={CRITERION_EXAMPLES[i % CRITERION_EXAMPLES.length]} />
                 <button type="button" aria-label="Remove criterion" onClick={() => setCriteria(criteria.length > 1 ? criteria.filter((_, j) => j !== i) : [''])} className="px-2 text-pp-muted hover:text-pp-danger">×</button>
               </div>
               <div className="pl-7">
@@ -240,14 +243,14 @@ export function NewMilestoneForm() {
       <div className={`grid gap-4 ${toBoard ? '' : 'sm:grid-cols-2'}`}>
         <fieldset className="rounded-lg border border-pp-border p-3">
           <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Client (pays)</legend>
-          <input className={field} value={clientName} onChange={(e) => setClientName(e.target.value)} aria-label="Client name" placeholder="Client name" required maxLength={80} />
-          <input className={`${field} mt-2`} type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} aria-label="Client email" placeholder="Client email" required />
+          <input className={field} value={clientName} onChange={(e) => setClientName(e.target.value)} aria-label="Client name" placeholder="Your name or business (you pay)" required maxLength={80} />
+          <input className={`${field} mt-2`} type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} aria-label="Client email" placeholder="Your email" required />
         </fieldset>
         {!toBoard && (
           <fieldset className="rounded-lg border border-pp-border p-3">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-pp-muted">Freelancer (gets paid)</legend>
-            <input className={field} value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} aria-label="Freelancer name" placeholder="Freelancer name" required maxLength={80} />
-            <input className={`${field} mt-2`} type="email" value={freelancerEmail} onChange={(e) => setFreelancerEmail(e.target.value)} aria-label="Freelancer PayPal email" placeholder="Freelancer PayPal email" required />
+            <input className={field} value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} aria-label="Freelancer name" placeholder="Freelancer’s name" required maxLength={80} />
+            <input className={`${field} mt-2`} type="email" value={freelancerEmail} onChange={(e) => setFreelancerEmail(e.target.value)} aria-label="Freelancer PayPal email" placeholder="Freelancer’s PayPal email (where the payout goes)" required />
           </fieldset>
         )}
       </div>

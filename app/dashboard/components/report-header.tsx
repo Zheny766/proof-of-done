@@ -40,7 +40,7 @@ export function ReportHeader({
     <div className="flex flex-wrap items-start gap-x-6 gap-y-3 border-b border-pp-border bg-white px-8 py-5">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-pp-muted">{reportName}</p>
-        <h1 className="truncate text-[28px] font-semibold leading-tight text-pp-navy">{pageTitle}</h1>
+        <h1 className="text-[22px] font-semibold leading-tight text-pp-navy [overflow-wrap:anywhere] sm:truncate sm:text-[28px]">{pageTitle}</h1>
         <DataFreshness asOf={asOf} paymentMode={paymentMode} />
       </div>
       <div className="flex items-center gap-2">

@@ -429,9 +429,47 @@ export async function runClaudeAudit(m: Milestone, s: Submission, input: AuditIn
   return { engine: 'claude', model: AUDIT_MODEL, agreed, summary: verdict.summary, disputed, redFlags: verdict.red_flags, usage };
 }
 
-/** Stand-in for the second opinion when there is no API key (labelled as simulated in the UI). */
-export function runSimulatedAudit(): Audit {
-  return { engine: 'simulated', agreed: true, summary: 'Simulated check: the findings match the submission.', disputed: [], redFlags: [] };
+/**
+ * Stand-in for the second opinion when no live review runs (labelled as simulated in the UI). It can't
+ * judge the work, so it refuses what a keyword check can be fooled by: notes alone, notes that repeat
+ * the criteria back, and any release of real PayPal sandbox money.
+ */
+export function runSimulatedAudit(m: Milestone, s: Submission): Audit {
+  const redFlags: string[] = [];
+  // A keyword check can't tell work from words about work, so on its own it never pays: the client
+  // decides. (The tests turn this off to drive the release path without an API key.)
+  if (process.env.POD_SIM_CAN_RELEASE !== '1') redFlags.push('Without a live AI review nothing is paid automatically: a keyword check can’t tell work from words about work.');
+  if (m.payment.mode === 'sandbox') redFlags.push('Real PayPal sandbox money is released only after a live AI review; this was the simulated check.');
+  if (!s.attachments.length && !s.links.length) redFlags.push('Only notes were delivered: a keyword check can confirm what the notes say, not that the work exists.');
+  else if (!s.attachments.length && restatesCriteria(m, s)) redFlags.push('The notes mostly repeat the acceptance criteria instead of describing the work.');
+  const agreed = redFlags.length === 0;
+  return {
+    engine: 'simulated',
+    agreed,
+    summary: agreed ? 'Simulated check: the delivery has files or links, and the findings match it.' : `Simulated check refused: ${redFlags.join(' ')}`,
+    disputed: [],
+    redFlags,
+  };
+}
+
+// What a file is, in the words a criterion would use ("delivered as a PDF", "a PNG mockup").
+const KIND: Record<string, string> = { 'application/pdf': 'pdf document', 'image/png': 'png image screenshot', 'image/jpeg': 'jpg jpeg image photo screenshot', 'image/gif': 'gif image', 'image/webp': 'webp image', 'text/markdown': 'markdown', 'text/csv': 'csv spreadsheet' };
+
+/** Do the notes mostly consist of the criteria's own words? */
+function restatesCriteria(m: Milestone, s: Submission): boolean {
+  const criteria = new Set(m.criteria.flatMap((c) => words(c.text)));
+  const notes = words(s.notes);
+  return notes.length > 0 && notes.filter((w) => criteria.has(w)).length / notes.length >= 0.6;
+}
+
+/** What a text file says, for the keyword check (the live reviewer reads every file itself). */
+function textOf(a: Submission['attachments'][number]): string {
+  if (!TEXT_LIKE.test(a.mime) && !/\.(md|txt|csv|json|html?)$/i.test(a.name)) return '';
+  try {
+    return fs.readFileSync(path.join(UPLOAD_DIR, a.file), 'utf8').slice(0, 50_000);
+  } catch {
+    return '';
+  }
 }
 
 // Used when there is no API key, so the app still runs end to end. Keyword matching only - the UI
@@ -452,7 +490,7 @@ export async function runSimulatedReview(m: Milestone, s: Submission, hooks: Rev
   await pause();
   hooks.log({ kind: 'tool', text: 'Reading the brief and acceptance criteria' });
   await pause();
-  const evidence = `${s.notes} ${s.links.join(' ')} ${s.attachments.map((a) => a.name).join(' ')}`;
+  const evidence = `${s.notes} ${s.links.join(' ')} ${s.attachments.map((a) => `${a.name} ${KIND[a.mime] ?? (/\.md$/i.test(a.name) ? 'markdown' : '')} file delivered ${textOf(a)}`).join(' ')}`;
   const have = new Set(words(evidence));
   const findings: CriterionFinding[] = [];
   for (const c of m.criteria) {
@@ -465,7 +503,7 @@ export async function runSimulatedReview(m: Milestone, s: Submission, hooks: Rev
       criterionId: c.id,
       status,
       confidence: Number((0.55 + ratio * 0.4).toFixed(2)),
-      evidence: hit ? `Submission mentions ${need.filter((w) => have.has(w)).slice(0, 4).join(', ')}.` : 'Nothing in the submission addresses this.',
+      evidence: hit ? `Keyword check: the delivery mentions ${need.filter((w) => have.has(w)).slice(0, 4).join(', ')}.` : 'Keyword check: nothing in the delivery mentions this.',
     };
     findings.push(f);
     hooks.finding(f);
@@ -482,6 +520,11 @@ export async function runSimulatedReview(m: Milestone, s: Submission, hooks: Rev
       hooks.log({ kind: 'decision', text: result.releaseAt ? `Verified; payment scheduled for the end of the objection window: ${summary}` : `Released payment: ${summary}` });
       return { decision: 'release', summary };
     }
+  }
+  if (policy.ok && audit && !audit.agreed) {
+    await hooks.escalate(audit.summary, 'The simulated check could not confirm the work, so the client decides.');
+    hooks.log({ kind: 'decision', text: `Escalated to client: ${audit.summary}` });
+    return { decision: 'escalate', summary: 'The simulated check could not confirm the work, so the client decides.' };
   }
   const missing = findings.filter((f) => f.status !== 'met');
   if (missing.length && missing.every((f) => f.status === 'not_met')) {

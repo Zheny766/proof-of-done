@@ -31,7 +31,9 @@ export function MoneyJourney({ m }: { m: Milestone }) {
       : m.status === 'changes_requested'
         ? `${met} of ${m.criteria.length} met · changes requested`
         : m.status === 'escalated'
-          ? 'waiting for the client'
+          ? review?.audit && !review.audit.agreed
+            ? 'the second check refused · the client decides'
+            : 'not verified · the client decides'
           : aiSkipped
             ? settled
               ? 'settled by agreement'
@@ -99,6 +101,8 @@ export function MoneyJourney({ m }: { m: Milestone }) {
       {steps.map((s, i) => {
         const done = stage > i && !(aiSkipped && i === 2) && !(payoutStuck && i === 3);
         const active = stage === i;
+        // The check stopped short (held for changes, or handed to the client): amber, not "working on it".
+        const held = active && i === 2 && ['changes_requested', 'escalated'].includes(m.status);
         return (
           <li key={s.title} className="relative flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
             {i > 0 && (
@@ -108,7 +112,7 @@ export function MoneyJourney({ m }: { m: Milestone }) {
             )}
             <span
               className={`relative z-10 grid h-12 w-12 shrink-0 place-items-center rounded-full ring-4 ring-white ${
-                done ? 'bg-emerald-500 text-white' : active ? 'pod-pulse bg-pp-blue text-white' : 'bg-slate-100 text-slate-400'
+                done ? 'bg-emerald-500 text-white' : held ? 'bg-amber-400 text-white' : active ? 'pod-pulse bg-pp-blue text-white' : 'bg-slate-100 text-slate-400'
               }`}
             >
               {done ? (
@@ -121,7 +125,7 @@ export function MoneyJourney({ m }: { m: Milestone }) {
               <div className={`text-[15px] font-semibold ${done || active ? 'text-pp-ink' : 'text-pp-muted'}`}>{s.title}</div>
               <div className="mt-0.5 text-[13px] leading-snug text-pp-muted">{s.sub}</div>
             </div>
-            <span className="sr-only">{done ? '(done)' : active ? '(in progress)' : '(not yet)'}</span>
+            <span className="sr-only">{done ? '(done)' : held ? '(stopped: needs a decision)' : active ? '(in progress)' : '(not yet)'}</span>
           </li>
         );
       })}

@@ -68,7 +68,7 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
           ) : (
             <>
               <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-                <Fact label="Paid" value={fmtMoney(captured, m.currency)} />
+                <Fact label="Paid" value={fmtMoney(captured, m.currency)} note={refunded > 0 ? `${fmtMoney(refunded, m.currency)} refunded since` : undefined} />
                 {/* The day in big type and the time as the note: the full stamp wrapped onto two lines. */}
                 <Fact label="On" value={m.payment.capturedAt ? fmtDay(m.payment.capturedAt) : '-'} note={m.payment.capturedAt && fmtTime(m.payment.capturedAt)} />
                 <Fact label="PayPal capture" value={m.payment.captureId ?? '-'} mono note={m.payment.mode === 'sandbox' ? 'PayPal sandbox' : 'simulated'} />

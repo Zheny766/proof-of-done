@@ -72,7 +72,7 @@ test('a stage is funded only after the one before it is paid', async () => {
   const { clientKey, freelancerKey } = a.access!;
   await assert.rejects(service.beginFunding(b.id, clientKey), /Stage 1 isn't paid yet/);
   await fund(a.id, clientKey);
-  const { reviewId } = await service.submitWork(a.id, { notes: 'A homepage mockup is delivered as a PNG.', links: [], files: [] }, freelancerKey);
+  const { reviewId } = await service.submitWork(a.id, { notes: 'Homepage mockup attached (mockup.png).', links: [], files: [{ name: 'mockup.png', type: 'image/png', bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]) }] }, freelancerKey);
   await service.runReview(a.id, reviewId);
   assert.equal(store.getMilestone(a.id)!.status, 'released');
   await fund(b.id, clientKey);

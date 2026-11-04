@@ -4,6 +4,7 @@ import { handle, milestoneKey } from '@/lib/escrow/http';
 import { evidencePdf } from '@/lib/escrow/disputes';
 import { dealRecord } from '@/lib/escrow/record';
 import { readMilestone } from '@/lib/escrow/service';
+import { paypalHoldsFingerprint } from '@/lib/escrow/payments';
 
 // The deal's whole record, for the client or the freelancer, as a JSON download (see lib/escrow/record.ts),
 // or with ?format=pdf as the PDF that goes to PayPal in a dispute (lib/escrow/disputes.ts).
@@ -19,7 +20,8 @@ export const GET = handle(async (request: Request, ctx: RouteContext<'/api/escro
       headers: { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="proof-of-done-${m.id}.pdf"` },
     });
   }
-  const record = dealRecord(m, role, publicOrigin(request));
+  // Asked of PayPal itself, so the anchor isn't only this server's word.
+  const record = { ...dealRecord(m, role, publicOrigin(request)), paypalConfirmsFingerprint: await paypalHoldsFingerprint(m) };
   return new Response(JSON.stringify(record, null, 2), {
     headers: { 'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="proof-of-done-${m.id}.json"` },
   });

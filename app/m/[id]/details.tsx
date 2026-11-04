@@ -46,7 +46,12 @@ export function PaymentDetails({ m, milestoneKey }: { m: Milestone; milestoneKey
         ))}
         {!p.orderId && <p className="text-sm text-pp-muted">No PayPal order yet.</p>}
       </dl>
-      {milestoneKey && m.payment.authorizationId && <DownloadRecord id={m.id} milestoneKey={milestoneKey} />}
+      {milestoneKey && m.payment.authorizationId && (
+        <>
+          <DownloadRecord id={m.id} milestoneKey={milestoneKey} />
+          <DownloadRecord id={m.id} milestoneKey={milestoneKey} pdf className="mt-2 w-full rounded-xl border border-pp-border px-3 py-2 text-left text-xs font-semibold text-pp-blue hover:border-pp-blue disabled:opacity-60" />
+        </>
+      )}
       {!!m.paypalCalls?.length && (
         <details className="group mt-4 border-t border-pp-border pt-3">
           <summary className="cursor-pointer list-none text-xs font-semibold text-pp-blue">
@@ -96,7 +101,7 @@ export function DownloadRecord({ id, milestoneKey, pdf = false, className }: { i
       }}
       className={className ?? 'mt-4 w-full rounded-xl border border-pp-border px-3 py-2 text-left text-xs font-semibold text-pp-blue hover:border-pp-blue disabled:opacity-60'}
     >
-      {busy ? 'Preparing…' : pdf ? 'Download the evidence PDF' : 'Download the full record (for a PayPal dispute)'}
+      {busy ? 'Preparing…' : pdf ? 'Download it as a PDF (what PayPal gets in a dispute)' : 'Download the full record (for a PayPal dispute)'}
       {!pdf && <span className="block font-normal text-pp-muted">Criteria, findings and evidence, the second opinion, every step, the PayPal ids and each file’s SHA-256</span>}
     </button>
   );
@@ -141,8 +146,10 @@ export function SealNote({ seal, anchor }: { seal: NonNullable<Milestone['seal']
     <p className={`mt-3 rounded-xl px-3 py-2 text-xs leading-relaxed ring-1 ring-inset ${seal.intact ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-rose-50 text-pp-danger ring-rose-200'}`}>
       {seal.intact ? '✓ Sealed record: ' : '✗ This record was changed: '}
       {seal.intact
-        ? `each of the ${seal.events} steps carries a SHA-256 of itself and the step before, so none can change unnoticed.`
-        : `step ${(seal.brokenAt ?? 0) + 1} no longer matches its hash.`}{' '}
+        ? `${seal.events === 1 ? 'the step carries' : `each of the ${seal.events} steps carries`} a SHA-256 of itself, the step before and the deal's terms, so none can change unnoticed.`
+        : seal.termsChanged
+          ? 'the criteria, amount, files or payee are not what the last step sealed.'
+          : `step ${(seal.brokenAt ?? 0) + 1} no longer matches its hash.`}{' '}
       Fingerprint <span className="break-all font-mono">{seal.head.slice(0, 16)}…</span>
       {anchor && (
         <>

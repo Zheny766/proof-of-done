@@ -57,3 +57,10 @@ test('every $ref points at a schema the document defines', () => {
   for (const r of refs) assert.ok(r in doc.components.schemas, `#/components/schemas/${r} is not defined`);
   for (const [p, ops] of Object.entries(doc.paths)) for (const op of Object.values(ops)) assert.ok((op as { responses?: object }).responses, `${p} has no responses`);
 });
+
+test('every operation has a unique operationId, for SDK generators', () => {
+  const ids = Object.values(doc.paths).flatMap((ops) => Object.values(ops).map((op) => (op as { operationId: string }).operationId));
+  assert.ok(ids.every((id) => /^[a-z][A-Za-z]+$/.test(id ?? '')), ids.join(', '));
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.includes('changeTerms') && ids.includes('createDeal'));
+});

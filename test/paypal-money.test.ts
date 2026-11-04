@@ -80,6 +80,16 @@ test('the capture note carries the record fingerprint, so PayPal holds it', asyn
   assert.equal(result.anchoredRecord, hash);
 });
 
+test('the payout is what PayPal left after its fee, not the gross amount', async () => {
+  respond = (p) =>
+    p.endsWith('/capture')
+      ? { json: { id: 'CAP5', status: 'COMPLETED', amount: { value: '100.00', currency_code: 'USD' }, seller_receivable_breakdown: { gross_amount: { value: '100.00', currency_code: 'USD' }, paypal_fee: { value: '3.98', currency_code: 'USD' }, net_amount: { value: '96.02', currency_code: 'USD' } } } }
+      : { json: { batch_header: { payout_batch_id: 'B5', batch_status: 'PENDING' } } };
+  const result = await payments.releaseFunds(milestone, 'Work accepted');
+  assert.equal(posted('/v1/payments/payouts')[0].body.items[0].amount.value, '96.02');
+  assert.deepEqual([result.paypalFee, result.capturedNet], ['3.98', '96.02']);
+});
+
 test('a call PayPal never answered is sent again with the same idempotency key', async () => {
   let dropped = false;
   const real = globalThis.fetch;

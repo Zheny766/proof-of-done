@@ -136,6 +136,8 @@ export type Capture = {
   status: 'COMPLETED' | 'DECLINED' | 'PARTIALLY_REFUNDED' | 'PENDING' | 'REFUNDED' | 'FAILED';
   amount: Money;
   create_time?: string;
+  /** What the merchant actually receives: the gross amount less PayPal's fee. */
+  seller_receivable_breakdown?: { gross_amount?: Money; paypal_fee?: Money; net_amount?: Money };
 };
 
 export type Order = {
@@ -195,13 +197,16 @@ export function authorizeOrder(orderId: string): Promise<Order> {
  * Move the held money: all of it, or `amount` for a settlement. `final_capture` closes the
  * authorization, so nothing more can be captured and the rest of the hold goes back to the buyer.
  */
-export function captureAuthorization(authorizationId: string, note: string, amount?: Money): Promise<Capture> {
+export function captureAuthorization(authorizationId: string, note: string, amount?: Money, invoiceId?: string): Promise<Capture> {
   return post<Capture>(
     `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/capture`,
-    { ...(amount && { amount }), final_capture: true, note_to_payer: note.slice(0, 255) },
+    { ...(amount && { amount }), ...(invoiceId && { invoice_id: invoiceId }), final_capture: true, note_to_payer: note.slice(0, 255) },
     `capture-${authorizationId}`,
   );
 }
+
+/** A capture as PayPal has it now: its status and the invoice id it was captured with. */
+export const getCapture = (captureId: string) => get<Capture & { invoice_id?: string }>(`/v2/payments/captures/${encodeURIComponent(captureId)}`);
 
 /**
  * A fresh 3-day honor period for a hold whose first one has passed. PayPal allows this once, from

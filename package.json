@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --conditions=react-server --test \"test/*.test.ts\"",
+    "test": "POD_SIM_CAN_RELEASE=1 node --conditions=react-server --test \"test/*.test.ts\"",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {

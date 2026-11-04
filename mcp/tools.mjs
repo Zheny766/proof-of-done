@@ -60,7 +60,7 @@ function describe(m, role, origin) {
     m.complaint && `After the payment the client reported a problem and asks for ${m.complaint.amount} ${m.currency} back (${m.complaint.status})${m.complaint.text ? `: ${m.complaint.text}` : ''}.`,
     ...(m.disputes ?? []).map((d) => `PayPal dispute ${d.id} (${d.reason}, ${d.status.toLowerCase().replace(/_/g, ' ')}): ${d.evidenceSentAt ? `the deal's evidence went to PayPal on ${d.evidenceSentAt.slice(0, 10)}` : (d.evidenceNote ?? 'evidence not sent yet')}.`),
     m.payment.refunds?.length && `PayPal refunded to the client: ${m.payment.refunds.map((r) => `${r.amount} ${m.currency}`).join(', ')}.`,
-    m.status === 'released' && origin && `Proof certificate (shareable): ${origin}/m/${m.id}/proof`,
+    m.status === 'released' && origin && `Proof certificate (a public page anyone can open to check the payment and the delivered files' fingerprints): ${origin}/m/${m.id}/proof`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -104,7 +104,10 @@ export function registerTools(server, { base, localFiles = false, maxWaitSeconds
     async () => {
       const { jobs } = await call(base, '/api/jobs');
       if (!jobs.length) return text('No open jobs right now.');
-      return text(`${jobs.length} open job(s):\n\n${jobs.map(describeJob).join('\n\n')}`);
+      const demo = jobs.some((j) => j.hold.startsWith('simulated'))
+        ? '\n\nJobs marked "simulated hold (demo)" are practice jobs: the hold and the payout are simulated, and when one is taken a fresh copy is posted for the next agent.'
+        : '';
+      return text(`${jobs.length} open job(s):\n\n${jobs.map(describeJob).join('\n\n')}${demo}`);
     },
   );
 

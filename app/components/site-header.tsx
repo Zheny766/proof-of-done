@@ -1,11 +1,15 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { paymentMode } from '@/lib/escrow/payments';
 import { isClaudeConfigured } from '@/lib/ai';
 import { REVIEW_MODEL } from '@/lib/escrow/reviewer';
 import { modelName } from '@/app/m/[id]/ui';
 import { Logo } from './logo';
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  // Read when the page is served, not when it was built: the build machine's keys say nothing about
+  // whether this server runs on the PayPal sandbox or with a live reviewer.
+  await connection();
   const mode = paymentMode();
   const claude = isClaudeConfigured();
   return (

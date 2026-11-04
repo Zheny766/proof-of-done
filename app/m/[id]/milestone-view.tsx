@@ -105,6 +105,7 @@ export function MilestoneView({
   }, [initial.id, link, fromLink, stageIds]);
 
   const role: Role = chosen ?? link?.role ?? (keys.client ? 'client' : keys.freelancer ? 'freelancer' : 'viewer');
+
   const key = role === 'viewer' ? null : (keys[role] ?? null);
 
   const refresh = useCallback(async () => {
@@ -114,6 +115,15 @@ export function MilestoneView({
     setM(res.milestone);
     setStages(res.stages);
   }, [initial.id, key, role]);
+
+  // An action's answer carries only this deal; a project's strip and timeline need its stages again.
+  const changed = useCallback(
+    (next: Milestone) => {
+      setM(next);
+      if (next.project) void refresh().catch(() => {});
+    },
+    [refresh],
+  );
 
   // Opened without a key in the link (e.g. from the list) but this browser has one: the server
   // rendered the redacted view, so fetch the full one.
@@ -151,7 +161,10 @@ export function MilestoneView({
 
   const review = m.reviews.at(-1);
   const refunded = (m.payment.refunds ?? []).filter((r) => r.status !== 'FAILED' && r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.amount), 0);
+  // Once paid, the headline is what actually moved: less for a settlement, less again after a refund.
+  const paidNet = m.status === 'released' ? Math.round((Number(m.payment.capturedAmount ?? m.amount) - refunded) * 100) / 100 : null;
   const overdue = isOverdue(m);
+  const termsForMe = role !== 'viewer' && !!m.termsChange && m.termsChange.by !== role;
   const both = !!(keys.client && keys.freelancer);
   // A later stage is funded only once the one before it is paid (or cancelled).
   const before = m.project && m.project.stage > 1 ? stages?.[m.project.stage - 2] : undefined;
@@ -206,8 +219,12 @@ export function MilestoneView({
           <p className="mt-2 text-sm text-pp-muted">{STATUS[m.status].hint}</p>
         </div>
         <div className="shrink-0 sm:text-right">
-          <div className="font-display text-5xl tabular-nums text-pp-navy">{fmtMoney(m.amount, m.currency)}</div>
-          <div className="mt-1 text-xs text-pp-muted">AI needs {Math.round(m.releaseThreshold * 100)}% confidence on every criterion</div>
+          <div className="font-display text-5xl tabular-nums text-pp-navy">{fmtMoney(paidNet ?? m.amount, m.currency)}</div>
+          <div className="mt-1 text-xs text-pp-muted">
+            {paidNet !== null && paidNet !== Number(m.amount)
+              ? `paid of ${fmtMoney(m.amount, m.currency)}${refunded ? ` · ${fmtMoney(refunded, m.currency)} refunded` : ' · settled for part'}`
+              : `AI needs ${Math.round(m.releaseThreshold * 100)}% confidence on every criterion`}
+          </div>
         </div>
       </div>
 
@@ -215,7 +232,7 @@ export function MilestoneView({
 
       {m.project && stages && <ProjectStages m={m} stages={stages} />}
 
-      <Disputes m={m} role={role} milestoneKey={key} onChange={setM} />
+      <Disputes m={m} role={role} milestoneKey={key} onChange={changed} />
 
       <MoneyJourney m={m} />
 
@@ -249,29 +266,36 @@ export function MilestoneView({
           {/* The half-done demo is about settling, so its offer comes first; elsewhere fixing the work does. */}
           {settleFirst && (
             <div className="order-2">
-              <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />
+              <Settlement m={m} role={role as Party} milestoneKey={key} onChange={changed} />
+            </div>
+          )}
+
+          {/* An offer of new terms waiting for this side's answer comes before anything else to do. */}
+          {termsForMe && (
+            <div className="order-2">
+              <TermsCard m={m} role={role as Party} milestoneKey={key} onChange={changed} />
             </div>
           )}
 
           <div className="order-3">
-            <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={setM} waitForStage={waitForStage} />
+            <NextStep m={m} role={role} milestoneKey={key} paypalClientId={paypalClientId} onFunded={refresh} onChange={changed} waitForStage={waitForStage} />
           </div>
 
           {canSettle && !settleFirst && (
             <div className="order-6">
-              <Settlement m={m} role={role as Party} milestoneKey={key} onChange={setM} />
+              <Settlement m={m} role={role as Party} milestoneKey={key} onChange={changed} />
             </div>
           )}
 
           {m.status === 'released' && role !== 'viewer' && m.payment.captureId && (
             <div className="order-4">
-              <AfterPayment m={m} role={role} milestoneKey={key} onChange={setM} />
+              <AfterPayment m={m} role={role} milestoneKey={key} onChange={changed} />
             </div>
           )}
 
-          {role !== 'viewer' && (
+          {role !== 'viewer' && !termsForMe && (
             <div className="order-6">
-              <TermsCard m={m} role={role} milestoneKey={key} onChange={setM} />
+              <TermsCard m={m} role={role} milestoneKey={key} onChange={changed} />
             </div>
           )}
 
@@ -358,7 +382,10 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
       ? `You offered ${fmtMoney(offer.amount, m.currency)}. Switch to the ${other} to accept it.`
       : `The ${other} offered to settle for ${fmtMoney(offer.amount, m.currency)}. Accept it and PayPal captures only that; the rest of the hold goes back to the client.`
     : null;
-  const tip = (s === 'project' && projectTip(m, role)) || (arena
+  // Opened without its private links (shared, or in another browser): nothing here is for them to do.
+  const tip = role === 'viewer'
+    ? 'You are seeing this demo deal from outside, without its private links: they stay in the browser that started it. Start your own from the demo page to play both sides.'
+    : (s === 'project' && projectTip(m, role)) || (arena
     ? m.status === 'funded'
       ? 'Write your trick in the notes and hand in the draft. A live Claude review decides, and a second model has to agree before anything is paid.'
       : m.status === 'reviewing'
@@ -369,7 +396,7 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
     : m.status === 'funded'
       ? role === 'freelancer'
         ? 'You are the freelancer. Hand in the prepared work below and watch the AI review it.'
-        : 'Switch to the freelancer (left column) and hand in the work.'
+        : 'Use the client / freelancer switch to become the freelancer, then hand in the work.'
       : m.status === 'reviewing'
         ? 'The AI is reviewing it now. This is a replay of a real Claude Opus run: the findings fill in as it works, and the audit log shows every step.'
         : offerTip
@@ -384,6 +411,10 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
               : 'The reviewer handed the call to the client. Switch to the client to decide.'
           : m.status === 'changes_requested' && s === 'code'
             ? 'The notes said all tests pass. The AI ran them in Anthropic’s sandbox, one failed, so it asked for a fix and kept the money on hold. Open the audit log to see the commands it ran.'
+            : m.status === 'changes_requested' && m.timeline.at(-1)?.type === 'changes_requested' && m.timeline.at(-1)?.actor === 'client'
+              ? role === 'freelancer'
+                ? 'The client asked for changes. The money stays on hold until a new delivery passes.'
+                : 'You asked for changes. The money stays on hold until the freelancer delivers again.'
             : m.status === 'changes_requested'
             ? `The AI asked for changes and the money stays on hold. Offer a settlement (say $60), then switch to the ${other} to accept it.`
             : m.status === 'verified'
@@ -397,7 +428,7 @@ function DemoGuide({ m, role }: { m: Milestone; role: Role }) {
               : m.status === 'released'
                 ? m.payment.capturedAmount
                   ? 'Settled: PayPal captured only the agreed amount, and the rest of the hold went back to the client.'
-                  : `Done: PayPal captured the hold and paid the freelancer, and nobody clicked approve.${role === 'client' && !m.complaint ? ' If the work turns out wrong later, report a problem below and ask for money back.' : ''}`
+                  : `Done: PayPal captured the hold and paid the freelancer${m.timeline.some((e) => e.type === 'approved') ? ', after the client approved' : ', and nobody clicked approve'}.${role === 'client' && !m.complaint ? ' If the work turns out wrong later, report a problem below and ask for money back.' : ''}`
                 : 'Cancelled: the hold was voided, nothing was charged.');
   return (
     <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-pp-navy px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">

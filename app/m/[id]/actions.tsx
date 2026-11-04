@@ -240,7 +240,9 @@ function SubmitWork({ m, milestoneKey, onSubmitted }: { m: Milestone; milestoneK
   const [notes, setNotes] = useState('');
   const [links, setLinks] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [payoutEmail, setPayoutEmail] = useState(m.freelancer.email);
+  // Until the freelancer types one, the address the client gave (it can arrive after the first render).
+  const [typedEmail, setPayoutEmail] = useState<string>();
+  const payoutEmail = typedEmail ?? m.freelancer.email;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const resubmit = m.status === 'changes_requested';
@@ -756,7 +758,7 @@ export function TermsCard({ m, role, milestoneKey, onChange }: { m: Milestone; r
       <section className={card}>
         <h2 className={h2}>The terms</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-pp-muted">
-          The job changed? Offer {other} new criteria, a lower amount{held === null ? ' or a different one' : ''} or another deadline. Nothing changes until they accept.
+          The job changed? Offer {other} new criteria, another deadline or {held === null ? 'a different' : 'a lower'} amount. Nothing changes until they accept.
         </p>
         <button onClick={() => setOpen(true)} className={`${btn.ghost} mt-4`}>
           Change the terms

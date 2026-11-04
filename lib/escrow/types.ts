@@ -113,6 +113,9 @@ export interface PaymentState {
   authorizedAmount?: string;
   /** Money PayPal returned to the client from the capture after the deal was paid, oldest first. */
   refunds?: { id: string; amount: string; status: string; at: string }[];
+  /** PayPal's fee on the capture and what was left; the payout is paid from what was left. */
+  paypalFee?: string;
+  capturedNet?: string;
   /** The record's fingerprint sent to PayPal in the capture note (the timeline's last hash then). */
   anchoredRecord?: string;
 }
@@ -195,6 +198,8 @@ export interface TimelineEvent {
   actor: 'client' | 'freelancer' | 'agent' | 'paypal' | 'system';
   /** SHA-256 of this step and the one before it (lib/escrow/chain.ts). */
   hash?: string;
+  /** SHA-256 of the deal's terms when this step was sealed (criteria, amount, files, payee). */
+  state?: string;
 }
 
 export interface Milestone {
@@ -237,7 +242,7 @@ export interface Milestone {
   /** PayPal disputes the buyer opened on this deal's capture, as PayPal's webhooks reported them. */
   disputes?: Dispute[];
   /** Computed when the deal is sent out, never stored: the timeline's fingerprint and whether it checks out. */
-  seal?: { head: string; events: number; intact: boolean; brokenAt?: number };
+  seal?: { head: string; events: number; intact: boolean; brokenAt?: number; termsChanged?: boolean };
   status: MilestoneStatus;
   payment: PaymentState;
   submissions: Submission[];

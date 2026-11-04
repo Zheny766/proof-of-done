@@ -2,7 +2,7 @@
 // in a dispute. What was agreed, what was delivered (with each file's SHA-256), what the reviewer found
 // and why, what the second opinion said, every step and who took it, and the PayPal ids.
 
-import { checkSeal } from './chain.ts';
+import { checkSeal, sealedTerms } from './chain.ts';
 import { currentReview, latestFindings } from './policy.ts';
 import type { Milestone, Role } from './types.ts';
 
@@ -34,7 +34,7 @@ export function dealRecord(m: Milestone, role: Exclude<Role, 'viewer'>, origin: 
     paypal: { ...m.payment, calls: m.paypalCalls ?? [] },
     timeline: m.timeline,
     // Check it offline: node scripts/verify-record.mjs <this file>
-    seal: { ...checkSeal(m), rule: 'hash_0 = sha256(dealId + "\\n" + at + "\\n" + actor + "\\n" + type + "\\n" + text); hash_n = sha256(hash_{n-1} + "\\n" + ...the same fields)', anchoredAtPayPal: m.payment.anchoredRecord ?? null },
+    seal: { ...checkSeal(m), terms: sealedTerms(m), rule: 'state = sha256(JSON of terms); hash_0 = sha256(dealId + "\\n" + at + "\\n" + actor + "\\n" + type + "\\n" + text + "\\n" + state); hash_n = sha256(hash_{n-1} + "\\n" + ...the same fields)', anchoredAtPayPal: m.payment.anchoredRecord ?? null },
     certificate: m.status === 'released' ? `${origin}/m/${m.id}/proof` : null,
   };
 }

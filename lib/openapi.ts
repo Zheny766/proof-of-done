@@ -34,8 +34,38 @@ const action = (summary: string, description: string, body: z.ZodType | Record<s
   },
 });
 
+// Names for SDK generators (a generated client gets createDeal(), changeTerms(), ...).
+const OPERATION_IDS: Record<string, string> = {
+  'get /api/escrow/milestones': 'listDeals',
+  'post /api/escrow/milestones': 'createDeal',
+  'post /api/escrow/projects': 'createProject',
+  'get /api/escrow/milestones/{id}': 'getDeal',
+  'post /api/escrow/milestones/{id}/order': 'createFundingOrder',
+  'post /api/escrow/milestones/{id}/authorize': 'authorizeFunding',
+  'post /api/escrow/milestones/{id}/submit': 'deliverWork',
+  'post /api/escrow/milestones/{id}/decision': 'decide',
+  'post /api/escrow/milestones/{id}/settlement': 'settle',
+  'post /api/escrow/milestones/{id}/terms': 'changeTerms',
+  'post /api/escrow/milestones/{id}/complaint': 'afterPayment',
+  'post /api/escrow/milestones/{id}/dispute': 'sendDisputeEvidence',
+  'post /api/escrow/milestones/{id}/sync': 'syncWithPayPal',
+  'get /api/escrow/milestones/{id}/record': 'downloadRecord',
+  'get /api/jobs': 'listJobs',
+  'post /api/jobs/{id}/claim': 'claimJob',
+  'post /api/escrow/criteria': 'draftCriteria',
+  'post /api/mcp': 'mcp',
+  'post /api/demo/start': 'startDemo',
+  'get /api/health': 'health',
+  'post /api/paypal/webhook': 'paypalWebhook',
+};
+
+function withOperationIds<T extends { paths: Record<string, Record<string, Record<string, unknown>>> }>(doc: T): T {
+  for (const [p, ops] of Object.entries(doc.paths)) for (const [method, op] of Object.entries(ops)) op.operationId = OPERATION_IDS[`${method} ${p}`];
+  return doc;
+}
+
 export function openApiDocument(origin: string) {
-  return {
+  return withOperationIds({
     openapi: '3.1.0',
     info: {
       title: 'Proof of Done API',
@@ -152,5 +182,5 @@ export function openApiDocument(origin: string) {
         post: { tags: ['Operations'], summary: 'PayPal webhooks', description: 'For PayPal only: nothing is applied until PayPal confirms the signature for this server’s webhook id. Captures, voids, payouts and disputes.', responses: { '200': { description: '`{ result }`' }, '401': { description: 'Signature not verified by PayPal.' } } },
       },
     },
-  };
+  });
 }

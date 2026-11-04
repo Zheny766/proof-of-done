@@ -44,6 +44,13 @@ export function Verdict({ m }: { m: Milestone }) {
         Every criterion has to be met with at least {Math.round(m.releaseThreshold * 100)}% confidence, and a second model has to agree, before any money moves.
       </p>
       {stale && <p className="mt-3 rounded-lg bg-pp-highlight px-3 py-2 text-sm text-pp-navy">The terms changed after the last review: the next delivery is checked against these criteria.</p>}
+      {/* The client's own words about the job: the reviewer reads them too (an outsider never gets them). */}
+      {m.description && !m.description.startsWith('[Demo data]') && (
+        <div className="mt-4 rounded-xl bg-pp-canvas px-4 py-3">
+          <div className="text-xs font-semibold uppercase tracking-wider text-pp-muted">The brief</div>
+          <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-pp-ink [overflow-wrap:anywhere]">{m.description}</p>
+        </div>
+      )}
       <ul className="mt-5 space-y-3">
         {m.criteria.map((c, i) => (
           <CriterionRow key={c.id} n={i + 1} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} />
@@ -78,12 +85,12 @@ function CriterionRow({ n, text, finding, pending, threshold }: { n: number; tex
             <span className="min-w-0 text-[15px] font-medium leading-snug text-pp-ink [overflow-wrap:anywhere]">{text}</span>
             <span className={`shrink-0 text-xs font-semibold ${!finding ? 'text-pp-muted' : clears ? 'text-emerald-700' : finding.status === 'not_met' ? 'text-pp-danger' : 'text-amber-700'}`}>
               {label}
-              {finding && ` · ${pct}%`}
+              {finding && ` · ${pct}% sure`}
             </span>
           </div>
           {finding && (
             <>
-              <div className="relative mt-2 h-1.5 rounded-full bg-slate-200" title={`release threshold ${Math.round(threshold * 100)}%`}>
+              <div className="relative mt-2 h-1.5 rounded-full bg-slate-200" title={`How sure the reviewer is; the line is the ${Math.round(threshold * 100)}% needed to pay`}>
                 <div className={`h-full rounded-full ${clears ? 'bg-emerald-500' : finding.status === 'not_met' ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
                 <div className="absolute -top-1 h-3.5 w-0.5 rounded bg-pp-navy" style={{ left: `${threshold * 100}%` }} />
               </div>

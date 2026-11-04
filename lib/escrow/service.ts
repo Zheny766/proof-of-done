@@ -361,8 +361,11 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
 // with PayPal's test card, so a deal of one's own is no limit by itself.
 const DEMO_REVIEWS_DAILY = () => Number(process.env.POD_DEMO_REVIEWS_DAILY ?? 60);
 const LIVE_REVIEWS_DAILY = () => Number(process.env.POD_LIVE_REVIEWS_DAILY ?? 100);
+// Reviews, not deals: one deal can be delivered up to 12 times, and each delivery is a paid review.
 const liveReviewsSince = (since: number, demoOnly: boolean) =>
-  listMilestones().filter((x) => (!demoOnly || x.demo) && x.reviews.some((r) => r.engine === 'claude' && Date.parse(r.startedAt) > since)).length;
+  listMilestones()
+    .filter((x) => !demoOnly || x.demo)
+    .reduce((n, x) => n + x.reviews.filter((r) => r.engine === 'claude' && Date.parse(r.startedAt) > since).length, 0);
 const demoReviewsLeft = () => liveReviewsSince(Date.now() - 86_400_000, true) < DEMO_REVIEWS_DAILY();
 const liveReviewsLeft = () => liveReviewsSince(Date.now() - 86_400_000, false) < LIVE_REVIEWS_DAILY();
 
@@ -407,7 +410,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
         r.findings.push(f);
       }),
     audit: async (input) => {
-      const audit = review.engine === 'claude' ? await runClaudeAudit(m, submission, input) : runSimulatedAudit();
+      const audit = review.engine === 'claude' ? await runClaudeAudit(m, submission, input) : runSimulatedAudit(mustGet(id), submission);
       patchReview((r) => {
         r.audit = audit;
       });
@@ -441,7 +444,7 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
             scheduleRelease(id, releaseAt);
             return { releaseAt };
           }
-          const payment = await releaseFunds(latest, `Work accepted: ${summary}`);
+          const payment = await releaseFunds(await keepHoldFresh(id), `Work accepted: ${summary}`);
           updateMilestone(id, (x) => {
             mergeRelease(x, payment);
             x.status = 'released';
@@ -557,8 +560,14 @@ const HOLDING = ['funded', 'reviewing', 'changes_requested', 'escalated', 'verif
 const retryDue = (triedAt?: string) => !triedAt || Date.now() - Date.parse(triedAt) > 6 * 3_600_000;
 
 // The job is outlasting PayPal's 3-day guarantee on the held money: reauthorize, once.
-function renewHoldNow(id: string): Promise<Milestone> {
-  return exclusive(id, async () => {
+const renewHoldNow = (id: string): Promise<Milestone> => exclusive(id, () => keepHoldFresh(id));
+
+/**
+ * Renew the hold if it needs it and save the new authorization at once (inside the deal's queue).
+ * Run before every capture: a renewal kept only in memory would be lost if the capture then failed.
+ */
+async function keepHoldFresh(id: string): Promise<Milestone> {
+  {
     const m = mustGet(id);
     if (!HOLDING.includes(m.status)) return m;
     try {
@@ -574,7 +583,7 @@ function renewHoldNow(id: string): Promise<Milestone> {
         pushEvent(x, 'system', 'reauth_failed', `PayPal did not renew the hold (${(error as Error).message.slice(0, 160)}). It is still in place but no longer guaranteed; a capture may fail.`);
       });
     }
-  });
+  }
 }
 
 // The objection window closed without an objection: release the money. Runs on a timer, and again
@@ -584,7 +593,7 @@ function releaseWhenDue(id: string): Promise<Milestone> {
     const m = mustGet(id);
     if (m.status !== 'verified' || !m.releaseAt || Date.parse(m.releaseAt) > Date.now()) return m;
     try {
-      const payment = await releaseFunds(m, 'Work accepted: verified, and the objection window closed');
+      const payment = await releaseFunds(await keepHoldFresh(id), 'Work accepted: verified, and the objection window closed');
       return updateMilestone(id, (x) => {
         mergeRelease(x, payment);
         x.status = 'released';
@@ -618,7 +627,7 @@ async function clientDecisionNow(id: string, action: 'approve' | 'request_change
     if (!['funded', 'escalated', 'changes_requested', 'verified'].includes(m.status)) throw new EscrowError(`There is nothing to pay now: ${dealIs(m)}.`);
     // Nobody has taken the job yet: capturing would charge the client with no one to pay.
     if (isOpenJob(m)) throw new EscrowError('Nobody has taken this job yet, so there is no one to pay. Cancel to void the hold.', 409);
-    const payment = await releaseFunds(m, note || 'Released by the client');
+    const payment = await releaseFunds(await keepHoldFresh(id), note || 'Released by the client');
     return updateMilestone(id, (x) => {
       mergeRelease(x, payment);
       x.status = 'released';
@@ -711,7 +720,7 @@ async function settleNow(id: string, input: SettlementAction, key: string | null
 
   if (offer.by === role) throw new EscrowError('The other party has to accept your offer.', 403);
   if (!SETTLE_STATES.includes(m.status)) throw new EscrowError(`The offer can't be accepted now: ${dealIs(m)}.`);
-  const payment = await releaseFunds(m, `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount);
+  const payment = await releaseFunds(await keepHoldFresh(id), `Settled for ${offer.amount} ${m.currency} of ${m.amount}`, offer.amount);
   return updateMilestone(id, (x) => {
     mergeRelease(x, payment);
     x.status = 'released';
@@ -897,7 +906,10 @@ async function afterPaymentNow(id: string, input: z.infer<typeof AfterPaymentInp
 const CLAIM_MS = 24 * 3_600_000;
 
 export const claimActive = (m: Milestone) => !!m.board?.claimedAt && (m.submissions.length > 0 || Date.now() - Date.parse(m.board.claimedAt) < CLAIM_MS);
-export const isOpenJob = (m: Milestone) => !!m.board && m.status === 'funded' && m.submissions.length === 0 && !claimActive(m);
+// The labelled demo history (charts on the dashboard) is never a job anyone can take, even once its
+// old claims have lapsed.
+export const isOpenJob = (m: Milestone) =>
+  !!m.board && m.status === 'funded' && m.submissions.length === 0 && !claimActive(m) && !m.description.startsWith('[Demo data]');
 
 /** Open jobs, newest first. The money is already on hold for each one. */
 export function openJobs(): Milestone[] {

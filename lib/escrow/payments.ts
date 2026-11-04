@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import {
   authorizeOrder,
   captureAuthorization,
+  getCapture,
   getDispute,
   provideDisputeEvidence,
   type EvidenceFile,
@@ -132,16 +133,22 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
   }
 
   const payerNote = anchoredRecord ? `Proof of Done record ${anchoredRecord.slice(0, 16)}. ${note}` : note;
-  const capture = await captureAuthorization(authId, payerNote, partial ? { currency_code: m.currency, value: amount } : undefined);
+  // The fingerprint also goes in as the invoice id: PayPal returns that on the capture, so it can be checked.
+  const capture = await captureAuthorization(authId, payerNote, partial ? { currency_code: m.currency, value: amount } : undefined, anchoredRecord && `pod-${anchoredRecord}`);
   // Nothing was taken from the buyer: leave the milestone as it is and let the caller show the error.
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
     throw new Error(`PayPal ${capture.status.toLowerCase()} the capture (${capture.id}). The money is still on hold.`);
   }
+  // PayPal keeps its fee from the capture; paying out the gross amount would pay it from the platform.
+  const net = capture.seller_receivable_breakdown?.net_amount?.value;
+  const fee = capture.seller_receivable_breakdown?.paypal_fee?.value;
   const result: Partial<PaymentState> = {
     ...extra,
     captureId: capture.id,
     capturedAt: capture.create_time ?? new Date().toISOString(),
     authorizationStatus: 'CAPTURED',
+    ...(net && { capturedNet: net }),
+    ...(fee && { paypalFee: fee }),
   };
 
   // Pay out only money that has actually arrived. A pending capture (e.g. an eCheck) would mean
@@ -151,7 +158,7 @@ export async function releaseFunds(m: Milestone, note: string, amount = m.amount
     return result;
   }
 
-  return { ...result, ...(await sendPayout(m, amount, note)) };
+  return { ...result, ...(await sendPayout(m, net ?? amount, note)) };
 }
 
 /** Pay the freelancer from captured money. A failed payout (e.g. Payouts not enabled on the app) shouldn't undo the capture - record it. */
@@ -172,7 +179,7 @@ async function sendPayout(m: Milestone, amount: string, note: string): Promise<P
 
 /** A held payout, once PayPal reports the capture completed. */
 export function payOutHeld(m: Milestone): Promise<Partial<PaymentState>> {
-  return sendPayout(m, m.payment.capturedAmount ?? m.amount, 'Work accepted: the capture completed');
+  return sendPayout(m, m.payment.capturedNet ?? m.payment.capturedAmount ?? m.amount, 'Work accepted: the capture completed');
 }
 
 /** What PayPal captured for this deal and has not refunded yet. */
@@ -232,4 +239,15 @@ export async function answerDisputeOnPayPal(m: Milestone, disputeId: string, evi
   }
   await provideDisputeEvidence(disputeId, evidences, files, Date.now());
   return { sent: true, status: dispute.status };
+}
+
+/** Does PayPal's own copy of the capture carry the fingerprint the deal says it sent? null when it can't be asked. */
+export async function paypalHoldsFingerprint(m: Milestone): Promise<boolean | null> {
+  if (m.payment.mode !== 'sandbox' || !m.payment.captureId || !m.payment.anchoredRecord) return null;
+  try {
+    const capture = await getCapture(m.payment.captureId);
+    return capture.invoice_id === `pod-${m.payment.anchoredRecord}`;
+  } catch {
+    return null;
+  }
 }

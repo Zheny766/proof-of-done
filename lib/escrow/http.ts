@@ -67,7 +67,8 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
     }
     if (request instanceof Request && request.body) {
       const length = request.headers.get('content-length');
-      if (length === null) return Response.json({ error: 'Send the body with a Content-Length.' }, { status: 411 });
+      // No length and no chunked encoding means no body at all (a bare POST): nothing to refuse.
+      if (length === null && request.headers.get('transfer-encoding')) return Response.json({ error: 'Send the body with a Content-Length.' }, { status: 411 });
       if (Number(length) > maxBytes) return Response.json({ error: `The request is too large (at most ${Math.round(maxBytes / 1_000_000)} MB).` }, { status: 413 });
     }
     try {

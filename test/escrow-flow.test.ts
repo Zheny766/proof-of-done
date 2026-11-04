@@ -39,8 +39,9 @@ async function funded(over: Record<string, unknown> = {}) {
   return { id: m.id, clientKey, freelancerKey };
 }
 
+// Deliveries carry a link: notes alone never pass the simulated check (see runSimulatedAudit).
 async function submitAndReview(id: string, freelancerKey: string, notes: string) {
-  const { reviewId } = await service.submitWork(id, { notes, links: [], files: [] }, freelancerKey);
+  const { reviewId } = await service.submitWork(id, { notes, links: ['https://bakery.example/'], files: [] }, freelancerKey);
   await service.runReview(id, reviewId);
   return store.getMilestone(id)!;
 }
@@ -50,7 +51,7 @@ const count = (id: string, type: string) => store.getMilestone(id)!.timeline.fil
 test('happy path: fund, submit, AI verifies, PayPal captures and pays out', async () => {
   const { id, freelancerKey } = await funded();
   assert.equal(store.getMilestone(id)!.status, 'funded');
-  const m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  const m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL: https://bakery.example. The menu lists croissant, baguette, sourdough, brioche, eclair and tart, with prices from $2 to $6.');
   assert.equal(m.status, 'released');
   assert.match(m.payment.captureId ?? '', /^CAPTURE-SIM-/);
   assert.equal(m.payment.payoutStatus, 'SUCCESS');
@@ -74,7 +75,7 @@ test('each party can only do its own part', async () => {
 test('weak evidence escalates; the client can ask for changes, the freelancer resubmits', async () => {
   const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
   await assert.rejects(service.clientDecision(id, 'request_changes', 'more', clientKey), /once the AI has reviewed a delivery; the deal is funded/);
-  let m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  let m = await submitAndReview(id, freelancerKey, 'The page is live at a public URL: https://bakery.example. The menu lists croissant, baguette, sourdough, brioche, eclair and tart, with prices from $2 to $6.');
   assert.equal(m.status, 'escalated', 'confidence never reaches 99%');
   m = await service.clientDecision(id, 'request_changes', 'Add the prices', clientKey);
   assert.equal(m.status, 'changes_requested');
@@ -92,7 +93,7 @@ test('missing work gets "changes requested" and the money stays on hold', async 
 
 test('the client can approve after an escalation, and the banner data says so', async () => {
   const { id, clientKey, freelancerKey } = await funded({ releaseThreshold: 0.99 });
-  await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  await submitAndReview(id, freelancerKey, 'The page is live at a public URL: https://bakery.example. The menu lists croissant, baguette, sourdough, brioche, eclair and tart, with prices from $2 to $6.');
   const m = await service.clientDecision(id, 'approve', 'Looks good', clientKey);
   assert.equal(m.status, 'released');
   assert.equal(count(id, 'approved'), 1);
@@ -211,7 +212,7 @@ test('demo data never happens in the future and keeps holds inside the 29-day wi
   store.deleteAll();
 });
 
-const goodNotes = 'The page is live at a public URL. The menu lists 6 items with prices.';
+const goodNotes = 'The page is live at a public URL: https://bakery.example. The menu lists croissant, baguette, sourdough, brioche, eclair and tart, with prices from $2 to $6.';
 
 test('objection window: verified work waits, the client can object or pay now', async () => {
   let { id, clientKey, freelancerKey } = await funded({ objectionHours: 24 });
@@ -321,7 +322,7 @@ test('a job that outlasts the 3-day honor period gets its hold renewed once, on 
 
 test('the deal record for a dispute: evidence, every step, the PayPal ids and the certificate', async () => {
   const { id, freelancerKey } = await funded();
-  await submitAndReview(id, freelancerKey, 'The page is live at a public URL. The menu lists 6 items with prices.');
+  await submitAndReview(id, freelancerKey, 'The page is live at a public URL: https://bakery.example. The menu lists croissant, baguette, sourdough, brioche, eclair and tart, with prices from $2 to $6.');
   const { dealRecord } = await import('../lib/escrow/record.ts');
   const record = dealRecord(store.getMilestone(id)!, 'client', 'https://pod.example');
   assert.equal(record.requestedBy, 'client');
@@ -407,5 +408,38 @@ test('a deal takes at most 12 deliveries, and the server a day’s worth of file
     assert.equal((await service.submitWork(other.id, { notes: 'https://example.com/menu', links: ['https://example.com/menu'], files: [] }, other.freelancerKey)).milestone.status, 'reviewing');
   } finally {
     delete process.env.POD_UPLOAD_DAILY_MB;
+  }
+});
+
+test('the simulated check never pays for notes that just repeat the criteria, or with real PayPal money', async () => {
+  store.deleteAll();
+  // The trick: the criteria copied back as "notes", nothing else.
+  const a = await funded();
+  const { reviewId } = await service.submitWork(a.id, { notes: 'The page is live at a public URL. A menu lists at least 6 items with prices.', links: [], files: [] }, a.freelancerKey);
+  await service.runReview(a.id, reviewId);
+  const held = store.getMilestone(a.id)!;
+  assert.equal(held.status, 'escalated');
+  assert.equal(held.payment.captureId, undefined);
+  assert.match(held.reviews[0].audit!.summary, /Only notes were delivered/);
+
+  // On a deal with real PayPal sandbox money only a live AI review releases it.
+  const b = await funded();
+  store.updateMilestone(b.id, (x) => void (x.payment.mode = 'sandbox'));
+  const m = await submitAndReview(b.id, b.freelancerKey, goodNotes);
+  assert.equal(m.status, 'escalated');
+  assert.match(m.reviews[0].audit!.summary, /only after a live AI review/);
+});
+
+test('without a live AI review nothing is paid automatically, however good the delivery looks', async () => {
+  store.deleteAll();
+  delete process.env.POD_SIM_CAN_RELEASE;
+  try {
+    const { id, freelancerKey } = await funded();
+    const m = await submitAndReview(id, freelancerKey, goodNotes);
+    assert.equal(m.status, 'escalated', 'the client decides');
+    assert.equal(m.payment.captureId, undefined);
+    assert.match(m.reviews[0].audit!.summary, /Without a live AI review nothing is paid automatically/);
+  } finally {
+    process.env.POD_SIM_CAN_RELEASE = '1';
   }
 });

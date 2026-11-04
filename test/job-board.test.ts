@@ -7,6 +7,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+
+// A real file to read: notes alone never pass the simulated check.
+const MENU_MD = { name: 'menu-es.md', type: 'text/markdown', bytes: Buffer.from('# Menú\\n\\n- Café: 2,50 €\\n- Tostada: 3,00 €\\n\\nEvery price is unchanged from the English menu.') };
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pod-board-'));
 process.env.POD_DATA_DIR = dataDir;
 process.env.POD_SIM_STEP_MS = '0';
@@ -70,7 +73,7 @@ test('the agent that took a job delivers and gets paid through the same checks',
   store.deleteAll();
   const { id } = await postAndFund();
   const { freelancerKey } = await service.claimJob(id, { name: 'Claude Code agent', payoutEmail: 'agent@example.com' });
-  const { reviewId } = await service.submitWork(id, { notes: 'Delivered as a Markdown file. Every price is unchanged.', links: [], files: [] }, freelancerKey);
+  const { reviewId } = await service.submitWork(id, { notes: 'Spanish menu attached as menu-es.md; I copied each price across as it was.', links: [], files: [MENU_MD] }, freelancerKey);
   await service.runReview(id, reviewId);
   const m = store.getMilestone(id)!;
   assert.equal(m.status, 'released');
@@ -121,7 +124,7 @@ test('track records come from confirmed outcomes: paid after review, held, still
     return { id, freelancerKey };
   };
   const a = await take('Claude Code agent', 'agent@example.com');
-  const { reviewId } = await service.submitWork(a.id, { notes: 'Delivered as a Markdown file. Every price is unchanged.', links: [], files: [] }, a.freelancerKey);
+  const { reviewId } = await service.submitWork(a.id, { notes: 'Spanish menu attached as menu-es.md; I copied each price across as it was.', links: [], files: [MENU_MD] }, a.freelancerKey);
   await service.runReview(a.id, reviewId);
   const b = await take('Claude Code agent', 'agent@example.com');
   const r2 = await service.submitWork(b.id, { notes: 'Done, trust me.', links: [], files: [] }, b.freelancerKey);
@@ -174,7 +177,7 @@ test('a taker on probation is not paid automatically: the client approves, even 
   const { id } = await postAndFund();
   const { freelancerKey, trust } = await service.claimJob(id, { name: 'Sloppy agent', payoutEmail: 'bad@example.com' });
   assert.equal(trust.tier, 'probation');
-  const { reviewId } = await service.submitWork(id, { notes: 'Delivered as a Markdown file. Every price is unchanged.', links: [], files: [] }, freelancerKey);
+  const { reviewId } = await service.submitWork(id, { notes: 'Spanish menu attached as menu-es.md; I copied each price across as it was.', links: [], files: [MENU_MD] }, freelancerKey);
   await service.runReview(id, reviewId);
   const m = store.getMilestone(id)!;
   assert.equal(m.status, 'escalated');
@@ -214,4 +217,13 @@ test('a lapsed claim leaves no record behind', async () => {
   await service.claimJob(id, { name: 'Ghost agent', payoutEmail: 'ghost@example.com' });
   store.updateMilestone(id, (x) => void (x.board!.claimedAt = new Date(Date.now() - 25 * 3_600_000).toISOString()));
   assert.deepEqual(service.boardRecords(), []);
+});
+
+test('the labelled demo history never shows up as a job, even after its claims lapse', async () => {
+  const { seedDemo } = await import('../lib/escrow/demo.ts');
+  store.deleteAll();
+  seedDemo(12);
+  for (const m of store.listMilestones()) if (m.board) store.updateMilestone(m.id, (x) => void (x.board!.claimedAt = new Date(Date.now() - 3 * 86_400_000).toISOString()));
+  assert.ok(store.listMilestones().some((m) => m.board && m.status === 'funded'), 'the history has board deals still funded');
+  assert.equal(service.openJobs().filter((m) => m.description.startsWith('[Demo data]')).length, 0);
 });
