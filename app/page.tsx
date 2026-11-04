@@ -218,14 +218,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** A still of a finished deal, so the hero shows the product instead of describing it. */
+/** A still of a finished deal (the honest demo's recorded run), so the hero shows the product instead of describing it. */
 function PreviewCard() {
   const rows = ['One-page menu, delivered as a PDF', 'At least 10 items, each with a price', 'The cafe logo at the top'];
   return (
     <div aria-hidden className="rotate-1 rounded-3xl border border-pp-border bg-white p-6 shadow-[0_30px_60px_-30px_rgba(0,28,100,0.35)]">
       <div className="flex items-center justify-between">
         <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">Paid</span>
-        <span className="font-display text-3xl text-pp-navy">$250.00</span>
+        <span className="font-display text-3xl text-pp-navy">$100.00</span>
       </div>
       <div className="mt-2 font-display text-2xl text-pp-navy">Menu redesign for a cafe</div>
       <div className="mt-1 text-sm text-pp-muted">Ember &amp; Oak pays Diego Alvarez</div>
@@ -234,13 +234,13 @@ function PreviewCard() {
           <li key={r} className="flex items-center gap-3 rounded-xl bg-pp-canvas/70 px-3 py-2.5 text-sm">
             <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-500 text-xs font-bold text-white">✓</span>
             <span className="flex-1">{r}</span>
-            <span className="text-xs font-semibold text-emerald-700">{[96, 97, 95][i]}%</span>
+            <span className="text-xs font-semibold text-emerald-700">{[95, 97, 90][i]}%</span>
           </li>
         ))}
       </ul>
       <div className="mt-4 rounded-xl bg-violet-50/70 px-3 py-2.5 text-sm font-semibold text-violet-900 ring-1 ring-inset ring-violet-200">Second opinion: confirmed every criterion</div>
       <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 ring-1 ring-inset ring-emerald-200">
-        <b>PayPal captured $250.00</b> and paid Diego. Nobody clicked approve.
+        <b>PayPal captured $100.00</b> and paid Diego. Nobody clicked approve.
       </div>
     </div>
   );
