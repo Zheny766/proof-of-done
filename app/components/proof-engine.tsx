@@ -94,7 +94,7 @@ export function ProofEngine() {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl bg-pod-midnight p-5 text-white lg:p-8 shadow-[0_40px_80px_-40px_rgba(7,20,45,0.75)] ring-1 transition-shadow duration-700 sm:p-7 ${
+      className={`relative overflow-hidden rounded-3xl bg-pod-midnight p-4 text-white min-[380px]:p-5 lg:p-8 shadow-[0_40px_80px_-40px_rgba(7,20,45,0.75)] ring-1 transition-shadow duration-700 sm:p-7 ${
         ended && !stopped ? 'ring-pod-mint/50 shadow-[0_0_0_6px_rgba(178,245,219,0.12),0_40px_80px_-40px_rgba(7,20,45,0.75)]' : ended ? 'ring-rose-400/40' : 'ring-white/10'
       }`}
     >
@@ -125,7 +125,7 @@ export function ProofEngine() {
         </div>
       </div>
 
-      <ol className="relative mt-6" aria-hidden>
+      <ol className="relative mt-4 sm:mt-6" aria-hidden>
         <Node lit={lit(0)} danger={stopped} last={false} dot={step >= 1 ? 'ok' : 'active'}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -145,7 +145,7 @@ export function ProofEngine() {
           const checking = step === i + 1;
           return (
             <Node key={c.n} lit={lit(i + 1)} danger={stopped} last={false} dot={done ? c.tone : checking ? 'active' : 'idle'}>
-              <div className={`flex items-center justify-between gap-3 transition-opacity duration-500 ${done || checking ? 'opacity-100' : 'opacity-70'}`}>
+              <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 transition-opacity duration-500 ${done || checking ? 'opacity-100' : 'opacity-70'}`}>
                 <div className="flex min-w-0 items-baseline gap-2.5">
                   <span className="font-mono text-[11px] text-pod-violet">{c.n}</span>
                   <div className="min-w-0">
@@ -166,7 +166,7 @@ export function ProofEngine() {
               !ended ? 'bg-white/[0.05] text-white/70 ring-white/15' : stopped ? 'bg-rose-500/15 ring-rose-400/40' : 'bg-pod-mint/15 ring-pod-mint/40'
             }`}
           >
-            <div className="flex items-baseline justify-between gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
               <div className={`text-[15px] font-bold uppercase tracking-[0.08em] ${!ended ? '' : stopped ? 'text-rose-200' : 'text-pod-mint'}`}>
                 {ended ? run.outcome.title : 'Not paid yet'}
               </div>
@@ -197,7 +197,7 @@ export function ProofEngine() {
 /** One stop on the money's path: a dot on the rail, the line down to the next stop, and its content. */
 function Node({ lit, danger, last, dot, children }: { lit: boolean; danger: boolean; last: boolean; dot: Tone | 'active' | 'idle'; children: React.ReactNode }) {
   return (
-    <li className="relative flex gap-4 pb-4 last:pb-0">
+    <li className="relative flex gap-3 pb-3 last:pb-0 sm:gap-4 sm:pb-4">
       <div className="relative flex w-6 shrink-0 justify-center">
         <span
           className={`relative z-10 mt-1 grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-colors duration-300 ${
@@ -207,7 +207,7 @@ function Node({ lit, danger, last, dot, children }: { lit: boolean; danger: bool
           {dot !== 'active' && dot !== 'idle' ? MARK[dot] : ''}
         </span>
         {!last && (
-          <span className="absolute top-7 -bottom-5 w-0.5 overflow-hidden rounded-full bg-white/10">
+          <span className="absolute top-7 -bottom-4 w-0.5 overflow-hidden rounded-full bg-white/10 sm:-bottom-5">
             <span
               className={`block h-full origin-top bg-gradient-to-b transition-transform duration-700 ease-out ${danger ? 'from-pod-electric via-amber-300 to-rose-400 shadow-[0_0_12px_rgba(251,113,133,0.8)]' : 'from-pod-electric via-pod-violet to-pod-mint shadow-[0_0_12px_rgba(140,118,255,0.8)]'} ${lit ? 'scale-y-100' : 'scale-y-0'}`}
             />

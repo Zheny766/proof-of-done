@@ -66,15 +66,15 @@ export default async function Home() {
       <main className="w-full">
         {/* The Proof Engine is the page's hero. On a phone it comes straight after the headline, then the one
             main action, then the explanation; on a wide screen it takes the larger column on the right. */}
-        <section className="mx-auto grid max-w-6xl gap-x-12 gap-y-7 px-6 pb-16 pt-10 sm:pt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
-          <div className="lg:col-start-1 lg:row-start-1 lg:self-end">
+        <section className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6 px-6 pb-16 pt-8 sm:gap-y-7 sm:pt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:self-end">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">PayPal authorize &amp; capture · checked by {gemini ? 'three' : 'two'} AIs</p>
-            <h1 className="mt-4 font-display text-[44px] leading-[1.04] text-pp-navy sm:text-6xl">Get paid the moment the work is proven.</h1>
+            <h1 className="mt-3 font-display text-[40px] leading-[1.04] text-pp-navy min-[380px]:text-[44px] sm:mt-4 sm:text-6xl">Get paid the moment the work is proven.</h1>
           </div>
-          <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
+          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
             <ProofEngine />
           </div>
-          <div className="flex flex-col lg:col-start-1 lg:row-start-2">
+          <div className="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2">
             <p className="order-2 mt-6 max-w-xl text-lg leading-relaxed text-pp-muted lg:order-1 lg:mt-0">
               PayPal holds the client&apos;s money without charging it. When the work arrives, from a person or an AI agent, {gemini ? 'three AIs from two companies check' : 'two Claude models check'} it against every criterion you agreed on, and only then does PayPal pay out.
             </p>
