@@ -45,7 +45,7 @@ if (ok && last?.state && terms) {
   if (sha256(JSON.stringify(terms)) !== last.state || !same) {
     console.log("the deal's terms (criteria, amount, files or payee) are not the ones the last step sealed");
     ok = false;
-  } else console.log(`the terms are the sealed ones: ${terms.criteria.length} criteria, ${terms.amount} ${terms.currency}, ${terms.files.length} file(s)`);
+  } else console.log(`the terms are the sealed ones: ${terms.criteria.length} ${terms.criteria.length === 1 ? "criterion" : "criteria"}, ${terms.amount} ${terms.currency}, ${terms.files.length} file(s)`);
 }
 
 // The capture note holds the fingerprint as it was at payment: it must be one of the chain's links.

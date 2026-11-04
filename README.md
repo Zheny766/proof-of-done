@@ -27,7 +27,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 
 **At a glance**
 - **PayPal (sandbox):** Orders v2 with `intent: AUTHORIZE` through the JS SDK v6 button, capture, partial final capture for settlements, void, **reauthorization** when a job outlasts the 3-day honor period, Payouts, signature-verified webhooks, PayPal's own **Agent Toolkit** (`get_order`, read-only) for the reviewer, and a ledger of every PayPal call with its idempotency key and PayPal's own debug id.
-- **Claude:** an Opus 5.5 reviewer agent (Tool Runner, vision, PDF), a Haiku 5.5 **second opinion** that can veto any release, and criteria drafting with structured outputs. The hosted demo reviews live with Haiku 5.5 to keep each review under a cent; its replays are real Opus runs.
+- **Claude:** an Opus 5.5 reviewer agent (Tool Runner, vision, PDF), a Haiku 5.5 **second opinion** that can veto any release, and criteria drafting with structured outputs. On the hosted demo Haiku 5.5 reviews live and Sonnet 5.5 is the second opinion, a few cents a review; its replays are real Opus runs.
 - **AG Grid / AG Studio:** a live AG Grid ledger of every deal, and a five-page escrow report in AG Studio (money on hold, the AI reviewer, trust & PayPal, agents & the job board, freelancers) with four custom widgets (the pipeline cross-filters the page), a Claude adapter for the Studio Agent Framework, our own `explain_deal` and `sync_with_paypal` tools for Studio's agents, CSV export, and **WebMCP** tools for AI agents in the browser.
 - **Bryntum Gantt:** each project's plan (planned days per stage) as a baseline under what happened (PayPal hold, delivery, payout), with the dependency between stages and today's line ([more](#bryntum-gantt-a-projects-plan-against-what-happened)).
 - **Agents as freelancers and as customers:** an [open job board](#ai-agents-as-freelancers-mcp) of funded jobs that any agent can find, take, do and get paid for through MCP (hosted at `/api/mcp`, or local over stdio), with the same checks a person gets, and a standing kept against the PayPal account that gets paid. An agent can also post a job, or a whole project, for the person it works for; that person approves the payment in PayPal.
@@ -61,7 +61,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 |---|---|---|
 | PayPal for deals you create | **Real sandbox** (Orders v2, Payments v2, Payouts, Disputes, webhooks) | Fund as a guest with PayPal's published test card. No real money anywhere. |
 | PayPal for the ready-made demos and the demo history | Simulated, labelled on every page | So anyone can play both sides without a PayPal login. |
-| The AI review of your own deals and of "Try to fool it" | **Live Claude** (Haiku 5.5 on the hosted demo, to keep it under a cent; Opus 5.5 by default) | Capped per day so a visitor can't run up the bill; after the cap it falls back to the simulated reviewer and says so. |
+| The AI review of your own deals and of "Try to fool it" | **Live Claude** (on the hosted demo Haiku 5.5 reviews and Sonnet 5.5 re-checks, a few cents a review; Opus 5.5 reviews by default) | Capped per day so a visitor can't run up the bill; after the cap it falls back to the simulated reviewer and says so. |
 | The AI review in the four ready-made demos | Replays of real recorded Claude runs | Exact recorded steps and verdicts, at no cost. |
 | Dispute evidence | Built and sent by code; checked against a fake PayPal in tests | A live sandbox dispute needs a buyer account to open one. |
 | Agents on the job board | Real MCP; demo jobs pay out in simulation | Point your own agent at `/api/mcp`. |
@@ -97,7 +97,7 @@ sequenceDiagram
     alt every criterion met >= threshold
         R->>A: release_payment
         A->>A: Release policy check (code, not prompt)
-        A->>A: Second opinion: a second model re-checks the evidence (can veto)
+        A->>A: Second opinion: a different model re-checks the evidence (can veto)
         opt client asked for an objection window
             A->>C: Verified - pays in N hours unless you object
         end
@@ -118,7 +118,7 @@ sequenceDiagram
 2. **Funding.** The server creates an Orders v2 order with `intent: AUTHORIZE`, the client approves it in the SDK v6 popup, and the server authorizes it. The money is held, not charged. The app shows the 3-day honor period and the 29-day expiry.
 3. **Delivery.** Notes, links, images, PDFs, text or code files.
 4. **Review.** The agent records one finding per criterion (status, confidence, evidence) and then makes one decision. Release = capture the authorization + send a Payout to the freelancer.
-5. **Second opinion.** Before any money moves, a second model (Claude Haiku 5.5 by default, while Opus reviews; the hosted demo runs both on Haiku, in separate calls, to keep a review under a cent) gets the same evidence, the reviewer's findings and the pages it opened, and confirms or disputes each criterion. If it disputes one, or finds text trying to steer the reviewer, the release is refused and the reviewer has to ask for changes or hand the call to the client.
+5. **Second opinion.** Before any money moves, a different model (Claude Haiku 5.5 by default, while Opus reviews; on the hosted demo Haiku reviews and Claude Sonnet 5.5 re-checks) gets the same evidence, the reviewer's findings and the pages it opened, and confirms or disputes each criterion. If it disputes one, or finds text trying to steer the reviewer, the release is refused and the reviewer has to ask for changes or hand the call to the client.
 6. **Objection window (optional).** When creating the milestone the client can ask for 1, 24 or 48 hours to object. A verified milestone then shows a countdown: the client can pay right away, object (back to the freelancer with a note) or cancel. If nothing happens, the money moves when the window closes. 48 hours is the maximum, so the capture still falls inside PayPal's 3-day honor period.
 7. **Settling for part.** When the work is only partly done, either side can offer an amount; only the other side can accept it. Accepting captures just that amount with `final_capture`, so PayPal releases the rest of the hold back to the client, and the payout is for the settled amount.
 
@@ -336,6 +336,8 @@ Run end to end on October 26, 2026 with a sandbox Personal buyer:
 - **Void:** a $220.00 hold was cancelled by the client. PayPal reports the authorization as `VOIDED`, and nothing was charged.
 - **Again after the hardening passes:** an $85.00 hold through the popup (amount checked against the milestone), captured, payout `SUCCESS`. A second void of an already voided authorization returns `422 PREVIOUSLY_VOIDED`, which the cancel flow now accepts.
 - **Settlement (October 27):** a $100.00 hold through the popup. The freelancer offered $60, the client accepted. PayPal captured $60.00 with `final_capture` (capture `COMPLETED`, authorization `CAPTURED`), and a later attempt to capture another $1.00 was refused with `422 AUTHORIZATION_ALREADY_CAPTURED`, so the remaining $40.00 can't be taken from the buyer. The $60.00 payout item reached `SUCCESS`.
+- **The record's fingerprint at PayPal, and the net payout (November 4):** a $3.00 hold paid as a guest with PayPal's sandbox test card, released by the client. The capture (`7PD81690XD5775830`) carries the record's fingerprint as its `invoice_id`, and `GET /v2/payments/captures/{id}` returns it, so the record download reports `paypalConfirmsFingerprint: true` and `verify-record.mjs` finds PayPal's fingerprint as step 2 of the chain. PayPal's fee was $0.42 (`seller_receivable_breakdown`), and the payout went out for the $2.58 net, not the gross.
+- **Delayed disbursement (November 4):** an order with `payment_instruction.disbursement_mode: DELAYED` and `platform_fees` is refused with `DELAYED_DISBURSEMENT_NOT_SUPPORTED` / `PLATFORM_FEES_NOT_SUPPORTED`: PayPal enables Multiparty only for approved partner platforms, which is why payouts go through Payouts here (see *Known limitations*).
 
 ## Evaluation
 
@@ -378,7 +380,7 @@ A review costs about 18k input and 1-1.3k output tokens, roughly $0.10. The dash
 - **AI can be wrong.** That's why release needs every criterion above a threshold the client picks, why uncertain cases escalate, and why the client can always override. Subjective criteria ("looks modern") should be avoided - the criteria drafter writes checkable ones.
 - **Payouts** must be enabled on the sandbox REST app; if a payout fails, the capture still stands and the failure is shown on the deal. A capture that PayPal leaves pending holds the payout until the `PAYMENT.CAPTURE.COMPLETED` webhook arrives (so it needs `PAYPAL_WEBHOOK_ID` and a public URL).
 - **Secret links instead of accounts.** Roles and privacy are enforced with a per-milestone key for each party, but there are no logins. The AG Studio dashboard is an operator view with no login: it shows every milestone (email addresses removed). The routes that call Claude are rate-limited per IP, with a shared cap on top (X-Forwarded-For can be faked when no proxy overwrites it); writes from other sites are refused, and the app sends `frame-ancestors 'none'` and `Referrer-Policy: same-origin`.
-- **Refunds after the payout** come out of the platform's balance: the freelancer was already paid. In production this needs PayPal's Multiparty payments with delayed disbursement (or a payout reserve), so a refund comes back from the freelancer's share.
+- **Refunds after the payout** come out of the platform's balance: the freelancer was already paid. In production this needs PayPal's Multiparty payments with delayed disbursement, which PayPal turns on only for approved partner platforms (the sandbox refuses it for this app, see above), or a payout reserve.
 - **Standing is per payout email.** Without accounts, a fresh PayPal email starts as a new freelancer, with the limits new freelancers get (two open claims, probation after held deliveries).
 - **Time-due PayPal work runs on any visit.** Renewing a hold past its 3-day guarantee, refreshing a pending payout and paying out after an objection window happen when the deal is read (or `/sync`ed) by anyone, because the free server has no scheduler; none of them can move money early.
 - This is a hackathon project, not a licensed escrow service.

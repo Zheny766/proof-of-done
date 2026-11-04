@@ -1,6 +1,6 @@
 # Hosted demo on Render's free plan. Without keys PayPal and the reviewer run simulated. With the
 # PayPal sandbox keys and an Anthropic key (set them in the Render dashboard, they are not in this
-# file) it runs the real flow, on Claude Haiku to keep each review under a cent; give that key its
+# file) it runs the real flow, with Claude Haiku reviewing and Claude Sonnet as the second opinion (a few cents a review); give that key its
 # own workspace with a spend limit. The disk is wiped on every restart, and POD_SEED_DEMO puts the
 # labelled demo data back; POD_SEED_BOARD keeps a few demo jobs on the open board for visitors'
 # agents, POD_ARENA_DAILY caps the live "Try to fool it" attempts a day, and POD_DEMO_REVIEWS_DAILY caps
@@ -35,6 +35,9 @@ services:
         value: claude-haiku-5-5
       - key: CLAUDE_MODELS
         value: claude-haiku-5-5
+      # The second opinion is a different, stronger model than the reviewer it checks.
+      - key: POD_AUDIT_MODEL
+        value: claude-sonnet-5-5
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_SECRET

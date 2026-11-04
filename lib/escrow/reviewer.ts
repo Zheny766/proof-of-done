@@ -396,7 +396,8 @@ export async function runClaudeAudit(m: Milestone, s: Submission, input: AuditIn
   const pages = input.pages.map((p) => ({ type: 'text' as const, text: `Page the reviewer opened (${encodeURI(p.url)}):\n${p.text}` }));
   const response = await client.messages.parse({
     model: AUDIT_MODEL,
-    max_tokens: 4000,
+    // Room for adaptive thinking (on by default on Sonnet) as well as the verdict.
+    max_tokens: 8000,
     system: AUDIT_PROMPT,
     output_config: { effort: 'medium', format: zodOutputFormat(AuditVerdict) },
     messages: [
