@@ -97,8 +97,8 @@ export function MoneyJourney({ m }: { m: Milestone }) {
   }
 
   return (
-    // On a phone two by two, each sign beside its words, small enough that what to do next is on the first screen;
-    // from sm up, four across joined by a line, with the detail under each step.
+    // On a phone two by two, small enough that what to do next is on the first screen; from sm up, four across
+    // under a progress bar, with the detail under each step. The sign always sits beside its words, never above.
     <ol className={`${card} mt-6 grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4 sm:gap-0`} aria-label="Where the money is">
       {steps.map((s, i) => {
         const done = stage > i && !(aiSkipped && i === 2) && !(payoutStuck && i === 3);
@@ -106,14 +106,13 @@ export function MoneyJourney({ m }: { m: Milestone }) {
         // The check stopped short (held for changes, or handed to the client): amber, not "working on it".
         const held = active && i === 2 && ['changes_requested', 'escalated'].includes(m.status);
         return (
-          <li key={s.title} className="relative flex items-center gap-2.5 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
-            {i > 0 && (
-              <span aria-hidden className="absolute top-6 right-1/2 hidden h-0.5 w-full sm:block">
-                <span className={`block h-full rounded-full ${stage >= i ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-              </span>
-            )}
+          <li key={s.title} className="relative flex items-center gap-2.5 sm:items-start sm:gap-3 sm:px-2 sm:pt-5">
             <span
-              className={`relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full ring-2 ring-white sm:h-12 sm:w-12 sm:ring-4 ${
+              aria-hidden
+              className={`absolute inset-x-2 top-0 hidden h-1 rounded-full sm:block ${done ? 'bg-emerald-400' : held ? 'bg-amber-300' : active ? 'bg-pp-blue' : 'bg-slate-200'}`}
+            />
+            <span
+              className={`relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full sm:h-11 sm:w-11 ${
                 done ? 'bg-emerald-500 text-white' : held ? 'bg-amber-400 text-white' : active ? 'pod-pulse bg-pp-blue text-white' : 'bg-slate-100 text-slate-400'
               }`}
             >
@@ -123,7 +122,7 @@ export function MoneyJourney({ m }: { m: Milestone }) {
                 <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{s.icon}</svg>
               )}
             </span>
-            <div className="min-w-0 sm:mt-3 sm:px-3">
+            <div className="min-w-0 sm:pt-0.5">
               <div className={`text-[13px] font-semibold leading-tight sm:text-[15px] ${done || active ? 'text-pp-ink' : 'text-pp-muted'}`}>{s.title}</div>
               <div className="mt-0.5 hidden text-[13px] leading-snug text-pp-muted sm:block">{s.sub}</div>
             </div>

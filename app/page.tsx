@@ -106,13 +106,13 @@ export default async function Home() {
             <h2 className="font-display text-3xl text-pp-navy">How it works</h2>
             <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {steps(gemini).map(([t, d], i) => (
-                // On a phone the number sits beside its step; from sm up, above it.
-                <li key={t} className="flex gap-4 sm:block">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{i + 1}</span>
-                  <div className="min-w-0">
-                    <div className="mt-1.5 text-[15px] font-semibold text-pp-navy sm:mt-3">{t}</div>
-                    <div className="mt-1 text-sm leading-relaxed text-pp-muted">{d}</div>
+                // The number always sits beside its step's title, never above it.
+                <li key={t}>
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pp-highlight text-sm font-bold text-pp-blue">{i + 1}</span>
+                    <div className="min-w-0 text-[15px] font-semibold leading-snug text-pp-navy">{t}</div>
                   </div>
+                  <div className="mt-2 text-sm leading-relaxed text-pp-muted">{d}</div>
                 </li>
               ))}
             </ol>
@@ -154,18 +154,19 @@ export default async function Home() {
               .map(([t, d], i) => (
                 <div
                   key={t}
-                  className={`flex gap-4 rounded-3xl p-6 sm:p-7 lg:flex-col lg:gap-0 ${i === 0 ? 'bg-pod-midnight text-white' : 'bg-white ring-1 ring-pp-border'}`}
+                  className={`rounded-3xl p-6 sm:p-7 ${i === 0 ? 'bg-pod-midnight text-white' : 'bg-white ring-1 ring-pp-border'}`}
                 >
-                  <span
-                    aria-hidden
-                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold ${i === 0 ? 'bg-pod-violet/20 text-pod-violet' : i === 1 ? 'bg-pp-highlight text-pod-electric-dark' : 'bg-emerald-50 text-emerald-700'}`}
-                  >
-                    {['3', '{ }', '✓'][i]}
-                  </span>
-                  <div className="min-w-0">
-                    <div className={`mt-1.5 text-xl font-semibold tracking-tight lg:mt-5 ${i === 0 ? '' : 'text-pp-navy'}`}>{t}</div>
-                    <p className={`mt-2 text-[15px] leading-relaxed ${i === 0 ? 'text-white/70' : 'text-pp-muted'}`}>{d}</p>
+                  {/* The sign sits beside the title, never above it. */}
+                  <div className="flex items-center gap-4">
+                    <span
+                      aria-hidden
+                      className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold ${i === 0 ? 'bg-pod-violet/20 text-pod-violet' : i === 1 ? 'bg-pp-highlight text-pod-electric-dark' : 'bg-emerald-50 text-emerald-700'}`}
+                    >
+                      {['3', '{ }', '✓'][i]}
+                    </span>
+                    <div className={`min-w-0 text-xl font-semibold leading-snug tracking-tight ${i === 0 ? '' : 'text-pp-navy'}`}>{t}</div>
                   </div>
+                  <p className={`mt-3 text-[15px] leading-relaxed ${i === 0 ? 'text-white/70' : 'text-pp-muted'}`}>{d}</p>
                 </div>
               ))}
           </div>
