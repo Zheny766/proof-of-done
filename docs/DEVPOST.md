@@ -82,15 +82,15 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 - Multiparty payments with delayed disbursement, so the freelancer's share stays with PayPal until the complaint window closes and a refund comes back from it.
 
 ## Built with
-`paypal` `paypal-orders-api` `paypal-payouts` `paypal-js-sdk-v6` `paypal-agent-toolkit` `claude` `anthropic` `mcp` `ag-grid` `ag-studio` `next.js` `react` `typescript` `tailwindcss` `zod` `render`
+`paypal` `paypal-orders-api` `paypal-payouts` `paypal-js-sdk-v6` `paypal-agent-toolkit` `claude` `anthropic` `mcp` `ag-grid` `ag-studio` `bryntum` `openapi` `next.js` `react` `typescript` `tailwindcss` `zod` `render`
 
 ## Tools used (AI / sponsor tools field)
 - Claude Opus 5.5 (Anthropic API): the reviewer agent that decides whether to pay and calls PayPal through its tools, and criteria drafting.
-- Claude Haiku 5.5 (Anthropic API): the independent second opinion that has to confirm every release, and the default model of the AG Studio assistant (through the Claude adapter).
+- Claude Haiku 5.5 and Claude Sonnet 5.5 (Anthropic API): the independent second opinion that has to confirm every release (Haiku while Opus reviews; Sonnet while Haiku reviews on the hosted demo), and Haiku as the default model of the AG Studio assistant (through the Claude adapter).
 - Claude Code (AI coding assistant) helped write and review the code; I chose the idea, made the product and design calls, and tested every money path against the PayPal sandbox.
 - AG Grid (live deals ledger) and AG Studio (escrow dashboard, Agent Framework running on Claude).
 - Bryntum Gantt (each project's plan against what happened).
-- PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/void/reauthorize, Payouts, webhooks, JS SDK v6, and PayPal's Agent Toolkit.
+- PayPal Developer Platform (sandbox): Orders v2, Payments v2 capture/partial capture/void/reauthorize/refund, Payouts (and cancelling an unclaimed payout), Disputes (provide-evidence), webhooks, JS SDK v6, and PayPal's Agent Toolkit.
 - Model Context Protocol: the job board's tools for agents, hosted over Streamable HTTP and local over stdio. Claude Code is the agent in the video.
 - Render: the hosted demo, from a blueprint.
 
