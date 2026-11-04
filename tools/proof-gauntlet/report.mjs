@@ -48,7 +48,7 @@ export function validateRun(cases, run, name) {
     must(cases.has(r.id) && !map.has(r.id), 'Unknown/duplicate result '+r.id);
     must(r.expect===cases.get(r.id).expect, 'Ground truth changed for '+r.id);
     must(['held','released'].includes(r.outcome), 'Unrecognized result '+r.id);
-    must(r.pass===((r.expect==='release')===(r.outcome==='released')), 'Incorrect pass flag '+r.id);
+    must(r.pass===(r.decision!=='error'&&((r.expect==='release')===(r.outcome==='released'))), 'Incorrect pass flag '+r.id);
     must(Number.isFinite(r.cost) && r.cost>=0 && Number.isFinite(r.seconds) && r.seconds>=0, 'Invalid cost or latency '+r.id);
     must(typeof r.thirdCheck==='string', 'Missing third check field '+r.id);
     map.set(r.id,r);
@@ -153,9 +153,9 @@ export function build() {
     '',
     '**Do not extrapolate 0/41 to 100% security.** Under a hypothetical independent identically distributed sample, the Wilson 95% upper bound for a zero-error rate over 41 cases is '+percent(wilsonUpper(0,41),1)+'. These attacks are prepared and correlated, so even that statistical assumption is not justified for deployment.',
     '',
-    '## Fresh counterfactuals prepared for a later paid run',
+    '## Fresh counterfactuals: a second recorded AI run',
     '',
-    'A separate deterministic generator has produced **19 additional cases: 7 expected releases and 12 expected holds**, each backed by a modified Markdown or text file. Their labels were set before any model call. They have **not been evaluated by Claude or Gemini** and do **not** count toward the 57 observed results. Run `npm run gauntlet:prepare` to rebuild them; results are not claimed until an explicitly approved paid AI run is completed. The generated inputs are in `tools/proof-gauntlet/generated/`.',
+    'A separate generator produced **19 additional, pre-labelled cases**: 7 honest and 12 broken. These were evaluated in a **new recorded live-model run** ([full case-level report](PROOF-GAUNTLET-LIVE.md)): Haiku + Sonnet + Gemini correctly judged 19/19; Opus + Haiku + Gemini correctly judged 17/17 completed cases, with 2 API workspace-limit errors **excluded** from the accuracy denominator. These 19 are related variants, not independent samples; no PayPal captures were performed. The fixture generator is `npm run gauntlet:prepare`.',
     '',
     '## Counterfactual and metamorphic relations',
     '',

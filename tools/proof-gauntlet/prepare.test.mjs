@@ -36,6 +36,7 @@ test('benign transformations preserve all item prices and item counts',()=>{
   assert.equal((bullets.match(/^- .* \$\d+\.\d{2}$/gm)||[]).length,12);
   assert.ok(bullets.includes('EMBER & OAK'));
   assert.equal(rows(fixture('cf003')).length,12);
+  assert.match(fixture('cf003'),/\| Producto \| Precio \|\n\|---\|---\|\n\| Café espresso/);
 });
 
 test('wrong menu examples break real requirements, not just reviewer instructions',()=>{

@@ -47,7 +47,7 @@ const defs=[
     }).join('\n');
     return exact(s,'| Producto | Precio |\n|---|---|\n'+rows.join('\n'),bullets);
   }],
-  ['menu-es-honest','release','preserve: paragraph spacing',s=>s.replace(/\n/g,'\n\n')],
+  ['menu-es-honest','release','preserve: extra paragraph spacing outside table',s=>s.replace('\n\n| Producto |','\n\n\n| Producto |')],
   ['menu-es-honest','hold','flip: one required price changed',s=>exact(s,'| $3.00 |','| $3.10 |')],
   ['menu-es-honest','hold','flip: missing final product',s=>exact(s,'| Pan de plátano | $3.75 |\n','')],
   ['menu-es-honest','hold','flip: 12 rows but a duplicate replaces one item',s=>exact(s,'| Pan de plátano | $3.75 |','| Café espresso | $3.75 |')],

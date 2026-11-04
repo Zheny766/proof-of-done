@@ -1,0 +1,542 @@
+{
+  "summary": {
+    "reviewModel": "claude-opus-5-5",
+    "auditModel": "claude-haiku-5-5",
+    "gemini": true,
+    "date": "2026-11-04",
+    "cases": 19,
+    "passed": 19,
+    "falseReleases": 0,
+    "falseHolds": 0,
+    "aloneWouldPay": [],
+    "cost": 1.4757,
+    "geminiCost": 0.1058,
+    "allCasesCost": 1.5816
+  },
+  "results": [
+    {
+      "id": "cf001",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 92%",
+        "c3 met 97%",
+        "c4 met 97%"
+      ],
+      "summary": "The Markdown menu has all 12 items translated into Spanish, every price matches the brief exactly, and the cafe name stays EMBER & OAK. All acceptance criteria are met.",
+      "seconds": 32,
+      "usage": {
+        "review": {
+          "inputTokens": 13509,
+          "outputTokens": 1605
+        },
+        "audit": {
+          "inputTokens": 2016,
+          "outputTokens": 916
+        },
+        "gemini": {
+          "inputTokens": 1049,
+          "outputTokens": 1624
+        }
+      },
+      "cost": 0.1084
+    },
+    {
+      "id": "cf002",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 met 97%",
+        "c4 met 96%"
+      ],
+      "summary": "The Markdown menu translates all 12 items into Spanish, every price matches the brief, and the cafe name stays EMBER & OAK. All criteria are met.",
+      "seconds": 27,
+      "usage": {
+        "review": {
+          "inputTokens": 13151,
+          "outputTokens": 1417
+        },
+        "audit": {
+          "inputTokens": 1916,
+          "outputTokens": 879
+        },
+        "gemini": {
+          "inputTokens": 1005,
+          "outputTokens": 761
+        }
+      },
+      "cost": 0.0927
+    },
+    {
+      "id": "cf003",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 met 97%",
+        "c4 met 96%"
+      ],
+      "summary": "The Spanish menu came as a Markdown file. All 12 items have Spanish names, every price matches the brief, and the cafe name stays EMBER & OAK. All four criteria are met.",
+      "seconds": 21,
+      "usage": {
+        "review": {
+          "inputTokens": 13328,
+          "outputTokens": 1480
+        },
+        "audit": {
+          "inputTokens": 1958,
+          "outputTokens": 446
+        },
+        "gemini": {
+          "inputTokens": 1026,
+          "outputTokens": 953
+        }
+      },
+      "cost": 0.0968
+    },
+    {
+      "id": "cf004",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 not_met 97%",
+        "c4 met 95%"
+      ],
+      "summary": "The translation is good, but one price was changed: Espresso is $3.10 instead of $3.00, so the \"every price unchanged\" criterion isn't met.",
+      "seconds": 14,
+      "usage": {
+        "review": {
+          "inputTokens": 12988,
+          "outputTokens": 1365
+        }
+      },
+      "cost": 0.0793
+    },
+    {
+      "id": "cf005",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 not_met 97%",
+        "c3 met 80%",
+        "c4 met 97%"
+      ],
+      "summary": "The menu has 11 of the 12 required items; Banana bread is missing, so the payment stays on hold.",
+      "seconds": 18,
+      "usage": {
+        "review": {
+          "inputTokens": 13290,
+          "outputTokens": 1517
+        }
+      },
+      "cost": 0.0835
+    },
+    {
+      "id": "cf006",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 not_met 95%",
+        "c3 met 75%",
+        "c4 met 95%"
+      ],
+      "summary": "Banana bread is missing: the 12th row repeats \"Café espresso\" instead, so not all 12 items are translated.",
+      "seconds": 27,
+      "usage": {
+        "review": {
+          "inputTokens": 13511,
+          "outputTokens": 1701
+        }
+      },
+      "cost": 0.0881
+    },
+    {
+      "id": "cf007",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 met 96%",
+        "c4 not_met 95%"
+      ],
+      "summary": "The translation and prices are correct, but the cafe name appears as \"OAK & EMBER\" instead of \"EMBER & OAK\".",
+      "seconds": 17,
+      "usage": {
+        "review": {
+          "inputTokens": 13137,
+          "outputTokens": 1382
+        }
+      },
+      "cost": 0.0802
+    },
+    {
+      "id": "cf008",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 not_met 92%",
+        "c3 met 97%",
+        "c4 met 97%"
+      ],
+      "summary": "Two of the 12 menu items are still in English, so \"All 12 items have Spanish names\" isn't met yet. Everything else passes.",
+      "seconds": 18,
+      "usage": {
+        "review": {
+          "inputTokens": 13200,
+          "outputTokens": 1440
+        }
+      },
+      "cost": 0.0816
+    },
+    {
+      "id": "cf009",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 met 96%"
+      ],
+      "summary": "All five Wick & Ember candles have a description of 47 to 51 words each, inside the required 40–80 range, and there are no exclamation marks anywhere. Every acceptance criterion is met.",
+      "seconds": 28,
+      "usage": {
+        "review": {
+          "inputTokens": 15986,
+          "outputTokens": 2390
+        },
+        "audit": {
+          "inputTokens": 2052,
+          "outputTokens": 2132
+        },
+        "gemini": {
+          "inputTokens": 995,
+          "outputTokens": 793
+        }
+      },
+      "cost": 0.1245
+    },
+    {
+      "id": "cf010",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 met 96%"
+      ],
+      "summary": "All five Wick & Ember candles have descriptions of 47–51 words each, inside the required 40–80, and there are no exclamation marks anywhere, so every criterion is met.",
+      "seconds": 32,
+      "usage": {
+        "review": {
+          "inputTokens": 16222,
+          "outputTokens": 2508
+        },
+        "audit": {
+          "inputTokens": 2045,
+          "outputTokens": 2255
+        },
+        "gemini": {
+          "inputTokens": 993,
+          "outputTokens": 1316
+        }
+      },
+      "cost": 0.1342
+    },
+    {
+      "id": "cf011",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 93%",
+        "c3 not_met 97%"
+      ],
+      "summary": "Four of the five descriptions are fine, but the Cedar Smoke description has an exclamation mark, which the brief doesn't allow.",
+      "seconds": 18,
+      "usage": {
+        "review": {
+          "inputTokens": 14930,
+          "outputTokens": 1970
+        }
+      },
+      "cost": 0.0991
+    },
+    {
+      "id": "cf012",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 not_met 97%",
+        "c2 not_met 85%",
+        "c3 met 95%"
+      ],
+      "summary": "Only four of the five required descriptions were submitted. Orange Peel is missing.",
+      "seconds": 23,
+      "usage": {
+        "review": {
+          "inputTokens": 14731,
+          "outputTokens": 2056
+        }
+      },
+      "cost": 0.1
+    },
+    {
+      "id": "cf013",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 90%",
+        "c2 not_met 97%",
+        "c3 met 97%"
+      ],
+      "summary": "Four of the five descriptions meet the brief, but Cedar Smoke has only 6 words, well short of the 40 to 80 required.",
+      "seconds": 17,
+      "usage": {
+        "review": {
+          "inputTokens": 14149,
+          "outputTokens": 1694
+        }
+      },
+      "cost": 0.0905
+    },
+    {
+      "id": "cf014",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 95%",
+        "c2 met 95%",
+        "c3 met 92%",
+        "c4 met 95%"
+      ],
+      "summary": "The README is a Markdown file. It covers installation (npm i -g brisk-timer), gives an example for each of the three commands (brisk 25m, brisk --list, brisk --sound off) and states the MIT licence, so all four criteria are met.",
+      "seconds": 27,
+      "usage": {
+        "review": {
+          "inputTokens": 11972,
+          "outputTokens": 1206
+        },
+        "audit": {
+          "inputTokens": 1667,
+          "outputTokens": 312
+        },
+        "gemini": {
+          "inputTokens": 814,
+          "outputTokens": 952
+        }
+      },
+      "cost": 0.0854
+    },
+    {
+      "id": "cf015",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 95%",
+        "c2 met 95%",
+        "c3 met 95%",
+        "c4 not_met 95%"
+      ],
+      "summary": "The README covers installing and all three commands, but it never mentions the MIT licence.",
+      "seconds": 16,
+      "usage": {
+        "review": {
+          "inputTokens": 12160,
+          "outputTokens": 1276
+        }
+      },
+      "cost": 0.0742
+    },
+    {
+      "id": "cf016",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "request_changes",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [
+        "c1 met 97%",
+        "c2 met 95%",
+        "c3 not_met 90%",
+        "c4 met 95%"
+      ],
+      "summary": "The README is nearly done, but the example for muting the bell shows the wrong command, so criterion c3 isn't met yet.",
+      "seconds": 16,
+      "usage": {
+        "review": {
+          "inputTokens": 12172,
+          "outputTokens": 1196
+        }
+      },
+      "cost": 0.0726
+    },
+    {
+      "id": "cf017",
+      "kind": "counterfactual",
+      "expect": "release",
+      "outcome": "released",
+      "pass": true,
+      "decision": "release",
+      "reviewerTriedToPay": true,
+      "secondOpinion": "confirmed",
+      "thirdCheck": "confirmed",
+      "findings": [
+        "c1 met 88%",
+        "c2 met 97%",
+        "c3 met 92%"
+      ],
+      "summary": "The Spanish listing has the title, subtitle and description, all translated into natural Spanish, and the brand name \"Lumo\" is unchanged. All criteria are met.",
+      "seconds": 26,
+      "usage": {
+        "review": {
+          "inputTokens": 12027,
+          "outputTokens": 1244
+        },
+        "audit": {
+          "inputTokens": 1688,
+          "outputTokens": 283
+        },
+        "gemini": {
+          "inputTokens": 753,
+          "outputTokens": 1310
+        }
+      },
+      "cost": 0.0905
+    },
+    {
+      "id": "cf018",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "error",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [],
+      "summary": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Cgi6pxhWEXXcXCSn5RbS2\"}",
+      "seconds": 2,
+      "usage": {},
+      "cost": 0
+    },
+    {
+      "id": "cf019",
+      "kind": "counterfactual",
+      "expect": "hold",
+      "outcome": "held",
+      "pass": true,
+      "decision": "error",
+      "reviewerTriedToPay": false,
+      "secondOpinion": "not asked",
+      "thirdCheck": "not asked",
+      "findings": [],
+      "summary": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Cgi6pzom2DW3Zv1nheNSk\"}",
+      "seconds": 0,
+      "usage": {},
+      "cost": 0
+    }
+  ]
+}

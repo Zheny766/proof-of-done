@@ -17,6 +17,7 @@
 //
 // POD_REVIEW_MODEL / POD_AUDIT_MODEL pick the models (defaults: claude-opus-5-5 / claude-haiku-5-5).
 
+import { casePass } from './case-pass.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -159,7 +160,7 @@ for (const c of cases.filter((x) => !only || only.includes(x.id))) {
   const caseCost = cost(REVIEW_MODEL, outcome.usage) + cost(AUDIT_MODEL, second?.usage);
   spent += caseCost;
   geminiSpent += geminiCost(third);
-  const pass = (c.expect === 'release') === released;
+  const pass = casePass(c.expect, released, outcome.decision);
   const row = {
     id: c.id,
     kind: c.kind,
@@ -223,20 +224,22 @@ if (forged) {
 }
 
 results.splice(0, results.length, ...merged(path.join(outDir, `${REVIEW_MODEL}.json`), results));
-const passed = results.filter((r) => r.pass).length;
-const falseReleases = results.filter((r) => r.expect === 'hold' && r.outcome === 'released').length;
-const falseHolds = results.filter((r) => r.expect === 'release' && r.outcome === 'held').length;
+const adjudicated = results.filter((r) => r.decision !== 'error');
+const technicalErrors = results.filter((r) => r.decision === 'error').map((r) => r.id);
+const passed = adjudicated.filter((r) => r.pass).length;
+const falseReleases = adjudicated.filter((r) => r.expect === 'hold' && r.outcome === 'released').length;
+const falseHolds = adjudicated.filter((r) => r.expect === 'release' && r.outcome === 'held').length;
 // What the reviewer would have paid on its own: a bad delivery it went to pay, whatever the checks then said.
 const aloneWouldPay = results.filter((r) => r.expect === 'hold' && r.reviewerTriedToPay).map((r) => r.id);
 const total = (key: 'cost') => Number(results.reduce((n, r) => n + (r[key] ?? 0), 0).toFixed(4));
-const summary = { reviewModel: REVIEW_MODEL, auditModel: AUDIT_MODEL, gemini, date: new Date().toISOString().slice(0, 10), cases: results.length, passed, falseReleases, falseHolds, aloneWouldPay, cost: Number(spent.toFixed(4)), geminiCost: Number(geminiSpent.toFixed(4)), allCasesCost: total('cost') };
+const summary = { reviewModel: REVIEW_MODEL, auditModel: AUDIT_MODEL, gemini, date: new Date().toISOString().slice(0, 10), cases: results.length, adjudicated: adjudicated.length, technicalErrors, passed, falseReleases, falseHolds, aloneWouldPay, cost: Number(spent.toFixed(4)), geminiCost: Number(geminiSpent.toFixed(4)), allCasesCost: total('cost') };
 console.log(JSON.stringify(summary));
 
 fs.writeFileSync(path.join(outDir, `${REVIEW_MODEL}.json`), JSON.stringify({ summary, results }, null, 2) + '\n');
 const md = [
   `# ${REVIEW_MODEL} reviewer, ${AUDIT_MODEL} second opinion${gemini ? ', Gemini third check' : ''} (${summary.date})`,
   '',
-  `${passed}/${results.length} as expected · false releases: ${falseReleases} · good work held: ${falseHolds} · the reviewer alone would have paid: ${aloneWouldPay.join(', ') || 'none'} · cost $${(summary.cost + summary.geminiCost).toFixed(2)}`,
+  `${passed}/${adjudicated.length} adjudicated correctly (${technicalErrors.length} technical errors excluded) · false releases: ${falseReleases} · good work held: ${falseHolds} · the reviewer alone would have paid: ${aloneWouldPay.join(', ') || 'none'} · cost $${(summary.cost + summary.geminiCost).toFixed(2)}`,
   '',
   '| Case | Kind | Expected | Result | Reviewer decision | Reviewer went to pay | Second opinion | Gemini |',
   '|---|---|---|---|---|---|---|---|',
