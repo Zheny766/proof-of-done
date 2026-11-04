@@ -110,6 +110,16 @@ export default async function ProofPage(props: PageProps<'/m/[id]/proof'>) {
           <ul className="mt-3 space-y-2">
             {m.criteria.map((c, i) => {
               const f = findings[i];
+              // A matter of taste: the client judged it, by paying or by letting the window close.
+              if (c.judge === 'client') {
+                return (
+                  <li key={c.id} className="flex items-start gap-3 rounded-xl bg-amber-50/60 px-4 py-3 text-[15px]">
+                    <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${paid ? 'bg-amber-400 text-white' : 'bg-slate-200 text-slate-500'}`}>{paid ? '✓' : '-'}</span>
+                    <span className="flex-1">{c.text}</span>
+                    <span className="shrink-0 text-xs font-semibold text-amber-800">{paid ? 'accepted by the client' : 'the client’s call'}</span>
+                  </li>
+                );
+              }
               const met = f?.status === 'met' && f.confidence >= m.releaseThreshold;
               return (
                 <li key={c.id} className="flex items-start gap-3 rounded-xl bg-pp-canvas/60 px-4 py-3 text-[15px]">

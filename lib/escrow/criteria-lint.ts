@@ -6,7 +6,7 @@
 export type CriterionHint = { word: string; hint: string };
 
 const RULES: [RegExp, string, RegExp?][] = [
-  [/\b(modern|beautiful|nice|clean|sleek|stylish|attractive|appealing|polished|elegant|pretty|cool|amazing|awesome|perfect|great|good)\b/i, 'is a matter of taste. Say what the reviewer can see: colours, fonts, sections, sizes.'],
+  [/\b(modern|beautiful|nice|clean|sleek|stylish|attractive|appealing|polished|elegant|pretty|cool|amazing|awesome|perfect|great|good|warm|(?<!user[- ])friendly|fun|playful|bold|fresh|catchy|memorable|inviting|cozy|cosy|vibrant|eye[- ]catching)\b/i, 'is a matter of taste. Say what the reviewer can see: colours, fonts, sections, sizes.'],
   [/\b(professional|high[- ]quality|best|excellent|premium|top[- ]notch)\b/i, "can't be measured. Name what makes it so: a format, a resolution, a word count, a source."],
   [/\b(user[- ]friendly|intuitive|easy to use|simple to use|seamless)\b/i, 'needs a user to judge. Name a concrete check: "the booking form has at most 4 fields".'],
   // Fine once it has a number ("loads in under 2 s").

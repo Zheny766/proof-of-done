@@ -28,6 +28,10 @@ export function Outcome({ m }: { m: Milestone }) {
     const captured = Number(m.payment.capturedAmount ?? m.amount);
     const settled = m.payment.capturedAmount && captured < Number(m.amount);
     const byAI = m.timeline.some((e) => e.type === 'verified') && checks.length > 0 && checks.every((a) => a.agreed);
+    // After the AI verified it, the client may still have paid by hand (in the objection window), or let the window close.
+    const approved = m.timeline.some((e) => e.type === 'approved');
+    const windowClosed = m.timeline.some((e) => e.type === 'window_closed');
+    const taste = m.criteria.some((c) => c.judge === 'client');
     const passed = (review ? 1 : 0) + checks.length;
     return (
       <section id="outcome" className="pod-rise relative mt-6 scroll-mt-4 overflow-hidden rounded-3xl bg-pod-midnight px-6 py-6 text-white ring-1 ring-pod-mint/40 sm:px-8">
@@ -39,14 +43,18 @@ export function Outcome({ m }: { m: Milestone }) {
             </span>
             <div>
               <h2 className="text-2xl font-semibold tracking-tight sm:text-[28px]">
-                {settled ? 'Settled.' : byAI ? 'Work verified.' : 'Approved.'} <span className="text-pod-mint">{fmtMoney(captured, m.currency)} released.</span>
+                {settled ? 'Settled.' : byAI && approved ? 'Verified and accepted.' : byAI ? 'Work verified.' : 'Approved.'} <span className="text-pod-mint">{fmtMoney(captured, m.currency)} released.</span>
               </h2>
               <p className="mt-1.5 text-[15px] text-white/75">
                 {settled
                   ? `Both sides agreed on part of ${fmtMoney(m.amount, m.currency)}: PayPal captured just that, and the rest of the hold went back to the client.`
-                  : byAI
-                    ? `${passed} AI checks passed · PayPal captured the hold and paid ${m.freelancer.name}. Nobody clicked approve.`
-                    : `${m.client.name} approved it · PayPal captured the hold and paid ${m.freelancer.name}.`}
+                  : byAI && approved
+                    ? `${passed} AI checks passed${taste ? ' on the facts' : ''} · ${m.client.name} ${taste ? 'accepted the rest' : 'paid without waiting for the window'}, and PayPal captured the hold and paid ${m.freelancer.name}.`
+                    : byAI && windowClosed
+                      ? `${passed} AI checks passed · ${m.client.name} didn't object within the window, so PayPal captured the hold and paid ${m.freelancer.name}.`
+                      : byAI
+                        ? `${passed} AI checks passed · PayPal captured the hold and paid ${m.freelancer.name}. Nobody clicked approve.`
+                        : `${m.client.name} approved it · PayPal captured the hold and paid ${m.freelancer.name}.`}
                 {refunded > 0 && ` ${fmtMoney(refunded, m.currency)} was refunded since.`}
               </p>
               {byAI && (
@@ -107,6 +115,31 @@ export function Outcome({ m }: { m: Milestone }) {
       </section>
     );
   }
+  // Verified, with time for the client to object: the AI is done, the payment waits for the window.
+  if (m.status === 'verified') {
+    const taste = m.criteria.filter((c) => c.judge === 'client').length;
+    return (
+      <section id="outcome" className="pod-rise mt-6 scroll-mt-4 rounded-3xl bg-violet-50 px-6 py-5 ring-1 ring-violet-200 sm:px-8">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-500 text-xl font-black text-white sm:h-12 sm:w-12">
+            ✓
+          </span>
+          <div className="min-w-0">
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-violet-800">{taste ? 'Facts verified · taste is the client’s call' : 'Verified · objection window'}</div>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-pp-navy">
+              {fmtMoney(m.amount, m.currency)} <span className="text-pp-muted">goes out when the window closes.</span>
+            </h2>
+            <p className="mt-1.5 text-[15px] text-pp-ink">
+              {taste
+                ? `The AI checked every criterion it can measure, and the other AIs agreed. ${taste === 1 ? 'One is' : `${taste} are`} a matter of taste, so ${m.client.name} decides: pay now, or object before the window closes.`
+                : `Every check passed. ${m.client.name} asked for time to object, so PayPal captures when the window closes, or sooner if ${m.client.name} pays now.`}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   // The AI's request is on the timeline at once; the review's own decision is written a moment later.
   if (m.status === 'changes_requested' && m.timeline.findLast((e) => e.type === 'changes_requested')?.actor === 'agent') {
     // Cleared means met at the client's confidence threshold, the same bar the release rule uses.

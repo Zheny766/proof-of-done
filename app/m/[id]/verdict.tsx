@@ -53,7 +53,7 @@ export function Verdict({ m }: { m: Milestone }) {
       )}
       <ul className="mt-5 space-y-3">
         {m.criteria.map((c, i) => (
-          <CriterionRow key={c.id} n={i + 1} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} />
+          <CriterionRow key={c.id} n={i + 1} text={c.text} finding={findings[i]} pending={m.status === 'reviewing' && !findings[i]} threshold={m.releaseThreshold} client={c.judge === 'client' ? m.client.name : undefined} />
         ))}
       </ul>
       {review?.audit && <SecondOpinion audit={review.audit} m={m} label="Second opinion" />}
@@ -63,7 +63,29 @@ export function Verdict({ m }: { m: Milestone }) {
   );
 }
 
-function CriterionRow({ n, text, finding, pending, threshold }: { n: number; text: string; finding?: CriterionFinding; pending: boolean; threshold: number }) {
+function CriterionRow({ n, text, finding, pending, threshold, client }: { n: number; text: string; finding?: CriterionFinding; pending: boolean; threshold: number; client?: string }) {
+  // A matter of taste the client judges: no AI score, just whose call it is and what the AI saw.
+  if (client) {
+    return (
+      <li className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+        <div className="flex gap-3">
+          <span aria-hidden className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-100 text-sm font-bold text-amber-800">
+            {n}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+              <span className="min-w-0 text-[15px] font-medium leading-snug text-pp-ink [overflow-wrap:anywhere]">{text}</span>
+              <span className="shrink-0 text-xs font-semibold text-amber-800">{client}&apos;s call</span>
+            </div>
+            <p className="mt-2 text-[13px] leading-relaxed text-pp-muted">
+              A matter of taste, so the AI doesn&apos;t judge it: {client} does, before PayPal pays.
+              {finding?.evidence && finding.evidence !== 'Left to the client: a matter of taste.' && <> What the AI saw: {finding.evidence}</>}
+            </p>
+          </div>
+        </div>
+      </li>
+    );
+  }
   // "met" but under the threshold doesn't count for release, so don't paint it green.
   const clears = finding?.status === 'met' && finding.confidence >= threshold;
   const tone = !finding

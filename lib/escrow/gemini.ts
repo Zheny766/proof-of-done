@@ -44,7 +44,9 @@ function toParts(blocks: Anthropic.Beta.BetaContentBlockParam[]): Part[] {
 }
 
 export async function runGeminiAudit(m: Milestone, s: Submission, input: AuditInput): Promise<Audit> {
-  const claims = m.criteria
+  // Like Claude's second opinion, Gemini confirms only the criteria the AI checks, not the client's taste.
+  const checked = m.criteria.filter((c) => c.judge !== 'client');
+  const claims = checked
     .map((c) => {
       const f = input.findings.find((x) => x.criterionId === c.id);
       return `- ${c.id}: ${c.text}\n  reviewer: ${f ? `${f.status} (${Math.round(f.confidence * 100)}%) - ${f.evidence}` : 'no finding'}`;
@@ -106,7 +108,7 @@ export async function runGeminiAudit(m: Milestone, s: Submission, input: AuditIn
         return { engine: 'gemini', model: name, agreed: false, summary: 'Gemini gave no verdict.', disputed: [], redFlags: [], usage };
       }
       // Same rule as Claude's second opinion: a skipped criterion is not confirmed, and any red flag stops the money.
-      const disputed = m.criteria
+      const disputed = checked
         .map((c) => ({ c, v: verdict.criteria.find((x) => x.criterion_id === c.id) }))
         .filter(({ v }) => !v?.confirmed)
         .map(({ c, v }) => ({ criterionId: c.id, reason: v?.reason ?? 'not checked' }));

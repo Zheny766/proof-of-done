@@ -22,7 +22,7 @@ import { deleteWhere, getMilestone, insertMilestone, listMilestones, newId, nowI
 import { CLAIM_LIMIT, scripted, trustFor, type Trust } from './trust.ts';
 
 export { CLAIM_LIMIT, trustFor, type Trust, type TrustTier } from './trust.ts';
-import type { Attachment, Audit, Milestone, MilestoneStatus, Review, Role, Terms } from './types.ts';
+import type { Attachment, Audit, Criterion, Milestone, MilestoneStatus, Review, Role, Terms } from './types.ts';
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
@@ -80,10 +80,23 @@ const Criteria = z
   .max(12)
   .transform((list) => list.filter((c, i) => list.findIndex((d) => d.toLowerCase() === c.toLowerCase()) === i));
 
+// When a deal is created a criterion can also say who judges it: { text, judge: 'client' } for a
+// matter of taste the client decides. A plain string is one the AI checks.
+const CriteriaInput = z
+  .array(z.union([z.string().trim().min(3).max(300), z.object({ text: z.string().trim().min(3).max(300), judge: z.enum(['ai', 'client']).default('ai') })]))
+  .min(1)
+  .max(12)
+  .transform((list) => {
+    const items = list.map((c) => (typeof c === 'string' ? { text: c, judge: 'ai' as const } : c));
+    return items.filter((c, i) => items.findIndex((d) => d.text.toLowerCase() === c.text.toLowerCase()) === i);
+  });
+const toCriteria = (list: { text: string; judge: 'ai' | 'client' }[]): Criterion[] =>
+  list.map((c, i) => ({ id: `c${i + 1}`, text: c.text, ...(c.judge === 'client' && { judge: 'client' as const }) }));
+
 export const CreateMilestoneInput = z.object({
   title: z.string().trim().min(3).max(120),
   description: z.string().trim().max(4000).default(''),
-  criteria: Criteria,
+  criteria: CriteriaInput,
   // At least $1: anything smaller rounds to 0.00, which PayPal refuses.
   amount: z.coerce.number().min(1).max(10_000),
   // USD only for now: the dashboard and the home page totals add amounts up as dollars.
@@ -112,7 +125,7 @@ export function createMilestone(raw: unknown): Milestone {
     id: newId('ms'),
     title: input.title,
     description: input.description,
-    criteria: input.criteria.map((text, i) => ({ id: `c${i + 1}`, text })),
+    criteria: toCriteria(input.criteria),
     amount: input.amount.toFixed(2),
     currency: input.currency,
     client: { name: input.clientName, email: input.clientEmail },
@@ -154,7 +167,7 @@ export const CreateProjectInput = CreateMilestoneInput.omit({ criteria: true, am
       z.object({
         title: z.string().trim().min(3).max(120),
         amount: z.coerce.number().min(1).max(10_000),
-        criteria: Criteria,
+        criteria: CriteriaInput,
         // The plan: how long the stage should take, which is also its deadline once it is funded. Each
         // stage starts when the one before is paid; at most 25 days, as PayPal holds money for 29.
         days: z.coerce.number().int().min(1).max(25).default(7),
@@ -444,15 +457,23 @@ export async function runReview(id: string, reviewId: string): Promise<void> {
             });
             return { error: `${latest.freelancer.name} is on probation (${trust.reason}); the client approves this payment` };
           }
-          const hours = latest.objectionHours ?? 0;
+          // Taste is the client's call: a deal with criteria for the client always gets an objection
+          // window (24 h unless the client chose one), so the AI's check alone never pays for them.
+          const taste = latest.criteria.filter((c) => c.judge === 'client').length;
+          const hours = latest.objectionHours || (taste ? 24 : 0);
           // The client asked for time to object: the money moves when the window closes.
           if (hours > 0) {
             const releaseAt = new Date(Date.now() + hours * 3_600_000).toISOString();
             updateMilestone(id, (x) => {
               x.status = 'verified';
               x.releaseAt = releaseAt;
-              pushEvent(x, 'agent', 'verified', `AI reviewer verified every criterion: ${summary}`);
-              pushEvent(x, 'system', 'release_scheduled', `The payment goes out in ${hours} h unless ${x.client.name} objects`);
+              pushEvent(x, 'agent', 'verified', taste ? `AI reviewer verified every criterion it checks; ${taste === 1 ? 'one is' : `${taste} are`} ${x.client.name}'s call: ${summary}` : `AI reviewer verified every criterion: ${summary}`);
+              pushEvent(
+                x,
+                'system',
+                'release_scheduled',
+                taste ? `${x.client.name} judges the rest: the payment goes out in ${hours} h unless ${x.client.name} objects` : `The payment goes out in ${hours} h unless ${x.client.name} objects`,
+              );
             });
             scheduleRelease(id, releaseAt);
             return { releaseAt };
@@ -846,7 +867,11 @@ async function changeTermsNow(id: string, input: z.infer<typeof TermsInput>, key
     if (x.payment.authorizationId) x.payment.authorizedAmount ??= x.amount;
     // A PayPal order made for the old amount can't fund the deal any more: the client starts a new one.
     else x.payment.orderId = undefined;
-    x.criteria = offer.to.criteria.map((text, i) => ({ id: `c${i + 1}`, text }));
+    // New terms are written as text; a criterion kept from before keeps who judges it.
+    x.criteria = offer.to.criteria.map((text, i) => {
+      const judge = x.criteria.find((c) => c.text.toLowerCase() === text.toLowerCase())?.judge;
+      return { id: `c${i + 1}`, text, ...(judge && { judge }) };
+    });
     x.amount = offer.to.amount;
     x.dueDays = offer.to.dueDays;
     // The deadline still counts from when PayPal took the hold.

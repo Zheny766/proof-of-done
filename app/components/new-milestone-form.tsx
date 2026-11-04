@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { api } from './status';
 import { criterionHint } from '@/lib/escrow/criteria-lint';
 
-/** Under a criterion the AI couldn't check: which words, and what to write instead. */
-function CriterionHints({ lines }: { lines: string[] }) {
+/**
+ * Under a criterion the AI couldn't check: which words, and what to write instead. Where the form
+ * allows it (onMine), a matter of taste can also stay as written and become the client's own call.
+ */
+function CriterionHints({ lines, onMine }: { lines: string[]; onMine?: () => void }) {
   const hints = lines.map((l) => [l, criterionHint(l)] as const).filter(([, h]) => h);
   if (!hints.length) return null;
   return (
@@ -14,6 +17,14 @@ function CriterionHints({ lines }: { lines: string[] }) {
       {hints.map(([line, h]) => (
         <li key={line}>
           <b>&ldquo;{h!.word}&rdquo;</b> {h!.hint}
+          {onMine && (
+            <>
+              {' '}
+              <button type="button" onClick={onMine} className="font-semibold text-amber-900 underline underline-offset-2 hover:no-underline">
+                Or keep it and judge it yourself
+              </button>
+            </>
+          )}
         </li>
       ))}
     </ul>
@@ -33,6 +44,8 @@ export function NewMilestoneForm() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [criteria, setCriteria] = useState<string[]>(['']);
+  // Which criteria are the client's own call (taste), alongside criteria: the AI checks the others.
+  const [mine, setMine] = useState<boolean[]>([false]);
   const [amount, setAmount] = useState('250');
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -87,7 +100,10 @@ export function NewMilestoneForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, description }),
       });
-      if (drafted.length) setCriteria(drafted);
+      if (drafted.length) {
+        setCriteria(drafted);
+        setMine(drafted.map(() => false));
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -133,7 +149,10 @@ export function NewMilestoneForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title, description, amount, currency: 'USD',
-          criteria: criteria.map((c) => c.trim()).filter(Boolean),
+          criteria: criteria
+            .map((c, i) => ({ text: c.trim(), judge: mine[i] ? ('client' as const) : ('ai' as const) }))
+            .filter((c) => c.text)
+            .map((c) => (c.judge === 'client' ? c : c.text)),
           clientName, clientEmail, releaseThreshold: threshold, objectionHours,
           ...(toBoard ? { postToBoard: true } : { freelancerName, freelancerEmail, ...(dueDays && { dueDays }) }),
         }),
@@ -218,16 +237,50 @@ export function NewMilestoneForm() {
               <div className="flex items-center gap-2">
                 <span className="w-5 text-right text-xs text-pp-muted">{i + 1}.</span>
                 <input className={field} aria-label={`Acceptance criterion ${i + 1}`} value={c} onChange={(e) => setCriteria(criteria.map((x, j) => (j === i ? e.target.value : x)))} placeholder={CRITERION_EXAMPLES[i % CRITERION_EXAMPLES.length]} />
-                <button type="button" aria-label="Remove criterion" onClick={() => setCriteria(criteria.length > 1 ? criteria.filter((_, j) => j !== i) : [''])} className="px-2 text-pp-muted hover:text-pp-danger">×</button>
+                {/* Facts are the AI's, taste is the client's: each criterion says who judges it. */}
+                <button
+                  type="button"
+                  aria-pressed={!!mine[i]}
+                  aria-label={`Who judges criterion ${i + 1}`}
+                  title={mine[i] ? 'You judge this one; the AI checks the rest' : 'The AI checks this one'}
+                  onClick={() => setMine(criteria.map((_, j) => (j === i ? !mine[j] : !!mine[j])))}
+                  className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${mine[i] ? 'bg-amber-50 text-amber-800 ring-amber-300' : 'bg-violet-50 text-violet-800 ring-violet-200'}`}
+                >
+                  {mine[i] ? 'I judge' : 'AI checks'}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Remove criterion"
+                  onClick={() => {
+                    setCriteria(criteria.length > 1 ? criteria.filter((_, j) => j !== i) : ['']);
+                    setMine(criteria.length > 1 ? mine.filter((_, j) => j !== i) : [false]);
+                  }}
+                  className="px-2 text-pp-muted hover:text-pp-danger"
+                >
+                  ×
+                </button>
               </div>
               <div className="pl-7">
-                <CriterionHints lines={[c]} />
+                {mine[i] ? (
+                  <p className="mt-1 text-xs text-amber-800">Your call: the AI checks the other criteria, and you get 24 h to object before PayPal pays.</p>
+                ) : (
+                  <CriterionHints lines={[c]} onMine={() => setMine(criteria.map((_, j) => (j === i ? true : !!mine[j])))} />
+                )}
               </div>
             </li>
           ))}
         </ol>
         {criteria.length < 12 && (
-          <button type="button" onClick={() => setCriteria([...criteria, ''])} className="mt-2 text-xs font-semibold text-pp-blue hover:underline">+ Add criterion</button>
+          <button
+            type="button"
+            onClick={() => {
+              setCriteria([...criteria, '']);
+              setMine([...criteria.map((_, j) => !!mine[j]), false]);
+            }}
+            className="mt-2 text-xs font-semibold text-pp-blue hover:underline"
+          >
+            + Add criterion
+          </button>
         )}
       </div>
       )}

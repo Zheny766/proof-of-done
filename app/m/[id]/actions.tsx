@@ -100,7 +100,8 @@ export function NextStep({
       return box(
         'Verified. Payment on its way',
         <>
-          The payment goes out <ReleaseCountdown at={m.releaseAt} /> unless {m.client.name} objects before then.
+          The payment goes out <ReleaseCountdown at={m.releaseAt} /> unless {m.client.name} objects before then
+          {m.criteria.some((c) => c.judge === 'client') ? `: ${m.client.name} judges the criteria that are a matter of taste.` : '.'}
         </>,
         'border-teal-200',
       );
@@ -315,6 +316,8 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
   // Paying and voiding can't be undone, so they take a second, explicit click.
   const [confirming, setConfirming] = useState<'approve' | 'cancel' | null>(null);
   const verified = m.status === 'verified';
+  // Criteria the client judges (taste): the window is where they do it.
+  const taste = m.criteria.filter((c) => c.judge === 'client').length;
   const amount = fmtMoney(m.amount, m.currency);
   async function act(action: 'approve' | 'request_changes' | 'cancel') {
     setConfirming(null);
@@ -347,9 +350,13 @@ function ClientDecision({ m, milestoneKey, onChange }: { m: Milestone; milestone
       <p className="mt-2 text-[15px] leading-relaxed text-pp-muted">
         {overdue ? (
           `${m.freelancer.name} hasn't delivered work that passed review by the deadline (${fmtDate(m.dueAt!)}). Keep waiting, or cancel and void the hold: nothing is charged.`
+        ) : verified && taste ? (
+          <>
+            The AI verified the criteria it checks and the other AIs agreed. {taste === 1 ? 'One criterion is' : `${taste} criteria are`} a matter of taste, so it&apos;s your call: pay now if you&apos;re happy, or object. If you say nothing, {amount} goes to {m.freelancer.name} <ReleaseCountdown at={m.releaseAt} />.
+          </>
         ) : verified ? (
           <>
-            The AI verified every criterion and a second model agreed. {amount} goes to {m.freelancer.name} <ReleaseCountdown at={m.releaseAt} /> unless you object.
+            The AI verified every criterion and the other AIs agreed. {amount} goes to {m.freelancer.name} <ReleaseCountdown at={m.releaseAt} /> unless you object.
           </>
         ) : m.status === 'escalated' && probation ? (
           `${probation.text}. The AI verified every criterion; read the verdict, then decide.`

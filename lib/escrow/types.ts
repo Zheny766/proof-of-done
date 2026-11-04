@@ -16,6 +16,11 @@ export type CriterionStatus = 'met' | 'not_met' | 'unclear';
 export interface Criterion {
   id: string;
   text: string;
+  /**
+   * 'client': a matter of taste ("the logo feels warm") that the client judges, not the AI. The AI
+   * checks the other criteria; with any of these, the money moves only after the client's objection window.
+   */
+  judge?: 'client';
 }
 
 export interface Party {

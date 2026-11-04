@@ -23,7 +23,7 @@ type Terms = Pick<Milestone, 'criteria' | 'amount' | 'currency' | 'submissions' 
 
 /** The terms a step seals, in a fixed shape (the deal record carries the same object). */
 export const sealedTerms = (m: Terms) => ({
-  criteria: m.criteria.map((c) => c.text),
+  criteria: m.criteria.map((c) => (c.judge === 'client' ? `${c.text} [client judges]` : c.text)),
   amount: m.amount,
   currency: m.currency,
   files: m.submissions.flatMap((s) => s.attachments.map((a) => a.sha256 ?? '')),

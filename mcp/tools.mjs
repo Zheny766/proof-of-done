@@ -51,6 +51,8 @@ function describe(m, role, origin) {
     `Acceptance criteria (each must be met with at least ${Math.round(m.releaseThreshold * 100)}% confidence):`,
     ...m.criteria.map((c) => {
       const f = verdicts[c.id];
+      // A matter of taste the client judges: the AI doesn't score it, the client decides during the objection window.
+      if (c.judge === 'client') return `- [${c.id}] ${c.text} (the client judges this one, not the AI; the payment waits for the client's objection window)`;
       return `- [${c.id}] ${c.text}${f ? ` -> ${f.status} ${Math.round(f.confidence * 100)}%: ${f.evidence}` : ''}`;
     }),
     review?.audit && `Second opinion: ${review.audit.agreed ? 'confirmed' : `refused (${[...review.audit.disputed.map((d) => `${d.criterionId}: ${d.reason}`), ...review.audit.redFlags].join('; ')})`}.`,

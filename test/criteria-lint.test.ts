@@ -7,6 +7,7 @@ import { criterionHint } from '../lib/escrow/criteria-lint.ts';
 test('taste, opinions, open scope and unprovable claims are flagged, with the word that did it', () => {
   for (const [text, word] of [
     ['The site looks modern', 'modern'],
+    ['The logo looks warm and friendly', 'warm'],
     ['A professional logo', 'professional'],
     ['The checkout is user-friendly', 'user-friendly'],
     ['The page is fast', 'fast'],
