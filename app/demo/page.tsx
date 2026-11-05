@@ -150,7 +150,7 @@ export default async function DemoPage() {
             </section>
           ))}
         </div>
-        <section className="relative mt-5 grid gap-8 overflow-hidden rounded-3xl bg-pod-midnight p-6 text-white sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
+        <section id="challenge" className="relative mt-5 grid scroll-mt-6 gap-8 overflow-hidden rounded-3xl bg-pod-midnight p-6 text-white sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:28px_28px]" />
           <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-300 via-rose-400 to-amber-300" />
           <div className="relative">

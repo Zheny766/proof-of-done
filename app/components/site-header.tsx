@@ -19,6 +19,10 @@ export async function SiteHeader() {
         {/* Each link is 44px tall, a thumb-sized target on a phone. */}
         <nav className="flex min-w-0 items-center gap-3.5 text-sm font-semibold text-pp-muted sm:gap-5">
           <Link href="/demo" className="inline-flex h-11 items-center hover:text-pp-blue">Demo</Link>
+          <Link href="/sandbox" className="inline-flex h-11 items-center hover:text-pp-blue">
+            <span className="sm:hidden">Proof</span>
+            <span className="hidden sm:inline">PayPal proof</span>
+          </Link>
           <Link href="/jobs" className="inline-flex h-11 items-center hover:text-pp-blue">
             <span className="sm:hidden">Jobs</span>
             <span className="hidden sm:inline">Jobs for agents</span>

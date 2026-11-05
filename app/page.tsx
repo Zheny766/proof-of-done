@@ -71,41 +71,43 @@ export default async function Home() {
     <>
       <SiteHeader />
       <main className="w-full">
-        {/* The Proof Engine is the page's hero. On a phone it comes straight after the headline, then the one
-            main action, then the explanation; on a wide screen it takes the larger column on the right. */}
-        <section className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6 px-6 pb-16 pt-8 sm:gap-y-7 sm:pt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
+        {/* The headline says who it is for and what it solves, then the actions, at any width: at a narrow width or a
+            browser zoom of 150% the main button stays on the first screen, above the Proof Engine and the explanation. */}
+        <section className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6 px-6 pb-16 pt-8 sm:gap-y-7 sm:pt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_auto_auto_1fr]">
           <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:self-end">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">Pay for proven results · from people or AI agents</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-pp-blue">For clients, freelancers and AI agents</p>
             <h1 className="mt-3 font-display text-[40px] leading-[1.04] text-pp-navy min-[380px]:text-[44px] sm:mt-4 sm:text-6xl">Get paid the moment the work is proven.</h1>
+            <p className="mt-4 max-w-xl text-xl leading-snug text-pp-navy">Delivery is not proof. Clients don&apos;t want to pay before the work is right, and workers don&apos;t want to work before the money is safe.</p>
           </div>
-          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 lg:col-start-1 lg:row-start-3">
+            <Link href="/demo" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-pod-electric px-7 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(36,107,253,0.8)] hover:bg-pod-electric-dark sm:w-auto">
+              Try it in 60 seconds
+            </Link>
+            <Link href="/sandbox" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-6 text-[15px] font-semibold text-pp-navy ring-1 ring-inset ring-pp-border hover:ring-pod-electric sm:w-auto">
+              See a real PayPal payout
+            </Link>
+            {/* Secondary on purpose: two actions lead, the others are there for whoever wants them. */}
+            <a href="#create" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
+              Create a deal
+            </a>
+            <Link href="/jobs" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
+              Jobs for AI agents
+            </Link>
+          </div>
+          <div className="min-w-0 lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center">
             <ProofEngine />
           </div>
-          <div className="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2">
-            <p className="order-2 mt-6 max-w-xl text-lg leading-relaxed text-pp-muted lg:order-1 lg:mt-0">
+          <p className="min-w-0 max-w-xl text-lg leading-relaxed text-pp-muted lg:col-start-1 lg:row-start-2">
               PayPal holds the client&apos;s money without charging it. When the work arrives, {gemini ? 'three AIs from two companies check' : 'two Claude models check'} it against the criteria you agreed on, and only then does PayPal pay out. Facts are the AI&apos;s to check; taste stays your call.
-            </p>
-            <div className="order-1 flex flex-wrap items-center gap-x-5 gap-y-3 lg:order-2 lg:mt-8">
-              <Link href="/demo" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-pod-electric px-7 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(36,107,253,0.8)] hover:bg-pod-electric-dark sm:w-auto">
-                Try it in 60 seconds
-              </Link>
-              {/* Secondary on purpose: one action leads, the others are there for whoever wants them. */}
-              <a href="#create" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
-                Create a deal
-              </a>
-              <Link href="/jobs" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
-                Jobs for AI agents
-              </Link>
-            </div>
-            <p className="order-3 mt-6 text-sm text-pp-muted">
+          </p>
+          <p className="min-w-0 text-sm text-pp-muted lg:col-start-1 lg:row-start-4">
               {paymentMode() === 'sandbox' ? 'Real PayPal sandbox calls on this server' : 'PayPal simulated on this server; the demo deals are replays of real runs'} ·{' '}
               {/* Say which models check here: the hosted demo reviews with Haiku and re-checks with Sonnet and Gemini. */}
               {isClaudeConfigured() && REVIEW_MODEL !== 'claude-opus-5-5'
                 ? `live reviews here by ${modelName(REVIEW_MODEL)}, the demo replays by Claude Opus 5.5; ${checkers} double-check`
                 : `Claude Opus 5.5 reviews, ${checkers} double-check`}{' '}
               · 0 false payouts across {bench.cases} deliveries built to fool it and 10 live tricks
-            </p>
-          </div>
+          </p>
         </section>
 
         <section className="border-y border-pp-border bg-white">

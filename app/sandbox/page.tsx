@@ -4,7 +4,11 @@ import { SiteHeader } from '@/app/components/site-header';
 import { fmtDate, fmtMoney } from '@/app/components/status';
 import { sandboxRuns, type SandboxRun } from '@/lib/escrow/sandbox-runs';
 import { modelName } from '../m/[id]/ui';
+import Link from 'next/link';
 import { Bench } from './bench';
+
+// The run recorded on the hosted site itself, shown in the demo video. Its record stays here after the free server restarts.
+const PUBLIC_RUN = 'ms_894336f0465e';
 
 export const metadata: Metadata = { title: 'Ran on the real PayPal sandbox' };
 
@@ -14,7 +18,8 @@ export default async function SandboxPage() {
   await connection();
   const runs = sandboxRuns();
   // Runs where the AI made the call and PayPal then paid out, with nobody clicking approve.
-  const loop = runs.filter((r) => r.review?.decision === 'release' && r.paypal.captureId);
+  const loop = runs.filter((r) => r.review?.decision === 'release' && r.paypal.captureId).sort((a, b) => Number(b.id === PUBLIC_RUN) - Number(a.id === PUBLIC_RUN));
+  const takers = loop.filter((r) => r.takenBy).length;
   const byAI = loop.length;
   return (
     <>
@@ -27,14 +32,16 @@ export default async function SandboxPage() {
           <>
             <p className="mt-3 max-w-3xl text-[17px] leading-relaxed text-pp-muted">
               {byAI === 1 ? 'One deal' : `${['Two', 'Three', 'Four', 'Five'][byAI - 2] ?? byAI} deals`} ran the whole loop with nobody clicking approve: funded as a PayPal guest with the test card, checked live by Claude, confirmed by a second Claude model and Google&apos;s Gemini, then captured and paid out.
-              {loop.some((r) => r.takenBy) && ' In one, the freelancer was an AI agent: Claude Code found the job on the board over MCP, did it and got paid.'}
+              {takers > 0 && ` In ${takers === 1 ? 'one' : takers === 2 ? 'two' : takers}, the freelancer was an AI agent: Claude Code found the job on the board over MCP, did it and got paid.`}
+              {loop.some((r) => r.id === PUBLIC_RUN) && ' The first one below ran on this public site, and it is the deal in the demo video.'}
             </p>
-            <div className={`mt-7 grid gap-4 sm:grid-cols-2 ${loop.length > 2 ? 'lg:grid-cols-3' : ''}`}>
+            <div className={`mt-7 grid gap-4 sm:grid-cols-2 ${loop.length === 3 ? 'lg:grid-cols-3' : ''}`}>
               {loop.map((run) => (
                 <a key={run.id} href={`#${run.id}`} className="group relative overflow-hidden rounded-3xl bg-pod-midnight p-6 text-white ring-1 ring-pod-mint/30 transition-shadow hover:shadow-[0_0_0_6px_rgba(178,245,219,0.12)]">
                   <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-pod-mint to-transparent" />
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
+                      {run.id === PUBLIC_RUN && <div className="mb-2 inline-flex rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/20">The deal in the demo video · ran on this site</div>}
                       <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-pod-mint">{run.takenBy ? `Earned by ${run.takenBy}` : 'Payout arrived'}</div>
                       <div className="mt-1 text-[17px] font-semibold leading-snug">{run.title}</div>
                     </div>
@@ -56,6 +63,12 @@ export default async function SandboxPage() {
             </div>
           </>
         )}
+        {/* The judge's path: the real payout, then the attack, then their own attempt. */}
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px] font-semibold text-pp-navy">
+          <span className="text-pp-muted">Next:</span>
+          <Link href="/demo" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">Watch a cheater get caught</Link>
+          <Link href="/demo#challenge" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">Try to fool it yourself</Link>
+        </div>
         <p className="mt-8 max-w-3xl text-[15px] leading-relaxed text-pp-muted">
           Every id below came back from <code className="text-[14px]">api-m.sandbox.paypal.com</code>: the order the client approved in the PayPal popup, the
           authorization that held the money, the capture, and the payout to the freelancer. Runs recorded since we started logging each REST call also
