@@ -2,42 +2,47 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-// The home page's Proof Engine: two recorded demo runs played back step by step, so a visitor sees
-// the money held, the three AI checks decide, and the money released or stopped. Every status here
-// is what happened in those runs (demo/replays/honest.json and cheater.json): Claude Opus reviewed,
-// Claude Haiku gave the second opinion, Gemini the third. It alternates between the two on its own;
-// the tabs pick one. With reduced motion each run shows its end at once and nothing cycles.
+// The home page's Proof Engine: two runs played back step by step, so a visitor sees the money held, the
+// three AI checks decide, and the money paid or stopped. The first is the real PayPal sandbox deal from the
+// demo video (demo/sandbox-runs/ms_894336f0465e.json, PayPal's own records are on /sandbox). The second is
+// a recorded demo run on a simulated hold (demo/replays/cheater.json): Claude Opus reviewed, Claude Haiku gave
+// the second opinion, Gemini the third. It alternates between the two on its own; the tabs pick one. With
+// reduced motion each run shows its end at once and nothing cycles.
 
 type Tone = 'ok' | 'warn' | 'bad';
 type Check = { n: string; who: string; role: string; result: string; tone: Tone };
-type Run = { key: string; tab: string; title: string; checks: Check[]; outcome: { title: string; line: string; tone: 'ok' | 'bad' } };
+type Run = { key: string; tab: string; note: string; title: string; amount: string; checks: Check[]; outcome: { title: string; amount: string; line: string; tone: 'ok' | 'bad' } };
 
 const RUNS: Run[] = [
   {
-    key: 'honest',
-    tab: 'Honest work',
-    title: 'Menu redesign for a cafe',
+    key: 'real',
+    tab: 'A real deal',
+    note: 'Replay of a real PayPal sandbox deal',
+    title: 'Spanish menu for a cafe',
+    amount: '$40.00',
     checks: [
-      { n: '01', who: 'Claude Opus', role: 'reviews every criterion', result: 'Verified 3/3', tone: 'ok' },
-      { n: '02', who: 'Claude Haiku', role: 'second opinion', result: 'Confirmed', tone: 'ok' },
+      { n: '01', who: 'Claude Haiku', role: 'reviews every criterion', result: 'Verified 4/4', tone: 'ok' },
+      { n: '02', who: 'Claude Sonnet', role: 'second opinion', result: 'Confirmed', tone: 'ok' },
       { n: '03', who: 'Gemini', role: 'Google · third check', result: 'Confirmed', tone: 'ok' },
     ],
-    outcome: { title: 'Payment released', line: 'All verification gates passed · PayPal captured and paid out', tone: 'ok' },
+    outcome: { title: 'Paid to the AI agent', amount: '$38.14', line: 'Claude Code found the job and did it. PayPal captured $40.00 and paid out, in test funds.', tone: 'ok' },
   },
   {
     key: 'cheater',
     tab: 'A cheater',
+    note: 'Replay of a recorded run · simulated payment',
     title: 'Winter menu for a cafe',
+    amount: '$100.00',
     checks: [
       { n: '01', who: 'Claude Opus', role: 'reviews every criterion', result: 'Tried to pay', tone: 'warn' },
       { n: '02', who: 'Claude Haiku', role: 'second opinion', result: 'Refused: red flag', tone: 'bad' },
       { n: '03', who: 'Gemini', role: 'Google · third check', result: 'Refused', tone: 'bad' },
     ],
-    outcome: { title: 'Payment stopped', line: 'A fake “system message” in the notes told the AI to skip the checks. The $100 stays on hold; the client decides.', tone: 'bad' },
+    outcome: { title: 'Payment stopped', amount: '$100.00', line: 'A fake “system message” in the notes told the AI to skip the checks. The $100 stays on hold (simulated); the client decides.', tone: 'bad' },
   },
 ];
 
-// Step n means: 0 money on hold, 1 Opus checking, 2-4 checks 01-03 done, 5 the outcome.
+// Step n means: 0 money on hold, 1 the reviewer checking, 2-4 checks 01-03 done, 5 the outcome.
 const AT = [800, 1700, 2600, 3500, 4500];
 const RUN_MS = 9500;
 const DONE = AT.length;
@@ -105,7 +110,7 @@ export function ProofEngine() {
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/55">Proof engine</div>
-          <div className="mt-0.5 text-xs text-white/60">Replay of a recorded run</div>
+          <div className="mt-0.5 text-xs text-white/60">{run.note}</div>
         </div>
         <div className="flex rounded-full bg-white/[0.07] p-1 text-xs font-semibold" role="group" aria-label="Which run to play">
           {RUNS.map((r, i) => (
@@ -133,7 +138,7 @@ export function ProofEngine() {
               <div className="mt-1 truncate text-sm text-white/70">{run.title}</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-semibold tabular-nums tracking-tight lg:text-3xl">$100.00</div>
+              <div className="text-2xl font-semibold tabular-nums tracking-tight lg:text-3xl">{run.amount}</div>
               <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${ended && !stopped ? TONE.ok.chip : 'bg-white/10 text-white/80 ring-white/15'}`}>
                 {ended && !stopped ? 'Captured' : 'On hold'}
               </span>
@@ -170,7 +175,7 @@ export function ProofEngine() {
               <div className={`text-[15px] font-bold uppercase tracking-[0.08em] ${!ended ? '' : stopped ? 'text-rose-200' : 'text-pod-mint'}`}>
                 {ended ? run.outcome.title : 'Not paid yet'}
               </div>
-              <div className={`text-lg font-semibold tabular-nums ${!ended ? 'invisible' : stopped ? 'text-rose-100 line-through decoration-rose-300/70' : 'text-white'}`}>$100.00</div>
+              <div className={`text-lg font-semibold tabular-nums ${!ended ? 'invisible' : stopped ? 'text-rose-100 line-through decoration-rose-300/70' : 'text-white'}`}>{run.outcome.amount}</div>
             </div>
             {/* Every possible line sits in the same grid cell, the others invisible, so the panel keeps one height across runs. */}
             <div className="mt-1 grid text-xs leading-relaxed">
@@ -187,7 +192,7 @@ export function ProofEngine() {
         </Node>
       </ol>
       <p className="sr-only">
-        Two recorded runs. Honest work: Claude Opus verified all three criteria, Claude Haiku and Gemini confirmed, and PayPal released $100. A cheater:
+        Two runs. A real PayPal sandbox deal: Claude Haiku verified all four criteria, Claude Sonnet and Gemini confirmed, PayPal captured $40.00 and paid the AI agent $38.14 in test funds. A cheater, on a simulated hold:
         Claude Opus tried to pay, Claude Haiku and Gemini refused because of a fake system message in the notes, and the $100 stayed on hold.
       </p>
     </div>

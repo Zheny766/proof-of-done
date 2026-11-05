@@ -84,7 +84,7 @@ export default async function Home() {
               Try it in 60 seconds
             </Link>
             <Link href="/sandbox" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-6 text-[15px] font-semibold text-pp-navy ring-1 ring-inset ring-pp-border hover:ring-pod-electric sm:w-auto">
-              See a real PayPal payout
+              See the real $38.14 payout
             </Link>
             {/* Secondary on purpose: two actions lead, the others are there for whoever wants them. */}
             <a href="#create" className="text-[15px] font-semibold text-pp-navy underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">
