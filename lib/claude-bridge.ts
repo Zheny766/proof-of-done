@@ -175,10 +175,26 @@ export function steeringInstructions(request: Pick<AgLlmRequest, 'toolChoice' | 
 
 type StreamEvent = Anthropic.Beta.BetaRawMessageStreamEvent;
 
+// Claude often names a delegation's target as a bare id ("data") where Studio wants { id: "data" }: Studio then
+// fails the step ("no target agent specified") and Claude has to try again, in front of the user.
+const DELEGATE = 'delegate_to';
+function delegateInput(input: unknown): unknown {
+  const target = (input as { type?: unknown } | null)?.type;
+  return typeof target === 'string' ? { ...(input as object), type: { id: target } } : input;
+}
+function delegateArgs(json: string): string {
+  try {
+    return JSON.stringify(delegateInput(JSON.parse(json)));
+  } catch {
+    return json;
+  }
+}
+
 /** Stateful translator for one turn's stream. */
 export class ClaudeToAgTranslator {
   private turnId = '';
-  private readonly blocks = new Map<number, { kind: 'text' | 'reasoning' | 'tool'; id: string }>();
+  // A delegation's arguments are held back until they are complete, so its target can be put right.
+  private readonly blocks = new Map<number, { kind: 'text' | 'reasoning' | 'tool'; id: string; held?: string }>();
 
   translate(event: StreamEvent): AgAiEvent[] {
     switch (event.type) {
@@ -197,7 +213,7 @@ export class ClaudeToAgTranslator {
           return [{ type: 'REASONING_MESSAGE_START', messageId: id, role: 'reasoning' }];
         }
         if (b.type === 'tool_use') {
-          this.blocks.set(event.index, { kind: 'tool', id: b.id });
+          this.blocks.set(event.index, { kind: 'tool', id: b.id, ...(b.name === DELEGATE && { held: '' }) });
           return [{ type: 'TOOL_CALL_START', toolCallId: b.id, toolCallName: b.name }];
         }
         return [];
@@ -208,7 +224,13 @@ export class ClaudeToAgTranslator {
         const d = event.delta;
         if (d.type === 'text_delta') return [{ type: 'TEXT_MESSAGE_CONTENT', messageId: open.id, delta: d.text }];
         if (d.type === 'thinking_delta' && d.thinking) return [{ type: 'REASONING_MESSAGE_CONTENT', messageId: open.id, delta: d.thinking }];
-        if (d.type === 'input_json_delta' && d.partial_json) return [{ type: 'TOOL_CALL_ARGS', toolCallId: open.id, delta: d.partial_json }];
+        if (d.type === 'input_json_delta' && d.partial_json) {
+          if (open.held !== undefined) {
+            open.held += d.partial_json;
+            return [];
+          }
+          return [{ type: 'TOOL_CALL_ARGS', toolCallId: open.id, delta: d.partial_json }];
+        }
         return [];
       }
       case 'content_block_stop': {
@@ -216,6 +238,7 @@ export class ClaudeToAgTranslator {
         if (!open) return [];
         if (open.kind === 'text') return [{ type: 'TEXT_MESSAGE_END', messageId: open.id }];
         if (open.kind === 'reasoning') return [{ type: 'REASONING_MESSAGE_END', messageId: open.id }];
+        if (open.held) return [{ type: 'TOOL_CALL_ARGS', toolCallId: open.id, delta: delegateArgs(open.held) }, { type: 'TOOL_CALL_END', toolCallId: open.id }];
         return [{ type: 'TOOL_CALL_END', toolCallId: open.id }];
       }
       default:
@@ -249,7 +272,7 @@ export function toAgResponse(message: Anthropic.Beta.BetaMessage, jsonOutput = f
         type: 'function_call',
         callId: b.id,
         name: b.name,
-        arguments: JSON.stringify(b.input ?? {}),
+        arguments: JSON.stringify((b.name === DELEGATE ? delegateInput(b.input) : b.input) ?? {}),
         status: 'completed',
       });
     }

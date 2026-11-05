@@ -100,6 +100,22 @@ test('stream translation and final response share ids', () => {
   assert.equal((events[3] as any).messageId, final.output[1].id);
   assert.equal(final.output[2].type, 'function_call');
   assert.equal((final.output[2] as any).arguments, '{"a":1}');
+
+  // A delegation that names its target by bare id reaches Studio as the object it wants.
+  {
+    const t = new ClaudeToAgTranslator();
+    t.translate({ type: 'message_start', message: { id: 'msg_1' } } as any);
+    t.translate({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_1', name: 'delegate_to', input: {} } } as any);
+    assert.deepEqual(t.translate({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"type":"da' } } as any), [], 'held until complete');
+    t.translate({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: 'ta","instructions":"sum it"}' } } as any);
+    const events = t.translate({ type: 'content_block_stop', index: 0 } as any) as any[];
+    assert.deepEqual(JSON.parse(events[0].delta), { type: { id: 'data' }, instructions: 'sum it' });
+    assert.equal(events[1].type, 'TOOL_CALL_END');
+  
+    const final = (input: unknown) => JSON.parse((toAgResponse({ id: 'msg_1', model: 'm', stop_reason: 'tool_use', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', id: 'toolu_1', name: 'delegate_to', input }] } as any).output[0] as any).arguments);
+    assert.deepEqual(final({ type: 'data', instructions: 'sum it' }), { type: { id: 'data' }, instructions: 'sum it' });
+    assert.deepEqual(final({ type: { id: 'data' } }), { type: { id: 'data' } }, 'the right shape is left alone');
+  }
 });
 
 test('JSON mode strips code fences from the final text', () => {

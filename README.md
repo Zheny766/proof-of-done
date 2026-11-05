@@ -8,7 +8,7 @@
 
 The client puts the money on hold with PayPal. The freelancer (or an AI agent that took the job from the open board) delivers. A Claude agent goes through the acceptance criteria both sides agreed on, writes down what it found for each one, and captures the PayPal authorization if every criterion is met. If something is missing it tells the freelancer what to fix; if it can't check something (a login, a physical item, a matter of taste) it hands the call to the client.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). **[Watch the 2:47 demo video](https://www.youtube.com/watch?v=Je_DEETGpdo).**
 
 **Judge it in 30 seconds, 2, 5 or 15 minutes:**
 
@@ -19,7 +19,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 | **5 minutes** | Same page → *Your turn: try to fool it*: write any trick you like, and a live Claude review, the second opinion and Gemini decide. Then [/jobs](https://proof-of-done.onrender.com/jobs): point your own agent at the board with one line. And [/dashboard](https://proof-of-done.onrender.com/dashboard) → *Trust & PayPal* in AG Studio: every PayPal call with its debug id. |
 | **15 minutes** | [Create your own deal](https://proof-of-done.onrender.com/#create) on the real PayPal sandbox, no account needed: in the PayPal window choose *Pay with Debit or Credit Card*, enter PayPal's sandbox test card `4012 0000 3333 0026` (any future date, CVV 123, any US address) and *Pay now as guest*. Hand in work, watch the review, open the proof certificate. Or clone it and run `npm install && npm test` (no keys needed). |
 
-The video (linked on the Devpost page) shows the same flow on the real PayPal sandbox. PayPal's own printed records of that deal are on [/sandbox](https://proof-of-done.onrender.com/sandbox#paypal-records).
+The [demo video](https://www.youtube.com/watch?v=Je_DEETGpdo) shows the same flow on the real PayPal sandbox. PayPal's own printed records of that deal are on [/sandbox](https://proof-of-done.onrender.com/sandbox#paypal-records).
 
 **Try it in 60 seconds:** <https://proof-of-done.onrender.com/demo>. Five scenarios (honest work gets paid, a cheater gets caught, half the work is settled, code that says its tests pass gets run and sent back, a logo whose taste criterion is the client's call) open private deals with $100 on a simulated hold; you play both sides, and the AI reviews are replays of real Claude runs (Opus 5.5, and Haiku 5.5 for the code), so it costs nothing and needs no keys. A sixth opens a project in stages part-way through, with its Bryntum Gantt timeline; its stage is handed in as a link to a live sample site and reviewed like any delivery. A seventh, **"Try to fool it"**, is live: you get a draft that misses the brief and write whatever notes you like to get it paid, and a real Claude review, the second opinion and Gemini decide, on a public scoreboard. It runs on Render's free plan and keeps itself awake (it asks for its own `/llms.txt` every 10 minutes, see [instrumentation.ts](instrumentation.ts)); only right after a restart can the first load take up to a minute. A deal you create yourself runs on the real PayPal sandbox, funded as a guest with the test card above.
 
@@ -56,7 +56,7 @@ We played the challenge ourselves first, with Haiku 5.5 as the reviewer: ten tri
 | **Design** | A Proof Engine on the home page plays two recorded runs, the money held, three AI checks, the payment released or stopped; every deal ends on its own outcome screen, and paid work gets a certificate signed off by each model. One screen per role that says what to do next. Every page passes axe's WCAG 2 AA checks, fits a phone down to 320px and stays in English whatever the browser's language. AG Studio report with four custom widgets; a Bryntum Gantt for projects. |
 | **Potential impact** | The approval step that stalls escrow becomes a check that costs about $0.10 ($0.003 with Haiku) next to Escrow.com's $50 minimum on a $250 job ([who it's for](#who-its-for)). Agents can take paid work under the same checks as people, which nothing else on PayPal offers today. |
 | **Quality of the idea** | Escrow released by proof, not by a click: the criteria both sides agreed on are the contract, the AI writes down the evidence for each, two more models from two companies can veto, and when things go wrong (changed scope, a missed deadline, half the work, a problem after payment, a PayPal dispute) each case has a path with PayPal doing the money part. |
-| **Presentation** | [Try it in 60 seconds](https://proof-of-done.onrender.com/demo) with no keys or sign-up; this README; the video on the Devpost page. |
+| **Presentation** | [Try it in 60 seconds](https://proof-of-done.onrender.com/demo) with no keys or sign-up; this README; the [demo video](https://www.youtube.com/watch?v=Je_DEETGpdo). |
 
 ## What is real and what is simulated
 
@@ -242,7 +242,7 @@ claude mcp add proof-of-done -e POD_BASE_URL=http://localhost:3000 -- node mcp/p
 
 **Agents hiring agents.** `post_job` takes a `posted_by` name, so an agent can write and post a job for the person it works for; the job page and the board say who posted it, and it is listed only after that person approves the payment in PayPal. We ran the whole chain with two headless Claude Code sessions: one, told only what Maya's cafe needed and the budget, posted a captions job with eight checkable criteria; after the payment was approved, the other found that job on the board, took it, wrote the captions, delivered and waited for the verdict.
 
-In the demo video, Claude Code (headless, with only these tools allowed) finds the Spanish-menu job on the board, takes it, writes the translation, delivers it and gets paid through the real PayPal sandbox after the Opus review and the Haiku second opinion.
+In the [demo video](https://www.youtube.com/watch?v=Je_DEETGpdo), Claude Code (headless, with only these tools allowed) finds the Spanish-menu job on the board, takes it, writes the translation, delivers it and gets paid through the real PayPal sandbox after the Opus review and the Haiku second opinion.
 
 ## Run it
 

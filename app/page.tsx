@@ -106,7 +106,7 @@ export default async function Home() {
               {isClaudeConfigured() && REVIEW_MODEL !== 'claude-opus-5-5'
                 ? `live reviews here by ${modelName(REVIEW_MODEL)}, the demo replays by Claude Opus 5.5; ${checkers} double-check`
                 : `Claude Opus 5.5 reviews, ${checkers} double-check`}{' '}
-              · 0 false payouts across {bench.cases} deliveries built to fool it and 10 live tricks
+              · {bench.paid} of {bench.bad} rigged or wrong test deliveries got paid (simulated payments); {bench.honestHeld} of {bench.honest} honest ones held
           </p>
         </section>
 

@@ -27,6 +27,9 @@ const RECORDS = [
 
 export const metadata: Metadata = { title: 'Ran on the real PayPal sandbox' };
 
+// What PayPal sent to the freelancer, as the deal's own record says: never worked out here from the amount and a fee.
+const paidOut = (run: SandboxRun) => run.timeline.map((e) => /Payout of ([\d.]+) [A-Z]{3} sent/.exec(e.text)?.[1] ?? /payout completed: ([\d.]+) [A-Z]{3}/.exec(e.text)?.[1]).find(Boolean) ?? null;
+
 // Deals recorded end to end against the real PayPal sandbox (lib/escrow/sandbox-runs.ts), with every
 // id PayPal returned. The hosted demo itself runs on simulated holds, so this is where the real ones are.
 export default async function SandboxPage() {
@@ -51,7 +54,9 @@ export default async function SandboxPage() {
               {loop.some((r) => r.id === PUBLIC_RUN) && ' The first one below ran on this public site, and it is the deal in the demo video.'}
             </p>
             <div className={`mt-7 grid gap-4 sm:grid-cols-2 ${loop.length === 3 ? 'lg:grid-cols-3' : ''}`}>
-              {loop.map((run) => (
+              {loop.map((run) => {
+                const paid = paidOut(run);
+                return (
                 <a key={run.id} href={`#${run.id}`} className="group relative overflow-hidden rounded-3xl bg-pod-midnight p-6 text-white ring-1 ring-pod-mint/30 transition-shadow hover:shadow-[0_0_0_6px_rgba(178,245,219,0.12)]">
                   <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-pod-mint to-transparent" />
                   <div className="flex items-start justify-between gap-3">
@@ -60,7 +65,19 @@ export default async function SandboxPage() {
                       <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-pod-mint">{run.takenBy ? `Earned by ${run.takenBy}` : 'Payout arrived'}</div>
                       <div className="mt-1 text-[17px] font-semibold leading-snug">{run.title}</div>
                     </div>
-                    <div className="text-3xl font-semibold tabular-nums tracking-tight">{fmtMoney(run.paypal.capturedAmount ?? run.amount, run.currency)}</div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {paid && (
+                      <div>
+                        <div className="text-xs text-white/60">{run.takenBy ? 'Paid to the AI agent' : 'Paid to the freelancer'}</div>
+                        <div className="mt-0.5 text-3xl font-semibold tabular-nums tracking-tight text-pod-mint">{fmtMoney(paid, run.currency)}</div>
+                        {run.paypal.payoutStatus && <div className="mt-1 text-xs font-semibold text-pod-mint">Payout {run.paypal.payoutStatus}</div>}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs text-white/60">PayPal captured</div>
+                      <div className="mt-0.5 text-3xl font-semibold tabular-nums tracking-tight text-white/85">{fmtMoney(run.paypal.capturedAmount ?? run.amount, run.currency)}</div>
+                    </div>
                   </div>
                   <ol className="mt-4 flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                     {[run.review?.reviewer, run.review?.secondOpinion?.by, run.review?.thirdCheck?.by].filter(Boolean).map((who, i) => (
@@ -68,19 +85,20 @@ export default async function SandboxPage() {
                         ✓ {modelName(who as string).replace(/ Preview$/, '')}
                       </li>
                     ))}
-                    <li className="rounded-full bg-white/10 px-2.5 py-1 text-white/85 ring-1 ring-inset ring-white/15">PayPal captured</li>
                   </ol>
                   <div suppressHydrationWarning className="mt-4 font-mono text-[11px] text-white/55">
                     capture {run.paypal.captureId} · {fmtDate(run.paypal.capturedAt ?? run.createdAt)}
                   </div>
                 </a>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
         {/* The judge's path: the real payout, then the attack, then their own attempt. */}
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px] font-semibold text-pp-navy">
           <span className="text-pp-muted">Next:</span>
+          <a href="#paypal-records" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">See PayPal&apos;s own records of the $40 deal</a>
           <Link href="/demo" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">Watch a cheater get caught</Link>
           <Link href="/demo#challenge" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">Try to fool it yourself</Link>
         </div>

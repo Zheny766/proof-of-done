@@ -56,7 +56,8 @@ export async function POST(request: Request) {
   const model = body.model?.id && models.includes(body.model.id) ? body.model.id : models[0];
   const effort = body.model?.effort && EFFORTS.has(body.model.effort) ? body.model.effort : 'medium';
   const { system, messages } = encodeConversation(body.input ?? [], rawContent);
-  const systemText = [body.instructions ?? '', ...system, ...steeringInstructions(body)].filter(Boolean).join('\n\n');
+  // Markdown would eat the underscore in a deal id such as ms_1a2b.
+  const systemText = [body.instructions ?? '', ...system, ...steeringInstructions(body), 'Write deal ids such as ms_1a2b in `backticks`.'].filter(Boolean).join('\n\n');
   const tools = body.toolChoice === 'none' ? [] : encodeTools(body.tools);
   const jsonOutput = body.responseFormat?.type === 'json';
 
