@@ -13,7 +13,7 @@
     "smoke": "node scripts/smoke.mjs",
     "gauntlet:prepare": "node tools/proof-gauntlet/prepare.mjs",
     "gauntlet:report": "node tools/proof-gauntlet/report.mjs",
-    "gauntlet:check": "node --test tools/proof-gauntlet/*.test.mjs && node tools/proof-gauntlet/report.mjs --check && node tools/proof-gauntlet/live-report.mjs --check",
+    "gauntlet:check": "node --test --test-concurrency=1 tools/proof-gauntlet/*.test.mjs && node tools/proof-gauntlet/report.mjs --check && node tools/proof-gauntlet/live-report.mjs --check",
     "gauntlet:live:report": "node tools/proof-gauntlet/live-report.mjs"
   },
   "dependencies": {
