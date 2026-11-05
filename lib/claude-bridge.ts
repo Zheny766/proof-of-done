@@ -175,12 +175,15 @@ export function steeringInstructions(request: Pick<AgLlmRequest, 'toolChoice' | 
 
 type StreamEvent = Anthropic.Beta.BetaRawMessageStreamEvent;
 
-// Claude often names a delegation's target as a bare id ("data") where Studio wants { id: "data" }: Studio then
-// fails the step ("no target agent specified") and Claude has to try again, in front of the user.
+// Claude often names a delegation's target its own way, a bare id ("type": "data") or a loose field ("id": "data"),
+// where Studio wants "type": { "id": "data" }. Studio then fails the step ("no target agent specified") and Claude
+// has to try again, in front of the user.
 const DELEGATE = 'delegate_to';
 function delegateInput(input: unknown): unknown {
-  const target = (input as { type?: unknown } | null)?.type;
-  return typeof target === 'string' ? { ...(input as object), type: { id: target } } : input;
+  const { type, id, agent, agentId, agent_id: agentIdSnake, target, ...rest } = (input ?? {}) as Record<string, unknown>;
+  if (type && typeof type === 'object') return input;
+  const named = [type, id, agent, agentId, agentIdSnake, target].find((v) => typeof v === 'string' && v);
+  return named ? { ...rest, type: { id: named } } : input;
 }
 function delegateArgs(json: string): string {
   try {

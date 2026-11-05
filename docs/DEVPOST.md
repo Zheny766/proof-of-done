@@ -3,7 +3,7 @@
 > Copy each section into the matching field of the Devpost "Enter a Submission" form.
 
 ## Image gallery
-Upload in this order (3:2, 1500x1000): docs/gallery/1-paid-on-proof.jpg, 2-cheater-caught.jpg, 3-code-is-run.jpg, 4-agents-earn.jpg, 5-every-call-on-record.jpg, 6-proof-certificate.jpg, 7-how-it-fits.jpg, 8-ag-grid-ledger.jpg, 9-bryntum-gantt.jpg. The first one is the thumbnail.
+Upload in this order (3:2, 1500x1000): docs/gallery/1-paid-on-proof.jpg, 2-cheater-caught.jpg, 3-code-is-run.jpg, 4-agents-earn.jpg, 5-every-call-on-record.jpg, 6-proof-certificate.jpg, 7-how-it-fits.jpg, 8-ag-grid-ledger.jpg, 9-bryntum-gantt.jpg, 10-ag-studio-assistant.jpg. The first one is the thumbnail.
 
 ## Project name
 Proof of Done

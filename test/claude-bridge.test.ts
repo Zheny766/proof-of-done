@@ -114,6 +114,7 @@ test('stream translation and final response share ids', () => {
   
     const final = (input: unknown) => JSON.parse((toAgResponse({ id: 'msg_1', model: 'm', stop_reason: 'tool_use', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', id: 'toolu_1', name: 'delegate_to', input }] } as any).output[0] as any).arguments);
     assert.deepEqual(final({ type: 'data', instructions: 'sum it' }), { type: { id: 'data' }, instructions: 'sum it' });
+    assert.deepEqual(final({ id: 'data', instructions: 'sum it' }), { type: { id: 'data' }, instructions: 'sum it' }, 'a loose id too');
     assert.deepEqual(final({ type: { id: 'data' } }), { type: { id: 'data' } }, 'the right shape is left alone');
   }
 });
