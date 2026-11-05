@@ -408,9 +408,10 @@ function submitWorkNow(id: string, input: SubmitInput, key: string | null): { mi
 // Deals anyone can open on the hosted demo (board demo jobs, the challenge) get live Claude reviews up
 // to a daily cap; after that they fall back to the simulated reviewer, so a visitor can't run up the bill.
 // Every deal also counts towards POD_LIVE_REVIEWS_DAILY: on the hosted sandbox anyone can fund a deal
-// with PayPal's test card, so a deal of one's own is no limit by itself.
-const DEMO_REVIEWS_DAILY = () => Number(process.env.POD_DEMO_REVIEWS_DAILY ?? 60);
-const LIVE_REVIEWS_DAILY = () => Number(process.env.POD_LIVE_REVIEWS_DAILY ?? 100);
+// with PayPal's test card, so a deal of one's own is no limit by itself. The defaults are the hosted demo's
+// (render.yaml): a server whose settings predate a cap, or that lost one, still has it.
+const DEMO_REVIEWS_DAILY = () => Number(process.env.POD_DEMO_REVIEWS_DAILY ?? 15);
+const LIVE_REVIEWS_DAILY = () => Number(process.env.POD_LIVE_REVIEWS_DAILY ?? 40);
 // Reviews, not deals: one deal can be delivered up to 12 times, and each delivery is a paid review.
 const liveReviewsSince = (since: number, demoOnly: boolean) =>
   listMilestones()
@@ -1296,7 +1297,7 @@ function startProjectDemo(): Milestone {
 // visitor writes whatever notes they like to get it paid anyway. A live Claude review, not a replay,
 // so it needs a key, and it is capped per day.
 const ARENA_FILE = 'brunch-menu-draft.pdf';
-const arenaDaily = () => Number(process.env.POD_ARENA_DAILY ?? 30);
+const arenaDaily = () => Number(process.env.POD_ARENA_DAILY ?? 10);
 const arenaDeals = () => listMilestones().filter((m) => m.demo?.scenario === 'arena');
 
 function arenaCheck() {

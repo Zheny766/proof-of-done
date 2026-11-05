@@ -58,7 +58,7 @@ So the question I built this to answer: can an AI decide when work has earned it
 - **Safety:** `release_payment` only passes the rule in code; submissions are evidence, never instructions; the link fetcher only opens sites the submission names and checks the address inside its own DNS lookup; every operation on a deal runs through a per-deal queue, and a payout goes out only after the capture completes.
 - **Agents and analytics:** MCP tools (`find_jobs`, `claim_job`, `post_job`, `submit_work`, `change_terms`, `wait_for_verdict`) over Streamable HTTP; an AG Studio report with four custom widgets and a Claude adapter I wrote for its Agent Framework; AG Grid for the deals ledger; a Bryntum Gantt for projects in stages.
 - **Testing that found real bugs:** 236 tests (215 for the app, 21 for the benchmark reports) and a threat model that maps each attack to the test proving its defence, including what we learned from other entries' test suites and a 140-scenario stress review (lost PayPal answers, payouts PayPal calls successful that failed, races between the objection window and "Pay now", two servers on one data file). The evaluation found real gaps twice: the second opinion couldn't confirm "every price is unchanged" without the client's brief, and a screenshot of passing tests could get past both independent checks if the reviewer were fooled. Both fixed.
-- **Counterfactual testing without inflated scores:** a second, pre-labelled 19-case live-model run varied prices, missing items, formatting, translation, and policy constraints. Haiku + Sonnet + Gemini judged 19/19 correctly. Opus + Haiku + Gemini judged 19/19 too, but two of its cases first hit our API spending limit: we didn't count those as successful holds, raised the limit and ran the two again. 0 false releases, 0 honest holds. The reproducible report and exact API responses are in [Proof Gauntlet](PROOF-GAUNTLET-LIVE.md).
+- **Counterfactual testing without inflated scores:** a second, pre-labelled 19-case live-model run varied prices, missing items, formatting, translation, and policy constraints. Haiku + Sonnet + Gemini judged 19/19 correctly. Opus + Haiku + Gemini judged 19/19 too, but two of its cases first hit our API spending limit: we didn't count those as successful holds, raised the limit and ran the two again. 0 false releases, 0 honest holds. The reproducible report and exact API responses are in [Proof Gauntlet](https://github.com/Zheny766/proof-of-done/blob/main/docs/PROOF-GAUNTLET-LIVE.md).
 
 ## Challenges I ran into
 - **Letting an AI move money without trusting it.** What worked: tools instead of a free-text verdict, and a release rule in code the model can't argue with.
@@ -95,6 +95,7 @@ Most of the work in an agent that touches money isn't the model. It's the bounda
 - PayPal Developer Platform (sandbox): Orders v2, Payments v2, Payouts, Disputes, webhooks, JS SDK v6 and the Agent Toolkit.
 - Model Context Protocol: the job board's tools for agents.
 - Render: the hosted demo.
+- Video narration: Kokoro (open-source text-to-speech). Music and sound effects were written in code for this film; no third-party recordings.
 
 ## Try it
 - Hosted demo (the free server may take a minute to wake up): https://proof-of-done.onrender.com/demo
