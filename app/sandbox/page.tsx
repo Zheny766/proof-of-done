@@ -10,6 +10,21 @@ import { Bench } from './bench';
 // The run recorded on the hosted site itself, shown in the demo video. Its record stays here after the free server restarts.
 const PUBLIC_RUN = 'ms_894336f0465e';
 
+const RECORDS = [
+  {
+    src: '/proof/paypal-capture-40.png',
+    title: 'The store: $40.00 captured',
+    line: 'Transaction 4PC797803F6670356, Custom ms_894336f0465e. PayPal’s fee $1.86, net $38.14.',
+    alt: 'PayPal sandbox transaction details: payment received, $40.00 USD gross, $1.86 fee, $38.14 net, transaction 4PC797803F6670356, custom ms_894336f0465e.',
+  },
+  {
+    src: '/proof/paypal-payout-38.png',
+    title: 'The agent: $38.14 received',
+    line: 'Transaction 9BK423911X9322052, paid by the store. The note names the same order, 9T988794RN914132L.',
+    alt: 'PayPal sandbox activity: payment received, +$38.14 from Test Store, transaction 9BK423911X9322052, with the reviewer’s note naming order 9T988794RN914132L.',
+  },
+];
+
 export const metadata: Metadata = { title: 'Ran on the real PayPal sandbox' };
 
 // Deals recorded end to end against the real PayPal sandbox (lib/escrow/sandbox-runs.ts), with every
@@ -69,6 +84,28 @@ export default async function SandboxPage() {
           <Link href="/demo" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">Watch a cheater get caught</Link>
           <Link href="/demo#challenge" className="underline decoration-pp-border decoration-2 underline-offset-4 hover:decoration-pod-electric">Try to fool it yourself</Link>
         </div>
+        {/* PayPal's own pages for the deal in the video, from its sandbox accounts: not this site's account of them. */}
+        <section id="paypal-records" className="mt-12 scroll-mt-6">
+          <h2 className="font-display text-3xl text-pp-navy">PayPal&apos;s own records of that $40 deal</h2>
+          <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-pp-muted">
+            Printed from PayPal&apos;s sandbox accounts, not from this site. The transaction id on the store&apos;s side is the deal&apos;s capture, Custom is its id, and
+            the Invoice ID carries the fingerprint of its tamper-proof record. The phone and email on the payout are hidden.
+          </p>
+          <div className="mt-5 grid items-start gap-4 sm:grid-cols-2">
+            {RECORDS.map(({ src, title, line, alt }) => (
+              <figure key={src} className="overflow-hidden rounded-2xl bg-white ring-1 ring-pp-border">
+                <figcaption className="border-b border-pp-border px-5 py-4">
+                  <div className="text-[15px] font-semibold text-pp-navy">{title}</div>
+                  <p className="mt-1 text-sm leading-relaxed text-pp-muted">{line}</p>
+                </figcaption>
+                <a href={src} aria-label={`Open full size: ${title}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={alt} width={1200} loading="lazy" className="block h-auto w-full" />
+                </a>
+              </figure>
+            ))}
+          </div>
+        </section>
         <p className="mt-8 max-w-3xl text-[15px] leading-relaxed text-pp-muted">
           Every id below came back from <code className="text-[14px]">api-m.sandbox.paypal.com</code>: the order the client approved in the PayPal popup, the
           authorization that held the money, the capture, and the payout to the freelancer. Runs recorded since we started logging each REST call also

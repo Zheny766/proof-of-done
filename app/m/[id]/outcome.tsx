@@ -47,7 +47,7 @@ export function Outcome({ m }: { m: Milestone }) {
               </h2>
               <p className="mt-1.5 text-[15px] text-white/75">
                 {settled
-                  ? `Both sides agreed on part of ${fmtMoney(m.amount, m.currency)}: PayPal captured just that, and the rest of the hold went back to the client.`
+                  ? `Both sides agreed on part of ${fmtMoney(m.amount, m.currency)}: ${m.payment.mode === 'simulated' ? 'the simulated hold paid' : 'PayPal captured'} just that, and the rest of the hold went back to the client.`
                   : byAI && approved
                     ? `${passed} AI checks passed${taste ? ' on the facts' : ''} · ${m.client.name} ${taste ? 'accepted the rest' : 'paid without waiting for the window'}, and PayPal captured the hold and paid ${m.freelancer.name}.`
                     : byAI && windowClosed
@@ -93,7 +93,7 @@ export function Outcome({ m }: { m: Milestone }) {
           <div className="min-w-0">
             <div className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Payment stopped</div>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-[28px]">
-              {fmtMoney(m.amount, m.currency)} <span className="text-white/60">stays on hold at PayPal.</span>
+              {fmtMoney(m.amount, m.currency)} <span className="text-white/60">{m.payment.mode === 'simulated' ? 'stays on hold (simulated).' : 'stays on hold at PayPal.'}</span>
             </h2>
             <p className="mt-1.5 text-[15px] text-white/75">
               {refusals.map(who).join(' and ')} refused to confirm the release, so nothing was paid and {m.client.name} decides.

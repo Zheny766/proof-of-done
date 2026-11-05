@@ -232,7 +232,7 @@ export function MilestoneView({
             <Person name={m.freelancer.name} tone="bg-amber-400 text-amber-950" />
             {m.postedBy && <span className="text-xs">· posted by {m.postedBy}</span>}
           </div>
-          <p className="mt-2 text-sm text-pp-muted">{m.status === 'released' && m.payment.payoutStatus && m.payment.payoutStatus !== 'SUCCESS' ? payoutText(m.payment.payoutStatus, m.freelancer.name) : STATUS[m.status].hint}</p>
+          <p className="mt-2 text-sm text-pp-muted">{m.status === 'released' && m.payment.payoutStatus && m.payment.payoutStatus !== 'SUCCESS' ? payoutText(m.payment.payoutStatus, m.freelancer.name) : m.status === 'released' && m.payment.mode === 'simulated' ? 'Paid out from a simulated hold.' : STATUS[m.status].hint}</p>
         </div>
         <div className="shrink-0 sm:text-right">
           <div className="text-4xl font-semibold tabular-nums tracking-tight text-pp-navy sm:text-5xl">{fmtMoney(paidNet ?? m.amount, m.currency)}</div>
